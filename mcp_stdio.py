@@ -68,7 +68,7 @@ def _install():
         return
 
     for loc in installed:
-        print(f"[OK] Installed to {loc}")
+        print(f"✓ Installed to {loc}")
     print(f"\nVELOCITY_USER_ID = {entry['env']['VELOCITY_USER_ID']}")
     print("Restart Claude to pick up the new server.")
 
