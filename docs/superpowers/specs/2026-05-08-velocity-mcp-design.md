@@ -278,10 +278,55 @@ This auto-detects Claude Code vs Claude Desktop and writes the correct config bl
 
 ---
 
-## 11. Out of Scope (v1)
+## 11. Cloud Hosting
 
-- Cloud hosting / remote MCP server (local only)
-- Multi-user / team contexts
+Velocity MCP ships as both a local server and a publicly hosted instance so users can connect from any machine without running anything locally.
+
+### Deployment target
+Railway (simplest Python + persistent volume story). One `railway.toml`, one `Procfile`, done.
+
+### What changes for cloud vs local
+
+| Concern | Local | Cloud |
+|---------|-------|-------|
+| Storage | `storage/data/*.json` on disk | Same JSON files on Railway persistent volume (`/data`) |
+| Auth | `VELOCITY_USER_ID` in stdio config | Same — user sets their ID, server scopes all reads/writes to it |
+| GROQ_API_KEY | `.env` file | Railway environment variable |
+| MCP connection | `VELOCITY_API_URL=http://localhost:8000` | `VELOCITY_API_URL=https://velocity.up.railway.app` |
+| `mcp_stdio.py` | Points at localhost | Points at cloud URL — zero code change |
+
+### Storage for cloud
+`STORAGE_PATH` env var (already in `store.py`) set to `/data` — Railway mounts a persistent volume there. JSON files survive redeploys. No Postgres needed.
+
+### Config snippet (cloud mode)
+```json
+{
+  "mcpServers": {
+    "velocity": {
+      "command": "python",
+      "args": ["mcp_stdio.py"],
+      "env": {
+        "VELOCITY_USER_ID": "arjun",
+        "VELOCITY_API_URL": "https://velocity.up.railway.app"
+      }
+    }
+  }
+}
+```
+
+The HTTP MCP endpoint (`/mcp`) works directly over the internet for clients that support HTTP transport — no stdio shim needed.
+
+### New files for cloud
+| File | Purpose |
+|------|---------|
+| `railway.toml` | Railway project config |
+| `Procfile` | `web: uvicorn main:app --host 0.0.0.0 --port $PORT` |
+
+---
+
+## 12. Out of Scope (v1)
+
+- Multi-user / team contexts (each user has their own ID, no shared workspaces)
 - ChatGPT native plugin (awaiting OpenAI MCP support GA)
 - Web UI changes (existing `static/index.html` unchanged)
 - Streaming tool responses (enhance returns full result on done, not chunk-by-chunk)
