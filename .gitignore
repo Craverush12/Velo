@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+
+# Storage (user data - not committed)
+storage/data/*.json
+
+# Dev tools
+.superpowers/brainstorm/*/state/
+.claude/worktrees/
+.claude/settings.local.json
