@@ -47,11 +47,12 @@ async def _generate(request: EnhanceRequest, background_tasks: BackgroundTasks):
     user_message = "\n".join(user_message_parts)
 
     accumulated = ""
+    usage_sink: dict = {}
 
     async def event_stream():
         nonlocal accumulated
         try:
-            async for chunk in stream_completion(_SYSTEM_PROMPT, user_message):
+            async for chunk in stream_completion(_SYSTEM_PROMPT, user_message, usage_sink=usage_sink):
                 accumulated += chunk
                 payload = json.dumps({"type": "chunk", "content": chunk})
                 yield f"data: {payload}\n\n"
@@ -60,6 +61,12 @@ async def _generate(request: EnhanceRequest, background_tasks: BackgroundTasks):
                 result = _normalize_result(json.loads(accumulated), clean_prompt)
                 if redactions:
                     result["_redactions"] = redactions
+                tokens_used = usage_sink.get("total_tokens", 0)
+                quality = float(result.get("prompt_quality_score", 0.5) or 0.5)
+                avg_retries = (1.0 - quality) * 2.5
+                tokens_saved = max(0, int(
+                    usage_sink.get("prompt_tokens", 0) * avg_retries
+                ))
                 background_tasks.add_task(
                     store.update_after_enhancement,
                     request.user_id,
@@ -68,6 +75,8 @@ async def _generate(request: EnhanceRequest, background_tasks: BackgroundTasks):
                     result.get("summary", ""),
                     result.get("framework_used"),
                     len(result.get("placeholder_fields") or []),
+                    tokens_used,
+                    tokens_saved,
                 )
                 payload = json.dumps({"type": "done", "result": result})
                 yield f"data: {payload}\n\n"
