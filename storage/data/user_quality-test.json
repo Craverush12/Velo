@@ -1,0 +1,30 @@
+{
+  "user_id": "quality-test",
+  "domains": [
+    "general"
+  ],
+  "frameworks_used": [
+    "RTF"
+  ],
+  "placeholder_count": 0,
+  "preferences": {
+    "output_style": "balanced",
+    "expertise_level": "intermediate",
+    "preferred_tools": [],
+    "industry": ""
+  },
+  "recent_context": [
+    {
+      "intent": "general_qa",
+      "domain": "general",
+      "summary": "This enhanced prompt aims to provide a clear and actionable request for a greeting, addressing the vagueness of the original prompt.",
+      "framework": "RTF",
+      "placeholder_count": 0,
+      "at": "2026-05-07T13:27:31.115925+00:00"
+    }
+  ],
+  "personalization_notes": "",
+  "enhancement_count": 1,
+  "created_at": "2026-05-07T13:27:31.115912+00:00",
+  "updated_at": "2026-05-07T13:27:31.115930+00:00"
+}

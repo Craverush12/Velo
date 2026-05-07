@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompt Enhancement Sandbox</title>
+<link rel="icon" href="data:,">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/vis-network.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/vis-network.min.js"></script>
+<style>
+:root {
+  --bg: #07080d;
+  --panel: #0d0f16;
+  --panel-2: #12151f;
+  --panel-3: #171b26;
+  --line: rgba(255,255,255,0.08);
+  --line-2: rgba(255,255,255,0.14);
+  --text: #e6e8ef;
+  --muted: #8a92a6;
+  --faint: #586174;
+  --accent: #8b9cff;
+  --accent-2: #5f7cff;
+  --gold: #f5b84b;
+  --ok: #33c481;
+  --warn: #e7a643;
+  --bad: #f2637b;
+  --mono: "DM Mono", ui-monospace, monospace;
+  --body: "Inter", system-ui, sans-serif;
+  --c-persona_injection: 99,102,241;
+  --c-task_clarification: 14,165,233;
+  --c-chain_of_thought: 245,158,11;
+  --c-output_format_spec: 16,185,129;
+  --c-constraint_definition: 244,63,94;
+  --c-context_framing: 139,92,246;
+  --c-few_shot_example: 168,85,247;
+  --c-negative_space: 239,68,68;
+  --c-target_ai_optimization: 249,115,22;
+  --c-step_back_trigger: 20,184,166;
+  --c-contrastive: 236,72,153;
+  --c-domain_specific_depth: 6,182,212;
+  --c-user_context_integration: 132,204,22;
+  --c-placeholder_facilitation: 148,163,184;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 45% -10%, rgba(95,124,255,0.22), transparent 34rem),
+    linear-gradient(180deg, #090a10 0%, #07080d 100%);
+  font-family: var(--body);
+  overflow: hidden;
+}
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+
+.app {
+  display: grid;
+  grid-template-columns: 248px minmax(480px, 1fr) 340px;
+  height: 100vh;
+}
+.app.left-collapsed { grid-template-columns: 0 minmax(480px, 1fr) 340px; }
+.app.right-collapsed { grid-template-columns: 248px minmax(480px, 1fr) 0; }
+.app.left-collapsed.right-collapsed { grid-template-columns: 0 minmax(480px, 1fr) 0; }
+.app.left-collapsed .sidebar,
+.app.right-collapsed .details {
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+}
+.toggle-rail {
+  position: fixed;
+  top: 66px;
+  z-index: 30;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: rgba(18,21,31,0.96);
+  color: var(--muted);
+}
+#toggleLeft { left: 10px; }
+#toggleRight { right: 10px; }
+.app:not(.left-collapsed) #toggleLeft { left: 258px; }
+.app:not(.right-collapsed) #toggleRight { right: 350px; }
+.sidebar, .details {
+  background: rgba(13,15,22,0.92);
+  border-color: var(--line);
+  min-height: 0;
+}
+.sidebar {
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+}
+.details {
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+}
+.brand {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+.logo {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #dce3ff, #7287ff 48%, #2d356f);
+  color: #090a10;
+  font-weight: 800;
+}
+.brand-title { font-weight: 700; letter-spacing: -0.02em; }
+.brand-sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+.side-scroll { padding: 12px; overflow: auto; min-height: 0; flex: 1; }
+.side-footer { padding: 12px; border-top: 1px solid var(--line); }
+
+.nav-btn, .history-card, .ghost, .primary, .tiny, .tab {
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.035);
+  color: var(--text);
+  border-radius: 8px;
+}
+.nav-btn {
+  width: 100%;
+  padding: 9px 10px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+  color: #d7dbee;
+}
+.nav-btn:hover, .nav-btn.active { background: rgba(139,156,255,0.13); border-color: rgba(139,156,255,0.36); }
+.nav-icon {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+.section-label {
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 18px 0 8px;
+}
+.history-card {
+  width: 100%;
+  text-align: left;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.history-card:hover { border-color: rgba(139,156,255,0.36); background: rgba(139,156,255,0.08); }
+.history-title { font-size: 12px; color: #f5f7ff; }
+.history-meta { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.35; }
+
+.workspace {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgba(7,8,13,0.62);
+}
+.topbar {
+  height: 56px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+}
+.crumb { color: var(--muted); font-size: 13px; }
+.crumb strong { color: var(--text); font-weight: 600; }
+.status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ok); box-shadow: 0 0 10px rgba(51,196,129,0.75); }
+.dot.busy { background: var(--warn); box-shadow: 0 0 10px rgba(231,166,67,0.75); }
+.dot.bad { background: var(--bad); box-shadow: 0 0 10px rgba(242,99,123,0.75); }
+.view { display: none; min-height: 0; flex: 1; }
+.view.active { display: flex; }
+
+.chat-view {
+  flex-direction: column;
+  overflow: hidden;
+}
+.thread {
+  flex: 1;
+  overflow: auto;
+  padding: 22px 22px 10px;
+}
+.message {
+  max-width: 980px;
+  margin: 0 auto 16px;
+  border: 1px solid var(--line);
+  background: rgba(18,21,31,0.76);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.message-head {
+  min-height: 40px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.message-title { font-size: 13px; font-weight: 650; }
+.message-meta { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.message-body { padding: 14px; }
+.empty {
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  text-align: center;
+}
+.empty h1 {
+  color: var(--text);
+  font-size: clamp(28px, 4vw, 46px);
+  letter-spacing: -0.05em;
+  margin: 0 0 10px;
+}
+.empty p { margin: 0; line-height: 1.55; max-width: 520px; }
+
+.composer {
+  border-top: 1px solid var(--line);
+  padding: 12px 18px 16px;
+  background: rgba(10,11,17,0.88);
+}
+.composer-inner {
+  max-width: 980px;
+  margin: 0 auto;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: rgba(18,21,31,0.94);
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+}
+#promptInput {
+  width: 100%;
+  min-height: 96px;
+  max-height: 230px;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  color: var(--text);
+  background: transparent;
+  padding: 14px;
+  line-height: 1.6;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.composer-row {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding: 8px;
+}
+.control-row { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.refine-options { display: grid; gap: 7px; margin-top: 8px; }
+.choice {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+  color: #cfd5e8;
+  font-size: 12px;
+}
+.choice input { margin-top: 2px; }
+select, input[type="text"], .blank-input, .note-input {
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 10px;
+  outline: none;
+}
+select { max-width: 170px; }
+select option { color: #111827; }
+.user-input { width: 135px; }
+.primary {
+  padding: 9px 14px;
+  background: linear-gradient(180deg, #8b9cff, #5f7cff);
+  color: #05060a;
+  border: 0;
+  font-weight: 700;
+}
+.primary:disabled { opacity: 0.6; cursor: wait; }
+.ghost, .tiny, .tab { padding: 8px 10px; color: var(--muted); }
+.ghost:hover, .tiny:hover, .tab:hover { color: var(--text); border-color: rgba(139,156,255,0.35); }
+.tiny { font-size: 12px; padding: 6px 8px; }
+.tab.active { color: var(--accent); background: rgba(139,156,255,0.12); border-color: rgba(139,156,255,0.32); }
+
+.tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+.prompt-output, .plain-output {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.plain-output {
+  width: 100%;
+  min-height: 220px;
+  color: var(--text);
+  background: rgba(255,255,255,0.035);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+.segment {
+  border-left: 3px solid rgba(var(--seg), 1);
+  background: rgba(var(--seg), 0.13);
+  border-radius: 4px;
+  padding: 1px 4px;
+  cursor: pointer;
+}
+.segment:hover { background: rgba(var(--seg), 0.24); }
+.segment.editing { outline: 1px solid rgba(var(--seg), 0.85); }
+.fill-token {
+  color: #dce3ff;
+  background: rgba(148,163,184,0.2);
+  border-bottom: 1px dashed rgba(220,227,255,0.72);
+  padding: 0 3px;
+}
+.streaming::after { content: "_"; color: var(--accent); animation: blink 0.8s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+.pill-row { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill {
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #cfd5e8;
+}
+.pill.good { border-color: rgba(51,196,129,0.35); color: #7ee0ad; background: rgba(51,196,129,0.08); }
+.pill.warn { border-color: rgba(231,166,67,0.35); color: #ffd27d; background: rgba(231,166,67,0.08); }
+.pill.bad { border-color: rgba(242,99,123,0.35); color: #ff9aab; background: rgba(242,99,123,0.08); }
+.summary { color: var(--gold); font-family: var(--mono); font-size: 12px; line-height: 1.55; margin-top: 12px; }
+.subtle { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.detail-section { padding: 14px; border-bottom: 1px solid var(--line); }
+.detail-section:empty { display: none; }
+.detail-section.interactive { cursor: pointer; }
+.detail-section.interactive:hover { background: rgba(139,156,255,0.055); }
+.detail-more {
+  display: none;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.035);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.detail-section.open .detail-more { display: block; }
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.compare-col {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.035);
+  padding: 12px;
+  min-width: 0;
+}
+.compare-label {
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+.detail-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+  font-family: var(--mono);
+  margin-bottom: 10px;
+}
+.metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+.metric {
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025));
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.metric-value { font-size: 22px; font-weight: 750; letter-spacing: -0.04em; }
+.metric-label { color: var(--muted); font-size: 11px; margin-top: 3px; }
+.progress { height: 6px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; margin-top: 8px; }
+.progress span { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--bad), var(--warn), var(--ok)); transition: width 0.4s ease; }
+.blank-card, .qa-card {
+  border: 1px solid rgba(255,255,255,0.11);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.052), rgba(255,255,255,0.026));
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.14);
+}
+.blank-card label, .qa-card label { display: block; font-size: 12px; color: #d9deef; margin-bottom: 6px; }
+.blank-card small, .qa-card small { display: block; color: var(--muted); font-size: 11px; line-height: 1.4; margin-top: 6px; }
+.blank-input { width: 100%; font-family: var(--mono); font-size: 12px; }
+
+.brain-view { min-height: 0; }
+.brain-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(420px,1fr) 310px;
+}
+.brain-canvas-wrap { position: relative; min-width: 0; border-right: 1px solid var(--line); }
+#brainGraph { height: 100%; min-height: 420px; }
+.fallback-graph {
+  height: 100%;
+  min-height: 420px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 34px;
+}
+.fallback-graph::before {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  border: 1px solid rgba(139,156,255,0.12);
+  border-radius: 999px;
+}
+.fallback-node {
+  position: absolute;
+  max-width: 178px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 999px;
+  background: rgba(18,21,31,0.92);
+  color: #dbe2ff;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: center;
+  box-shadow: 0 12px 34px rgba(0,0,0,0.28);
+}
+.fallback-node.user {
+  position: relative;
+  z-index: 2;
+  border-color: rgba(139,156,255,0.55);
+  background: rgba(95,124,255,0.22);
+  font-family: var(--body);
+  font-weight: 700;
+  font-size: 14px;
+}
+.custom-refine {
+  width: 100%;
+  min-height: 82px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  padding: 10px;
+  outline: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.brain-toolbar {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+.brain-panel { overflow: auto; background: rgba(13,15,22,0.9); }
+.node-inspector {
+  display: none;
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  width: min(340px, calc(100% - 36px));
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: rgba(13,15,22,0.96);
+  box-shadow: 0 20px 70px rgba(0,0,0,0.45);
+  padding: 14px;
+  z-index: 3;
+}
+.node-inspector.visible { display: block; }
+.node-title { font-weight: 700; margin-bottom: 8px; }
+.node-body { color: var(--muted); font-size: 12px; line-height: 1.55; white-space: pre-wrap; }
+.tooltip {
+  display: none;
+  position: fixed;
+  z-index: 20;
+  max-width: 310px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: rgba(13,15,22,0.98);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.42);
+  pointer-events: none;
+}
+.tooltip strong { display: block; font-size: 12px; margin-bottom: 5px; }
+.tooltip p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.toast-wrap { position: fixed; top: 14px; right: 14px; z-index: 50; display: grid; gap: 8px; }
+.toast {
+  border: 1px solid var(--line-2);
+  background: rgba(18,21,31,0.96);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  box-shadow: 0 12px 34px rgba(0,0,0,0.36);
+}
+.toast.error { border-color: rgba(242,99,123,0.42); color: #ff9aab; }
+.toast.success { border-color: rgba(51,196,129,0.42); color: #7ee0ad; }
+
+@media (max-width: 1080px) {
+  body { overflow: auto; }
+  .app { grid-template-columns: 1fr; height: auto; min-height: 100vh; }
+  .sidebar, .details { min-height: auto; border: 0; border-bottom: 1px solid var(--line); }
+  .workspace { min-height: 760px; }
+  .brain-main { grid-template-columns: 1fr; }
+  #brainGraph { height: 520px; }
+}
+
+@media (max-width: 760px) {
+  body { overflow: hidden; }
+  .app { display: block; height: 100vh; min-height: 100vh; }
+  .sidebar, .details, .topbar { display: none; }
+  .toggle-rail { display: none; }
+  .workspace { height: 100vh; min-height: 0; }
+  .view.active { height: 100vh; }
+  .brain-view { display: none !important; }
+  .chat-view { display: flex !important; }
+  .thread { padding: 12px; }
+  .composer { padding: 8px; }
+  .composer-row { align-items: stretch; flex-direction: column; }
+  .control-row { width: 100%; }
+  .control-row:first-child { display: none; }
+  .primary { width: 100%; min-height: 44px; }
+  .message { margin-bottom: 10px; }
+  .empty { min-height: 220px; padding: 16px; }
+  .empty h1 { font-size: 24px; }
+  .compare-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<button id="toggleLeft" class="toggle-rail" title="Toggle left sidebar">[</button>
+<button id="toggleRight" class="toggle-rail" title="Toggle right sidebar">]</button>
+<div id="appShell" class="app">
+  <aside class="sidebar">
+    <div class="side-scroll">
+      <button class="nav-btn active" data-view="chat"><span class="nav-icon">+</span> New chat</button>
+      <button class="nav-btn" data-action="clear"><span class="nav-icon">x</span> Clear workspace</button>
+      <button class="nav-btn" data-view="brain"><span class="nav-icon">#</span> Brain</button>
+
+      <div class="section-label">Conversation history</div>
+      <div id="history"></div>
+    </div>
+  </aside>
+
+  <main class="workspace">
+    <div class="topbar">
+      <div class="crumb"><strong id="viewTitle">Prompt Enhancement Sandbox</strong></div>
+      <div class="status"><span id="healthDot" class="dot"></span><span id="healthText">checking</span></div>
+    </div>
+
+    <section id="chatView" class="view chat-view active">
+      <div id="thread" class="thread">
+        <div class="empty" id="emptyState">
+          <div>
+            <h1>Engineer the prompt.</h1>
+            <p>Paste a rough prompt below. The result appears as annotated before/after output with direct refinement controls.</p>
+          </div>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="composer-inner">
+          <textarea id="promptInput" placeholder="Paste a rough prompt or reusable template with blanks like [TARGET_AUDIENCE]."></textarea>
+          <div class="composer-row">
+            <div class="control-row">
+              <select id="targetAi">
+                <option value="">Target AI</option>
+                <option value="claude">Claude</option>
+                <option value="chatgpt">ChatGPT</option>
+                <option value="gpt-5">GPT-5</option>
+                <option value="gemini">Gemini</option>
+                <option value="groq">Groq/Llama</option>
+                <option value="cursor">Cursor/Claude Code</option>
+                <option value="bolt">Bolt/V0/Lovable</option>
+                <option value="replit">Replit</option>
+                <option value="gamma">Gamma</option>
+                <option value="midjourney">Midjourney</option>
+              </select>
+              <input id="userId" class="user-input" type="text" value="demo-user" aria-label="User ID">
+            </div>
+            <div class="control-row">
+              <button id="enhanceBtn" class="primary">Enhance</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="brainView" class="view brain-view">
+      <div class="brain-main">
+        <div class="brain-canvas-wrap">
+          <div class="brain-toolbar">
+            <button id="refreshBrain" class="tiny">Refresh</button>
+            <button id="resetContext" class="tiny">Reset context</button>
+          </div>
+          <div id="brainGraph"></div>
+          <div id="nodeInspector" class="node-inspector">
+            <div class="node-title" id="nodeTitle">Node</div>
+            <div class="node-body" id="nodeBody"></div>
+          </div>
+        </div>
+        <aside class="brain-panel">
+          <div class="detail-section">
+            <div class="detail-title">Current persona</div>
+            <div class="metric">
+              <div class="metric-value" id="personaName">New Operator</div>
+              <div class="metric-label" id="personaReason">Not enough prompt history yet.</div>
+            </div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-title">Persona metrics</div>
+            <div class="metric-grid">
+              <div class="metric"><div class="metric-value" id="mSessions">0</div><div class="metric-label">Prompts</div></div>
+              <div class="metric"><div class="metric-value" id="mDomains">0</div><div class="metric-label">Domains</div></div>
+              <div class="metric"><div class="metric-value" id="mIntents">0</div><div class="metric-label">Intents</div></div>
+              <div class="metric"><div class="metric-value" id="mTemplates">0</div><div class="metric-label">Blanks</div></div>
+            </div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-title">Intent movement</div>
+            <div id="intentMovement" class="subtle">No movement yet.</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <aside class="details">
+    <div class="detail-section interactive" data-detail="branch">
+      <div class="detail-title">Branch details</div>
+      <div id="branchDetails" class="subtle"></div>
+    </div>
+    <div class="detail-section interactive" data-detail="context">
+      <div class="detail-title">Context</div>
+      <div id="contextDetails" class="subtle"></div>
+    </div>
+    <div class="detail-section interactive" data-detail="annotation">
+      <div class="detail-title">Prompt strategy</div>
+      <div id="annotationDetails" class="subtle"></div>
+    </div>
+    <div class="detail-section interactive" data-detail="blanks">
+      <div class="detail-title">Fill in the blanks</div>
+      <div id="blankFields" class="subtle"></div>
+    </div>
+    <div class="detail-section interactive" data-detail="refine">
+      <div class="detail-title">Refine</div>
+      <div id="refineBox" class="subtle"></div>
+    </div>
+  </aside>
+</div>
+
+<div id="tooltip" class="tooltip"></div>
+<div id="toasts" class="toast-wrap"></div>
+
+<script>
+const state = {
+  currentResult: null,
+  currentSegments: [],
+  currentPrompt: "",
+  currentContext: null,
+  network: null,
+  graphNodes: [],
+  history: JSON.parse(localStorage.getItem("tv_history") || "[]")
+};
+
+const TECHNIQUE_LABELS = {
+  persona_injection: "Persona Injection",
+  task_clarification: "Task Clarification",
+  chain_of_thought: "Reasoning Trigger",
+  output_format_spec: "Output Format",
+  constraint_definition: "Constraint",
+  context_framing: "Context",
+  few_shot_example: "Few-Shot",
+  negative_space: "Negative Space",
+  target_ai_optimization: "Target AI",
+  step_back_trigger: "Step-Back",
+  contrastive: "Contrastive",
+  domain_specific_depth: "Domain Depth",
+  user_context_integration: "User Context",
+  placeholder_facilitation: "Fill-in Blank"
+};
+
+function rgbForTechnique(key) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue("--c-" + key).trim();
+  return value || "138,146,166";
+}
+
+function $(id) { return document.getElementById(id); }
+
+function toast(message, type = "success") {
+  const el = document.createElement("div");
+  el.className = "toast " + type;
+  el.textContent = message;
+  $("toasts").appendChild(el);
+  setTimeout(() => { el.style.opacity = "0"; el.style.transition = "opacity .25s"; setTimeout(() => el.remove(), 260); }, 3000);
+}
+
+function setBusy(isBusy) {
+  $("enhanceBtn").disabled = isBusy;
+  $("healthDot").className = "dot" + (isBusy ? " busy" : "");
+  $("healthText").textContent = isBusy ? "enhancing" : "connected";
+}
+
+function showView(view) {
+  $("chatView").classList.toggle("active", view === "chat");
+  $("brainView").classList.toggle("active", view === "brain");
+  $("viewTitle").textContent = view === "brain" ? "Brain" : "Prompt Enhancement Sandbox";
+  document.querySelectorAll(".nav-btn[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view));
+  if (view === "brain") refreshContextGraph();
+}
+
+function addMessage(title, meta, bodyNode) {
+  $("emptyState").style.display = "none";
+  const wrap = document.createElement("article");
+  wrap.className = "message";
+  wrap.innerHTML = `<div class="message-head"><div class="message-title">${escapeHtml(title)}</div><div class="message-meta">${escapeHtml(meta || "")}</div></div>`;
+  const body = document.createElement("div");
+  body.className = "message-body";
+  body.appendChild(bodyNode);
+  wrap.appendChild(body);
+  $("thread").appendChild(wrap);
+  $("thread").scrollTop = $("thread").scrollHeight;
+  return wrap;
+}
+
+function escapeHtml(str) {
+  return String(str || "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[ch]));
+}
+
+function renderUserPrompt(prompt) {
+  const pre = document.createElement("div");
+  pre.className = "prompt-output";
+  pre.textContent = prompt;
+  addMessage("Raw prompt", "user", pre);
+}
+
+async function enhance() {
+  const prompt = $("promptInput").value.trim();
+  if (!prompt) { toast("Enter a prompt first", "error"); return; }
+  state.currentPrompt = prompt;
+  renderUserPrompt(prompt);
+
+  const output = document.createElement("div");
+  output.className = "prompt-output streaming";
+  addMessage("Enhancing", "streaming JSON", output);
+  setBusy(true);
+
+  try {
+    const res = await fetch("/enhance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt,
+        user_id: $("userId").value.trim() || "anonymous",
+        target_ai: $("targetAi").value || null
+      })
+    });
+    if (!res.ok || !res.body) throw new Error("Enhancement request failed");
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() || "";
+      for (const part of parts) handleSsePart(part, output);
+    }
+  } catch (error) {
+    output.classList.remove("streaming");
+    output.textContent += "\n\nError: " + error.message;
+    $("healthDot").className = "dot bad";
+    $("healthText").textContent = "error";
+    toast(error.message, "error");
+  } finally {
+    setBusy(false);
+  }
+}
+
+function handleSsePart(part, output) {
+  const line = part.split("\n").find(l => l.startsWith("data:"));
+  if (!line) return;
+  const payload = JSON.parse(line.slice(5).trim());
+  if (payload.type === "chunk") output.textContent += payload.content;
+  if (payload.type === "error") {
+    output.classList.remove("streaming");
+    output.textContent += "\n\n" + payload.message;
+    toast(payload.message, "error");
+  }
+  if (payload.type === "done") {
+    output.classList.remove("streaming");
+    renderResult(payload.result, output);
+    addToHistory(state.currentPrompt, payload.result);
+    refreshContextGraph();
+  }
+}
+
+function renderResult(result, existingOutput) {
+  state.currentResult = result;
+  state.currentSegments = result.annotated_segments || [];
+  existingOutput.innerHTML = "";
+  const box = document.createElement("div");
+  box.innerHTML = `
+    <div class="tabs">
+      <button class="tab active" data-result-tab="annotated">Annotated</button>
+      <button class="tab" data-result-tab="plain">Plain</button>
+      <button class="tab" data-action="compare">Before / After</button>
+      <button class="tab" data-action="direct-refine">Refine</button>
+      <button class="tiny" data-copy="plain">Copy plain</button>
+      <button class="tiny" data-copy="md">Copy annotated</button>
+    </div>
+    <div data-pane="annotated"></div>
+    <textarea class="plain-output" data-pane="plain" style="display:none;"></textarea>
+    <div class="summary">${escapeHtml(result.summary || "")}</div>
+  `;
+  existingOutput.appendChild(box);
+  renderSegments(box.querySelector('[data-pane="annotated"]'), state.currentSegments, result.enhanced_prompt || "");
+  box.querySelector('[data-pane="plain"]').value = result.enhanced_prompt || "";
+  box.querySelectorAll("[data-result-tab]").forEach(btn => {
+    btn.addEventListener("click", () => switchResultTab(box, btn.dataset.resultTab));
+  });
+  box.querySelector('[data-action="compare"]').addEventListener("click", renderCompare);
+  box.querySelector('[data-action="direct-refine"]').addEventListener("click", directRefine);
+  box.querySelector('[data-copy="plain"]').addEventListener("click", () => copyText(assembledPrompt()));
+  box.querySelector('[data-copy="md"]').addEventListener("click", copyAnnotated);
+  renderDetails(result);
+  renderBlankFields(result);
+  renderRefine(result);
+}
+
+function switchResultTab(box, tab) {
+  box.querySelectorAll("[data-result-tab]").forEach(btn => btn.classList.toggle("active", btn.dataset.resultTab === tab));
+  box.querySelector('[data-pane="annotated"]').style.display = tab === "annotated" ? "block" : "none";
+  box.querySelector('[data-pane="plain"]').style.display = tab === "plain" ? "block" : "none";
+}
+
+function renderCompare() {
+  if (!state.currentResult) return;
+  const wrap = document.createElement("div");
+  wrap.className = "compare-grid";
+  wrap.innerHTML = `
+    <div class="compare-col">
+      <div class="compare-label">Before</div>
+      <div class="prompt-output">${escapeHtml(state.currentPrompt || "")}</div>
+    </div>
+    <div class="compare-col">
+      <div class="compare-label">After</div>
+      <div class="prompt-output">${escapeHtml(assembledPrompt())}</div>
+    </div>
+  `;
+  addMessage("Before / After", "comparison", wrap);
+}
+
+function directRefine() {
+  if (!state.currentResult) return;
+  document.querySelector('[data-detail="refine"]').classList.add("open");
+  renderRefine(state.currentResult);
+  $("refineBox").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function renderSegments(container, segments, fallback) {
+  container.innerHTML = "";
+  if (!segments.length) {
+    container.textContent = fallback;
+    return;
+  }
+  segments.forEach((seg, index) => {
+    const span = document.createElement("span");
+    span.className = "segment";
+    span.style.setProperty("--seg", rgbForTechnique(seg.technique));
+    span.dataset.index = index;
+    span.innerHTML = highlightPlaceholders(seg.text);
+    span.addEventListener("mouseenter", e => showSegmentTip(e, seg));
+    span.addEventListener("mouseleave", hideTip);
+    span.addEventListener("click", () => editSegment(span, seg, index));
+    container.appendChild(span);
+  });
+}
+
+function highlightPlaceholders(text) {
+  return escapeHtml(text).replace(/(\[[A-Z0-9_ -]+\])/g, '<span class="fill-token">$1</span>');
+}
+
+function showSegmentTip(event, seg) {
+  const tip = $("tooltip");
+  tip.innerHTML = `<strong>${escapeHtml(seg.technique_label || TECHNIQUE_LABELS[seg.technique] || seg.technique)}</strong><p>${escapeHtml(seg.reason || "")}</p>`;
+  tip.style.display = "block";
+  tip.style.left = Math.min(event.clientX + 14, window.innerWidth - 330) + "px";
+  tip.style.top = Math.min(event.clientY + 14, window.innerHeight - 150) + "px";
+}
+function hideTip() { $("tooltip").style.display = "none"; }
+
+function editSegment(span, seg, index) {
+  if (span.classList.contains("editing")) return;
+  span.classList.add("editing");
+  span.contentEditable = "true";
+  span.textContent = seg.text;
+  span.focus();
+  const done = () => {
+    span.contentEditable = "false";
+    span.classList.remove("editing");
+    state.currentSegments[index].text = span.textContent;
+    if (state.currentResult) state.currentResult.enhanced_prompt = assembledPrompt();
+    span.innerHTML = highlightPlaceholders(span.textContent);
+    renderDetails(state.currentResult);
+    toast("Segment updated");
+    span.removeEventListener("blur", done);
+  };
+  span.addEventListener("blur", done);
+}
+
+function assembledPrompt() {
+  if (state.currentSegments.length) return state.currentSegments.map(s => s.text).join("");
+  return state.currentResult ? state.currentResult.enhanced_prompt || "" : "";
+}
+
+function renderDetails(result) {
+  const score = Math.round((result.prompt_quality_score || 0) * 100);
+  const qualityClass = score >= 70 ? "good" : score >= 40 ? "warn" : "bad";
+  $("branchDetails").innerHTML = `
+    <div class="pill-row">
+      <button class="pill" data-info-title="Prompt enhancement strategy" data-info="${escapeHtml(result.framework_rationale || "")}">${escapeHtml(result.framework_used || "Framework")}</button>
+      <button class="pill" data-info-title="Intent" data-info="What the prompt is trying to accomplish.">${escapeHtml(result.intent || "intent")}</button>
+      <button class="pill" data-info-title="Domain" data-info="The topic area used for memory and future personalization.">${escapeHtml(result.domain || "domain")}</button>
+      <button class="pill ${qualityClass}" data-info-title="Quality score" data-info="How much structure and context the original prompt already had.">${score}% quality</button>
+      ${result.target_ai_optimized ? '<span class="pill good">target optimized</span>' : ""}
+    </div>
+    <div class="detail-more">${escapeHtml(result.framework_rationale || "")}</div>
+    <div class="progress"><span style="width:${score}%"></span></div>
+  `;
+  $("annotationDetails").innerHTML = `
+    <div class="pill-row">${(result.pe_techniques_applied || []).map(t => `<button class="pill" data-info-title="${escapeHtml(TECHNIQUE_LABELS[t] || t)}" data-info="${escapeHtml(techniqueDescription(t))}">${escapeHtml(TECHNIQUE_LABELS[t] || t)}</button>`).join("")}</div>
+    <div class="detail-more">${(result.annotated_segments || []).length} annotated segments. ${(result.placeholder_fields || []).length} blank fields.</div>
+  `;
+  bindInfoButtons();
+}
+
+function renderBlankFields(result) {
+  const fields = result.placeholder_fields || [];
+  if (!fields.length) {
+    $("blankFields").innerHTML = "";
+    return;
+  }
+  $("blankFields").innerHTML = fields.map((field, i) => `
+    <div class="blank-card">
+      <label>${escapeHtml(field.label || field.key)} ${field.required ? "*" : ""}</label>
+      <input class="blank-input" data-blank="${i}" placeholder="${escapeHtml(field.example || field.placeholder || "")}">
+      <small>${escapeHtml(field.description || field.placeholder || "")}</small>
+    </div>
+  `).join("") + '<button id="applyBlanks" class="primary" style="width:100%;margin-top:4px;">Apply blanks</button>';
+  $("applyBlanks").addEventListener("click", applyBlanks);
+}
+
+function applyBlanks() {
+  if (!state.currentResult) return;
+  const fields = state.currentResult.placeholder_fields || [];
+  document.querySelectorAll("[data-blank]").forEach(input => {
+    const field = fields[Number(input.dataset.blank)];
+    const value = input.value.trim();
+    if (!field || !value) return;
+    const token = field.placeholder || `[${field.key}]`;
+    state.currentSegments.forEach(seg => { seg.text = seg.text.split(token).join(value); });
+    state.currentResult.enhanced_prompt = assembledPrompt().split(token).join(value);
+  });
+  const lastOutput = [...document.querySelectorAll(".message-body .prompt-output")].pop();
+  if (lastOutput) renderResult(state.currentResult, lastOutput);
+  toast("Blanks applied");
+}
+
+function renderRefine(result) {
+  const questions = buildRefineChoices(result);
+  $("refineBox").innerHTML = questions.map((q, i) => `
+    <div class="qa-card">
+      <label>${i + 1}. ${escapeHtml(q.question)}</label>
+      <div class="refine-options">
+        ${q.options.map((option, j) => `
+          <label class="choice">
+            <input type="radio" name="rq-${i}" data-qa="${i}" value="${escapeHtml(option)}" ${j === 0 ? "checked" : ""}>
+            <span>${escapeHtml(option)}</span>
+          </label>
+        `).join("")}
+      </div>
+    </div>
+  `).join("") + `
+    <div class="qa-card">
+      <label>Custom refinement instruction</label>
+      <textarea id="customRefineInstruction" class="custom-refine" placeholder="Optional: tell the sandbox exactly how to refine this prompt. Example: make it stricter, preserve placeholders, optimize for Claude Code, and ask for JSON output."></textarea>
+      <small>This is applied together with the selected choices.</small>
+    </div>
+    <button id="refineBtn" class="primary" style="width:100%;margin-top:4px;">Refine prompt</button>
+  `;
+  $("refineBtn").addEventListener("click", refinePrompt);
+}
+
+async function refinePrompt() {
+  if (!state.currentResult) return;
+  const questions = buildRefineChoices(state.currentResult);
+  const qa = questions.map((item, i) => ({
+    question: item.question,
+    answer: (document.querySelector(`input[name="rq-${i}"]:checked`) || {}).value || item.options[0]
+  }));
+  const customInstruction = ($("customRefineInstruction") || {}).value || "";
+  if (customInstruction.trim()) {
+    qa.push({
+      question: "Custom refinement instruction",
+      answer: customInstruction.trim()
+    });
+  }
+  try {
+    const res = await fetch("/refine", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        original_prompt: state.currentPrompt,
+        clarification_qa: qa,
+        user_id: $("userId").value.trim() || "anonymous",
+        target_ai: $("targetAi").value || null
+      })
+    });
+    if (!res.ok) throw new Error("Refine failed");
+    const result = await res.json();
+    const pre = document.createElement("div");
+    pre.className = "prompt-output";
+    renderSegments(pre, result.annotated_segments || [], result.refined_prompt || "");
+    addMessage("Refined prompt", result.framework_used || "refined", pre);
+    toast("Refinement ready");
+  } catch (error) {
+    toast(error.message, "error");
+  }
+}
+
+function buildRefineChoices(result) {
+  const existing = (result.clarification_questions || []).slice(0, 3).map(q => ({
+    question: typeof q === "string" ? q : q.question || "Choose a refinement direction",
+    options: Array.isArray(q.options) && q.options.length >= 2 ? q.options.slice(0, 4) : null
+  }));
+  const fallback = [
+    {
+      question: "What should the enhanced prompt optimize for?",
+      options: ["Higher precision and fewer assumptions", "More creative range", "Shorter output", "More detailed output"]
+    },
+    {
+      question: "What context should be emphasized?",
+      options: [`The ${String(result.domain || "current").replaceAll("_", " ")} domain`, "The end user's audience", "Implementation constraints", "Business outcome"]
+    },
+    {
+      question: "What output style should the final prompt request?",
+      options: ["Structured sections with clear bullets", "Step-by-step instructions", "A strict JSON/table format", "A concise executive summary"]
+    }
+  ];
+  return [0, 1, 2].map(i => {
+    const item = existing[i] || fallback[i];
+    if (!item.options) item.options = fallback[i].options;
+    return item;
+  });
+}
+
+function copyText(text) {
+  if (!text) return toast("Nothing to copy", "error");
+  navigator.clipboard.writeText(text).then(() => toast("Copied"));
+}
+
+function copyAnnotated() {
+  if (!state.currentSegments.length) return copyText(assembledPrompt());
+  const md = state.currentSegments.map(s => `<!-- ${s.technique_label || s.technique}: ${s.reason || ""} -->\n${s.text}`).join("\n");
+  copyText(md);
+}
+
+function techniqueDescription(key) {
+  return {
+    persona_injection: "Sets the role or expertise the model should use.",
+    task_clarification: "Turns a vague ask into a specific task.",
+    chain_of_thought: "Adds an explicit reasoning step for complex work.",
+    output_format_spec: "Defines the exact shape of the answer.",
+    constraint_definition: "Adds boundaries the model must respect.",
+    context_framing: "Explains the situation the prompt is meant for.",
+    few_shot_example: "Shows an example of the desired style or format.",
+    negative_space: "Names what the response should avoid.",
+    target_ai_optimization: "Adapts the prompt for the selected AI tool.",
+    step_back_trigger: "Asks for principles before tactics.",
+    contrastive: "Separates what to do from what not to do.",
+    domain_specific_depth: "Adds details expected in this subject area.",
+    user_context_integration: "Uses prior prompt metadata to personalize.",
+    placeholder_facilitation: "Turns missing data into fill-in-the-blank fields."
+  }[key] || "Prompt enhancement technique.";
+}
+
+function bindInfoButtons() {
+  document.querySelectorAll("[data-info]").forEach(btn => {
+    btn.addEventListener("click", event => {
+      event.stopPropagation();
+      const section = btn.closest(".detail-section");
+      if (!section) return;
+      let detail = section.querySelector(".detail-more");
+      if (!detail) {
+        detail = document.createElement("div");
+        detail.className = "detail-more";
+        section.appendChild(detail);
+      }
+      detail.innerHTML = `<strong>${escapeHtml(btn.dataset.infoTitle || "")}</strong><br>${escapeHtml(btn.dataset.info || "")}`;
+      section.classList.add("open");
+    });
+  });
+}
+
+function addToHistory(original, result) {
+  state.history.unshift({ id: Date.now(), original, result, at: new Date().toISOString() });
+  state.history = state.history.slice(0, 10);
+  localStorage.setItem("tv_history", JSON.stringify(state.history));
+  renderHistory();
+}
+
+function renderHistory() {
+  $("history").innerHTML = state.history.map((entry, i) => `
+    <button class="history-card" data-h="${i}">
+      <div class="history-title">${escapeHtml((entry.result.domain || "general").replaceAll("_", " "))}</div>
+      <div class="history-meta">${escapeHtml((entry.result.intent || "intent").replaceAll("_", " "))} / ${relativeTime(entry.at)}</div>
+    </button>
+  `).join("") || '<div class="subtle">No saved enhancements yet.</div>';
+  document.querySelectorAll("[data-h]").forEach(btn => btn.addEventListener("click", () => {
+    const entry = state.history[Number(btn.dataset.h)];
+    $("promptInput").value = entry.original;
+    state.currentPrompt = entry.original;
+    const out = document.createElement("div");
+    out.className = "prompt-output";
+    addMessage("Restored enhancement", "history", out);
+    renderResult(entry.result, out);
+  }));
+}
+
+function relativeTime(ts) {
+  const seconds = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+  if (seconds < 60) return "now";
+  if (seconds < 3600) return Math.floor(seconds / 60) + "m";
+  if (seconds < 86400) return Math.floor(seconds / 3600) + "h";
+  return Math.floor(seconds / 86400) + "d";
+}
+
+async function refreshContextGraph() {
+  const userId = $("userId").value.trim() || "anonymous";
+  try {
+    const res = await fetch(`/context/${encodeURIComponent(userId)}`);
+    state.currentContext = await res.json();
+    $("contextDetails").innerHTML = contextSummary(state.currentContext);
+    bindInfoButtons();
+    renderBrain(state.currentContext);
+    renderPersona(state.currentContext);
+  } catch (error) {
+    $("contextDetails").textContent = "Context unavailable.";
+  }
+}
+
+function contextSummary(ctx) {
+  return `
+    <div class="pill-row">
+      <button class="pill" data-info-title="Prompt count" data-info="Automatically created from successful enhancements.">${ctx.enhancement_count || 0} prompts</button>
+      <button class="pill" data-info-title="Domains" data-info="Topic areas inferred from your prompts.">${(ctx.domains || []).length} domains</button>
+      <button class="pill" data-info-title="Strategies" data-info="Prompt engineering frameworks used across enhancements.">${(ctx.frameworks_used || []).length} strategies</button>
+      <button class="pill" data-info-title="Blanks" data-info="Fill-in fields detected in reusable prompts.">${ctx.placeholder_count || 0} blanks</button>
+    </div>
+    <div class="detail-more">Memory is created from enhancement metadata: intent, domain, strategy, summaries, and placeholder usage.</div>
+  `;
+}
+
+function buildGraphData(ctx) {
+  const nodes = [];
+  const edges = [];
+  let id = 1;
+  const add = (type, label, title, detail, extra = {}) => {
+    const node = { id: id++, type, label, title, detail, ...extra };
+    nodes.push(node);
+    return node.id;
+  };
+  const root = add("user", ctx.user_id || "User", `${ctx.enhancement_count || 0} enhancements`, JSON.stringify(ctx, null, 2));
+  const domainIds = {};
+  (ctx.domains || []).forEach(domain => {
+    const d = add("domain", domain.replaceAll("_", " "), `Domain: ${domain}`, `Domain: ${domain}`);
+    domainIds[domain] = d;
+    edges.push({ from: root, to: d, label: "domain" });
+  });
+  const seen = {};
+  (ctx.recent_context || []).forEach(item => {
+    if (!seen[item.intent]) {
+      seen[item.intent] = add("intent", (item.intent || "").replaceAll("_", "\n"), item.summary || item.intent, JSON.stringify(item, null, 2));
+      edges.push({ from: domainIds[item.domain] || root, to: seen[item.intent], dashes: true });
+    }
+  });
+  (ctx.recent_context || []).slice(0, 7).forEach((item, i) => {
+    const label = item.summary ? item.summary.slice(0, 30) : `Prompt ${i + 1}`;
+    const c = add("context", label, item.summary || "Prompt context", JSON.stringify(item, null, 2));
+    edges.push({ from: root, to: c, dashes: true, label: "prompt" });
+  });
+  (ctx.frameworks_used || []).forEach(framework => {
+    const f = add("preference", framework, `Strategy: ${framework}`, `Prompt enhancement strategy: ${framework}`);
+    edges.push({ from: root, to: f, dashes: true, label: "strategy" });
+  });
+  return { nodes, edges };
+}
+
+function renderBrain(ctx) {
+  const graph = buildGraphData(ctx);
+  state.graphNodes = graph.nodes;
+  const style = {
+    user: { shape: "dot", size: 28, color: { background: "#5f7cff", border: "#b9c4ff" }, font: { color: "#e6e8ef", size: 14, face: "Inter" }, borderWidth: 3 },
+    domain: { shape: "dot", size: 18, color: { background: "#0ea5e9", border: "#67d5ff" }, font: { color: "#e6e8ef", size: 11, face: "Inter" } },
+    intent: { shape: "diamond", size: 14, color: { background: "#f5b84b", border: "#ffd27d" }, font: { color: "#e6e8ef", size: 10, face: "Inter" } },
+    preference: { shape: "square", size: 12, color: { background: "#33c481", border: "#7ee0ad" }, font: { color: "#e6e8ef", size: 10, face: "Inter" } },
+    context: { shape: "ellipse", color: { background: "#171b26", border: "#586174" }, font: { color: "#a7afc3", size: 10, face: "DM Mono" } },
+    personalization: { shape: "triangle", size: 14, color: { background: "#8b5cf6", border: "#c4b5fd" }, font: { color: "#e6e8ef", size: 10, face: "Inter" } }
+  };
+  const nodes = graph.nodes.map(n => ({ ...n, ...(style[n.type] || style.context) }));
+  if (!window.vis) {
+    renderFallbackBrain(graph.nodes);
+    return;
+  }
+  const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(graph.edges) };
+  const options = {
+    nodes: { shadow: { enabled: true, color: "rgba(95,124,255,0.24)", size: 12 } },
+    edges: { color: "#30384a", smooth: { type: "cubicBezier", roundness: 0.45 }, font: { color: "#586174", size: 9 }, arrows: { to: { enabled: true, scaleFactor: 0.45 } } },
+    physics: { enabled: true, solver: "barnesHut", barnesHut: { gravitationalConstant: -4200, centralGravity: 0.25, springLength: 105 }, stabilization: { iterations: 140 } },
+    interaction: { hover: true, tooltipDelay: 160 }
+  };
+  if (state.network) state.network.setData(data);
+  else state.network = new vis.Network($("brainGraph"), data, options);
+  state.network.off("click");
+  state.network.on("click", params => {
+    if (!params.nodes.length) return $("nodeInspector").classList.remove("visible");
+    const node = state.graphNodes.find(n => n.id === params.nodes[0]);
+    if (!node) return;
+    $("nodeTitle").textContent = node.title || node.label;
+    $("nodeBody").textContent = node.detail || "";
+    $("nodeInspector").classList.add("visible");
+  });
+}
+
+function renderFallbackBrain(nodes) {
+  const container = $("brainGraph");
+  const usable = nodes.slice(0, 12);
+  const orbit = Math.max(130, Math.min(230, container.clientWidth / 3 || 180));
+  const placed = usable.map((node, index) => {
+    if (index === 0) {
+      return `<button class="fallback-node user" data-fallback-node="${node.id}">${escapeHtml(node.label || "User")}</button>`;
+    }
+    const angle = ((index - 1) / Math.max(1, usable.length - 1)) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.cos(angle) * orbit;
+    const y = Math.sin(angle) * Math.min(orbit * 0.72, 160);
+    return `<button class="fallback-node" data-fallback-node="${node.id}" style="transform:translate(${x}px, ${y}px)">${escapeHtml(String(node.label || "").replaceAll("\\n", " "))}</button>`;
+  }).join("");
+  container.innerHTML = `<div class="fallback-graph">${placed}</div>`;
+  container.querySelectorAll("[data-fallback-node]").forEach(button => {
+    button.addEventListener("click", () => {
+      const node = state.graphNodes.find(item => String(item.id) === button.dataset.fallbackNode);
+      if (!node) return;
+      $("nodeTitle").textContent = node.title || node.label;
+      $("nodeBody").textContent = node.detail || "";
+      $("nodeInspector").classList.add("visible");
+    });
+  });
+}
+
+function renderPersona(ctx) {
+  const recents = ctx.recent_context || [];
+  const domains = ctx.domains || [];
+  const intents = [...new Set(recents.map(r => r.intent).filter(Boolean))];
+  const placeholderCount = ctx.placeholder_count || recents.reduce((sum, r) => sum + (r.placeholder_count || 0), 0);
+  const freq = {};
+  recents.forEach(r => { freq[r.intent] = (freq[r.intent] || 0) + 1; });
+  const topIntent = Object.entries(freq).sort((a,b) => b[1] - a[1])[0]?.[0] || "";
+  let name = "New Operator";
+  if (placeholderCount >= 4) name = "Template Architect";
+  else if (topIntent.includes("strategy")) name = "Strategy Builder";
+  else if ((domains[0] || "").includes("software")) name = "Technical Builder";
+  else if ((domains[0] || "").includes("marketing")) name = "Growth Operator";
+  else if (recents.length >= 5) name = "Cross-Domain Explorer";
+  $("personaName").textContent = name;
+  $("personaReason").textContent = recents.length ? `Based on ${recents.length} recent prompts across ${domains.length} domains.` : "Not enough prompt history yet.";
+  $("mSessions").textContent = ctx.enhancement_count || 0;
+  $("mDomains").textContent = domains.length;
+  $("mIntents").textContent = intents.length;
+  $("mTemplates").textContent = placeholderCount;
+  $("intentMovement").innerHTML = recents.slice(0, 5).map(r => `<div>${escapeHtml((r.intent || "intent").replaceAll("_", " "))} -> ${escapeHtml((r.domain || "domain").replaceAll("_", " "))}</div>`).join("") || "No movement yet.";
+}
+
+async function resetContext() {
+  await fetch(`/context/${encodeURIComponent($("userId").value.trim() || "anonymous")}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clear: true })
+  });
+  await refreshContextGraph();
+  toast("Context reset");
+}
+
+function clearWorkspace() {
+  $("thread").innerHTML = '<div class="empty" id="emptyState"><div><h1>Engineer the prompt.</h1><p>Paste a rough prompt below. The result appears as annotated before/after output with direct refinement controls.</p></div></div>';
+  $("branchDetails").innerHTML = "";
+  $("annotationDetails").innerHTML = "";
+  $("blankFields").innerHTML = "";
+  $("refineBox").innerHTML = "";
+  state.currentResult = null;
+  state.currentSegments = [];
+}
+
+async function initHealth() {
+  try {
+    const res = await fetch("/health");
+    const data = await res.json();
+    $("healthText").textContent = data.model || "connected";
+  } catch {
+    $("healthDot").className = "dot bad";
+    $("healthText").textContent = "offline";
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  renderHistory();
+  initHealth();
+  refreshContextGraph();
+  $("enhanceBtn").addEventListener("click", enhance);
+  $("promptInput").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) enhance(); });
+  $("refreshBrain").addEventListener("click", refreshContextGraph);
+  $("resetContext").addEventListener("click", resetContext);
+  $("userId").addEventListener("change", refreshContextGraph);
+  $("toggleLeft").addEventListener("click", () => $("appShell").classList.toggle("left-collapsed"));
+  $("toggleRight").addEventListener("click", () => $("appShell").classList.toggle("right-collapsed"));
+  document.querySelectorAll("[data-view]").forEach(btn => btn.addEventListener("click", () => showView(btn.dataset.view)));
+  document.querySelector('[data-action="clear"]').addEventListener("click", clearWorkspace);
+  document.querySelectorAll(".detail-section.interactive").forEach(section => {
+    section.addEventListener("click", () => section.classList.toggle("open"));
+  });
+});
+</script>
+</body>
+</html>

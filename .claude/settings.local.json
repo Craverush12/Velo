@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__fb3abeb4-eb7a-45b3-aac0-2c1b37732c21__get_screenshot",
+      "Bash(bash \"C:/Users/Arjun/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming/scripts/start-server.sh\" --project-dir \"C:/Users/Arjun/Desktop/ThinkVelocity\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Arjun\\\\Desktop\\\\ThinkVelocity\\\\docs\\\\superpowers\\\\specs\")",
+      "Bash(python -c \"from core.mcp_tools import mcp_server, list_tools; print\\('ok'\\)\")",
+      "Bash(python -c \"from api.mcp import router; print\\('ok'\\)\")",
+      "Bash(python -c \"from main import app; print\\([r.path for r in app.routes if 'mcp' in r.path]\\)\")",
+      "Bash(git -C \"C:/Users/Arjun/Desktop/ThinkVelocity\" add .)",
+      "Bash(git -C \"C:/Users/Arjun/Desktop/ThinkVelocity\" commit -m \"chore: verified full MCP integration smoke test passes\")"
+    ]
+  }
+}

@@ -1,0 +1,31 @@
+<h2>What is the core job of the Velocity MCP?</h2>
+<p class="subtitle">This determines the tool surface, the inline card shape, and what "connecting" means for each AI platform.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>On-demand prompt enhancer</h3>
+      <p>You explicitly call <code>enhance_prompt</code> when you want it. Returns the enhanced prompt + annotated segments as an inline card. You copy and use it. Like a power tool you reach for.</p>
+      <p style="margin-top:8px;font-size:12px;opacity:0.6">Simplest to build. Works everywhere MCP is supported. Closest to what ThinkVelocity already does.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Always-on context layer</h3>
+      <p>Velocity runs silently in every conversation. It injects your memory graph (domains, preferences, persona) into the system context automatically — no explicit call needed.</p>
+      <p style="margin-top:8px;font-size:12px;opacity:0.6">Higher value but harder: requires system prompt injection support. Claude Code and Claude Desktop support this. ChatGPT does not natively.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Both — a toolkit</h3>
+      <p>MCP server exposes multiple tools: <code>enhance_prompt</code> (on demand), <code>get_my_context</code> (inspect your memory), <code>refine_prompt</code> (post-clarification). The user decides which to call.</p>
+      <p style="margin-top:8px;font-size:12px;opacity:0.6">Most powerful. Still shippable fast since the FastAPI backend already handles all three flows.</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Velocity MCP — Useful Cards</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f2f2f7;
+  --surface: #ffffff;
+  --surface-2: #f9f9fb;
+  --border: rgba(0,0,0,0.08);
+  --text: #0f0f1a;
+  --muted: #6b7280;
+  --faint: #9ca3af;
+  --accent: #5b5ff5;
+  --shadow: 0 2px 16px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text); padding: 20px 24px 40px; }
+.page-title { font-size: 11px; font-weight: 600; color: var(--faint); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 24px; }
+.section-title { font-size: 10px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.09em; margin: 32px 0 10px; font-weight: 600; }
+
+/* ── Chat shell ── */
+.chat-shell {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-lg);
+  max-width: 560px; width: 100%;
+}
+.chat-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 9px 14px; border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.dots { display:flex;gap:5px; }
+.dot { width:10px;height:10px;border-radius:50%;background:rgba(0,0,0,0.10); }
+.bar-title { font-size:11.5px;font-weight:600;color:var(--muted);margin-left:6px; }
+.chat-body { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.user-msg {
+  align-self: flex-end;
+  background: #1a1a2e; color: #e2e8f0;
+  font-size: 12.5px; padding: 8px 13px;
+  border-radius: 14px 14px 3px 14px; max-width: 88%; line-height: 1.5;
+}
+.ai-row { display:flex; gap:8px; align-items:flex-start; max-width:96%; }
+.ai-ava {
+  width:22px;height:22px;border-radius:50%;
+  background:#1a1a2e;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;
+}
+.ai-ava-inner { width:10px;height:10px;border-radius:50%;background:white;opacity:0.9; }
+.ai-text { font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:6px; }
+
+/* ── Velocity card ── */
+.vc {
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;box-shadow:var(--shadow);overflow:hidden;width:100%;
+}
+.vc-head {
+  display:flex;align-items:center;gap:8px;
+  padding:9px 13px;border-bottom:1px solid var(--border);background:var(--surface-2);
+}
+.vlogo {
+  width:20px;height:20px;border-radius:6px;
+  background:linear-gradient(135deg,#5b5ff5,#8b5cf6);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.vlogo svg { width:11px;height:11px; }
+.vc-title { font-size:12px;font-weight:700;color:var(--text); }
+.vc-meta  { font-size:10px;color:var(--faint);margin-left:auto; }
+.vc-body  { padding:12px 13px; }
+.vc-foot  {
+  display:flex;gap:6px;padding:9px 13px;
+  border-top:1px solid var(--border);background:var(--surface-2);
+}
+
+/* ── Delta bar (before→after) ── */
+.delta-wrap { margin-bottom:12px; }
+.delta-row { display:flex;align-items:center;gap:8px;margin-bottom:5px; }
+.delta-label { font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;width:42px;flex-shrink:0; }
+.delta-before { background:rgba(244,63,94,0.07);border:1px solid rgba(244,63,94,0.2);border-radius:6px;padding:5px 9px;font-size:11px;color:#9f1239;font-family:'DM Mono',monospace;flex:1;line-height:1.4; }
+.delta-after  { background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:6px;padding:5px 9px;font-size:11px;color:#065f46;font-family:'DM Mono',monospace;flex:1;line-height:1.4; }
+.delta-arrow  { font-size:16px;color:var(--faint);flex-shrink:0; }
+.quality-jump {
+  display:flex;align-items:center;gap:6px;
+  background:linear-gradient(135deg,rgba(91,95,245,0.06),rgba(139,92,246,0.06));
+  border:1px solid rgba(91,95,245,0.15);border-radius:8px;padding:7px 11px;margin-bottom:10px;
+}
+.qj-from { font-size:13px;font-weight:700;color:#dc2626; }
+.qj-to   { font-size:13px;font-weight:700;color:#059669; }
+.qj-arrow{ font-size:12px;color:var(--faint); }
+.qj-label{ font-size:10px;color:var(--muted);margin-left:2px; }
+.qj-badge{ margin-left:auto;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(91,95,245,0.1);color:#5b5ff5;border:1px solid rgba(91,95,245,0.2); }
+
+/* ── Technique chips ── */
+.chips { display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px; }
+.chip {
+  font-size:10px;padding:3px 9px;border-radius:999px;border:1px solid;
+  display:flex;align-items:center;gap:4px;font-family:'Inter',sans-serif;
+}
+.chip-dot { width:6px;height:6px;border-radius:50%;flex-shrink:0; }
+.c-indigo { color:#4f46e5;border-color:rgba(79,70,229,0.25);background:rgba(79,70,229,0.07); }
+.c-amber  { color:#b45309;border-color:rgba(180,83,9,0.25); background:rgba(180,83,9,0.07); }
+.c-emerald{ color:#047857;border-color:rgba(4,120,87,0.25);  background:rgba(4,120,87,0.07); }
+.c-rose   { color:#be123c;border-color:rgba(190,18,60,0.25); background:rgba(190,18,60,0.07); }
+.c-violet { color:#6d28d9;border-color:rgba(109,40,217,0.25);background:rgba(109,40,217,0.07); }
+
+/* ── Insight rows ── */
+.insight {
+  display:flex;align-items:flex-start;gap:9px;
+  padding:8px 10px;border-radius:8px;margin-bottom:5px;
+  background:var(--surface-2);border:1px solid var(--border);
+}
+.insight-icon { font-size:14px;flex-shrink:0;margin-top:1px; }
+.insight-text { font-size:11.5px;line-height:1.45;color:var(--text); }
+.insight-text span { color:var(--muted); }
+
+/* ── Context inject banner ── */
+.ctx-banner {
+  background:linear-gradient(135deg,rgba(91,95,245,0.07),rgba(139,92,246,0.05));
+  border:1px solid rgba(91,95,245,0.18);border-radius:10px;
+  overflow:hidden;
+}
+.ctx-top { display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid rgba(91,95,245,0.1); }
+.ctx-pulse { width:8px;height:8px;border-radius:50%;background:#5b5ff5;flex-shrink:0;box-shadow:0 0 0 3px rgba(91,95,245,0.2);animation:pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{box-shadow:0 0 0 3px rgba(91,95,245,0.2)} 50%{box-shadow:0 0 0 5px rgba(91,95,245,0.08)} }
+.ctx-name { font-size:12px;font-weight:700;color:#4338ca; }
+.ctx-session { font-size:10px;color:var(--faint);margin-left:auto; }
+.ctx-rows { padding:9px 12px;display:flex;flex-direction:column;gap:5px; }
+.ctx-row { display:flex;gap:8px;align-items:baseline; }
+.ctx-key { font-size:10px;color:var(--faint);width:90px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.06em; }
+.ctx-val { font-size:11.5px;color:var(--text);font-family:'DM Mono',monospace; }
+.ctx-note { font-size:10px;color:var(--faint);padding:7px 12px;border-top:1px solid rgba(91,95,245,0.1); }
+.ctx-note b { color:#4338ca; }
+
+/* ── Buttons ── */
+.btn { font-size:11px;font-weight:600;padding:6px 12px;border-radius:8px;border:1px solid;cursor:pointer;font-family:'Inter',sans-serif;transition:opacity 0.1s; }
+.btn-primary { background:#1a1a2e;color:white;border-color:#1a1a2e; }
+.btn-accent  { background:rgba(91,95,245,0.09);color:#5b5ff5;border-color:rgba(91,95,245,0.22); }
+.btn-ghost   { background:transparent;color:var(--muted);border-color:var(--border); }
+
+/* ── Context profile ── */
+.profile-head { display:flex;align-items:center;gap:11px;margin-bottom:12px; }
+.p-ring {
+  width:44px;height:44px;border-radius:50%;
+  background:linear-gradient(135deg,#5b5ff5,#8b5cf6);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;color:white;flex-shrink:0;letter-spacing:-0.02em;
+}
+.p-name { font-size:13px;font-weight:700; }
+.p-sub  { font-size:11px;color:var(--muted);margin-top:2px; }
+.stats { display:flex;gap:0;margin-bottom:12px;border:1px solid var(--border);border-radius:9px;overflow:hidden; }
+.stat { flex:1;padding:9px 0;text-align:center;border-right:1px solid var(--border); }
+.stat:last-child{border-right:none;}
+.stat-n { font-size:16px;font-weight:800; }
+.stat-l { font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:0.06em;margin-top:1px; }
+.domains { display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px; }
+.dtag { font-size:10px;padding:2px 9px;border-radius:999px;background:rgba(0,0,0,0.04);color:var(--muted);border:1px solid var(--border); }
+.recent { font-size:11px;color:var(--muted);line-height:1.6;padding:8px 10px;background:var(--surface-2);border-radius:7px;border:1px solid var(--border); }
+.recent b { color:var(--text);font-weight:600; }
+
+/* ── Skeleton ── */
+.skel { background:rgba(0,0,0,0.06);border-radius:5px;animation:shimmer 1.4s ease-in-out infinite; }
+@keyframes shimmer { 0%,100%{opacity:1}50%{opacity:0.35} }
+</style>
+</head>
+<body>
+<div class="page-title">Velocity MCP — Card Surfaces v2 · Section 3 of 3</div>
+
+<!-- ════════════════════════════════════
+     CARD 1: inject_context — session start
+     Shows WHAT the AI now knows about you
+     ════════════════════════════════════ -->
+<div class="section-title">① inject_context — what your AI now knows</div>
+<div class="chat-shell">
+  <div class="chat-bar"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><div class="bar-title">Claude · New conversation</div></div>
+  <div class="chat-body">
+    <div class="ai-row">
+      <div class="ai-ava"><div class="ai-ava-inner"></div></div>
+      <div style="width:100%">
+        <div class="ai-text">Velocity is active. Here's what I know about you going into this session:</div>
+        <div class="ctx-banner">
+          <div class="ctx-top">
+            <div class="ctx-pulse"></div>
+            <span class="ctx-name">Arjun · Template Architect</span>
+            <span class="ctx-session">Session 25 · 3 domains active</span>
+          </div>
+          <div class="ctx-rows">
+            <div class="ctx-row"><span class="ctx-key">Expertise</span><span class="ctx-val">Senior · prefers production-grade code</span></div>
+            <div class="ctx-row"><span class="ctx-key">Stack</span><span class="ctx-val">TypeScript, Python, FastAPI, React</span></div>
+            <div class="ctx-row"><span class="ctx-key">Current work</span><span class="ctx-val">MCP layer for ThinkVelocity, B2B SaaS GTM</span></div>
+            <div class="ctx-row"><span class="ctx-key">Output style</span><span class="ctx-val">Concise · inline comments · no boilerplate</span></div>
+          </div>
+          <div class="ctx-note">I'll default to this context for every response. <b>No need to re-explain yourself.</b></div>
+        </div>
+        <div class="ai-text" style="margin-top:8px">What are you building today?</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     CARD 2: enhance_prompt — loading
+     ════════════════════════════════════ -->
+<div class="section-title">② enhance_prompt — loading</div>
+<div class="chat-shell" style="max-width:480px">
+  <div class="chat-bar"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><div class="bar-title">Claude · Conversation</div></div>
+  <div class="chat-body">
+    <div class="user-msg">velocity enhance: write a fn to parse nested JSON</div>
+    <div class="ai-row">
+      <div class="ai-ava"><div class="ai-ava-inner"></div></div>
+      <div style="width:100%">
+        <div class="vc">
+          <div class="vc-head">
+            <div class="vlogo"><svg viewBox="0 0 24 24" fill="white"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+            <span class="vc-title">Velocity</span>
+            <span class="vc-meta" style="display:flex;align-items:center;gap:5px"><span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block;animation:shimmer 1s infinite"></span>Engineering…</span>
+          </div>
+          <div class="vc-body" style="display:flex;flex-direction:column;gap:6px">
+            <div class="skel" style="height:10px;width:35%"></div>
+            <div class="skel" style="height:36px;width:100%"></div>
+            <div class="skel" style="height:36px;width:90%"></div>
+            <div class="skel" style="height:36px;width:95%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     CARD 3: enhance_prompt — result
+     Shows BEFORE → AFTER + what changed
+     ════════════════════════════════════ -->
+<div class="section-title">② enhance_prompt — result (before → after + why it's better)</div>
+<div class="chat-shell" style="max-width:560px">
+  <div class="chat-bar"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><div class="bar-title">Claude · Conversation</div></div>
+  <div class="chat-body">
+    <div class="user-msg">velocity enhance: write a fn to parse nested JSON</div>
+    <div class="ai-row">
+      <div class="ai-ava"><div class="ai-ava-inner"></div></div>
+      <div style="width:100%">
+        <div class="vc">
+          <div class="vc-head">
+            <div class="vlogo"><svg viewBox="0 0 24 24" fill="white"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+            <span class="vc-title">Velocity Enhanced</span>
+            <span class="vc-meta">RTF · cursor optimised</span>
+          </div>
+          <div class="vc-body">
+
+            <!-- Quality jump -->
+            <div class="quality-jump">
+              <span class="qj-from">0.22</span>
+              <span class="qj-arrow">→</span>
+              <span class="qj-to">0.86</span>
+              <span class="qj-label">prompt quality</span>
+              <span class="qj-badge">+64 pts · 5 techniques</span>
+            </div>
+
+            <!-- Before / After -->
+            <div class="delta-wrap">
+              <div class="delta-row">
+                <span class="delta-label" style="color:#9f1239">Before</span>
+                <div class="delta-before">write a fn to parse nested JSON</div>
+              </div>
+              <div class="delta-row">
+                <span class="delta-label" style="color:#065f46">After</span>
+                <div class="delta-after">Act as a senior Python engineer. Parse arbitrarily nested JSON with full type safety — handle missing keys, nulls, mixed types. Return: typed function + inline comments + 3 usage examples. No eval(). Raise descriptive errors on malformed input.</div>
+              </div>
+            </div>
+
+            <!-- What was added -->
+            <div style="font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:5px;font-weight:600">What Velocity added</div>
+            <div class="insight">
+              <div class="insight-icon">🎭</div>
+              <div class="insight-text"><b>Expert persona</b> — <span>without "senior engineer", models give generic beginner-level code</span></div>
+            </div>
+            <div class="insight">
+              <div class="insight-icon">🔒</div>
+              <div class="insight-text"><b>Constraints that prevent failure</b> — <span>no eval(), descriptive errors — eliminates the 3 most common wrong answers</span></div>
+            </div>
+            <div class="insight">
+              <div class="insight-icon">📐</div>
+              <div class="insight-text"><b>Exact output spec</b> — <span>without this, 70% of models omit comments or examples</span></div>
+            </div>
+
+            <!-- Techniques -->
+            <div class="chips" style="margin-top:8px">
+              <div class="chip c-indigo"><div class="chip-dot" style="background:#4f46e5"></div>Persona Injection</div>
+              <div class="chip c-rose"><div class="chip-dot" style="background:#be123c"></div>Constraint Definition</div>
+              <div class="chip c-emerald"><div class="chip-dot" style="background:#047857"></div>Output Format</div>
+              <div class="chip c-amber"><div class="chip-dot" style="background:#b45309"></div>Negative Space</div>
+              <div class="chip c-violet"><div class="chip-dot" style="background:#6d28d9"></div>Context Framing</div>
+            </div>
+          </div>
+          <div class="vc-foot">
+            <button class="btn btn-primary">Copy prompt</button>
+            <button class="btn btn-accent">✦ Refine further</button>
+            <button class="btn btn-ghost" style="margin-left:auto">🧠 My context</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     CARD 4: get_my_context
+     Shows actionable insights, not just stats
+     ════════════════════════════════════ -->
+<div class="section-title">③ get_my_context — actionable profile, not just numbers</div>
+<div class="chat-shell" style="max-width:500px">
+  <div class="chat-bar"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><div class="bar-title">Claude · Conversation</div></div>
+  <div class="chat-body">
+    <div class="user-msg">show my velocity context</div>
+    <div class="ai-row">
+      <div class="ai-ava"><div class="ai-ava-inner"></div></div>
+      <div style="width:100%">
+        <div class="vc">
+          <div class="vc-head">
+            <div class="vlogo"><svg viewBox="0 0 24 24" fill="white"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+            <span class="vc-title">Your Velocity Profile</span>
+            <span class="vc-meta">Updated just now</span>
+          </div>
+          <div class="vc-body">
+            <div class="profile-head">
+              <div class="p-ring">TA</div>
+              <div>
+                <div class="p-name">Template Architect</div>
+                <div class="p-sub">High placeholder usage · strategy-heavy intent pattern</div>
+              </div>
+            </div>
+            <div class="stats">
+              <div class="stat"><div class="stat-n">25</div><div class="stat-l">Sessions</div></div>
+              <div class="stat"><div class="stat-n" style="color:#059669">0.81</div><div class="stat-l">Avg quality</div></div>
+              <div class="stat"><div class="stat-n">6</div><div class="stat-l">Domains</div></div>
+              <div class="stat"><div class="stat-n" style="font-size:12px;padding-top:2px">RISEN</div><div class="stat-l">Top framework</div></div>
+            </div>
+            <div class="domains">
+              <span class="dtag">software_engineering</span>
+              <span class="dtag">product_management</span>
+              <span class="dtag">marketing_growth</span>
+              <span class="dtag">design_ux</span>
+            </div>
+            <!-- Actionable insights -->
+            <div style="font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:5px;font-weight:600">What this means for you</div>
+            <div class="insight">
+              <div class="insight-icon">📈</div>
+              <div class="insight-text"><b>You're in a building sprint</b> — <span>last 4 sessions all code_generation. Velocity will bias toward RTF + CoT frameworks.</span></div>
+            </div>
+            <div class="insight">
+              <div class="insight-icon">⚠️</div>
+              <div class="insight-text"><b>60% of your prompts skip output format</b> — <span>adding this alone bumps quality by ~0.18 on average.</span></div>
+            </div>
+            <div class="recent" style="margin-top:8px">
+              <b>Recent work</b><br>MCP architecture for ThinkVelocity · B2B SaaS GTM strategy · Auth API design · React component re-rendering debug
+            </div>
+          </div>
+          <div class="vc-foot">
+            <button class="btn btn-primary">Inject into session</button>
+            <button class="btn btn-ghost">Reset context</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="height:36px"></div>
+</body>
+</html>

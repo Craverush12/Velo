@@ -1,0 +1,190 @@
+<style>
+* { box-sizing: border-box; }
+.tool-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+.tool-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.tool-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  color: #818cf8;
+  font-weight: 500;
+}
+.tool-desc {
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+}
+.params {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 6px;
+  border-left: 2px solid rgba(99,102,241,0.3);
+}
+.param-row {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  font-family: monospace;
+  align-items: baseline;
+}
+.param-name { color: #7dd3fc; min-width: 130px; }
+.param-type { color: rgba(255,255,255,0.3); min-width: 60px; }
+.param-note { color: rgba(255,255,255,0.5); font-family: sans-serif; }
+.param-req  { color: #f87171; font-size: 9px; margin-left: 2px; }
+.returns {
+  margin-top: 8px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+}
+.returns strong { color: #86efac; font-family: monospace; }
+.tag {
+  display: inline-block;
+  border-radius: 999px;
+  font-size: 10px;
+  padding: 1px 8px;
+  margin-right: 4px;
+  font-family: sans-serif;
+}
+.tag-trigger { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
+.tag-auto   { background: rgba(16,185,129,0.12); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+.tag-read   { background: rgba(139,92,246,0.12); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.3); }
+.call-example {
+  margin-top: 10px;
+  font-size: 10px;
+  font-family: monospace;
+  color: rgba(255,255,255,0.25);
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 5px;
+}
+.call-example .fn { color: #818cf8; }
+.call-example .str { color: #fda4af; }
+.call-example .key { color: #7dd3fc; }
+.section-note {
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: rgba(99,102,241,0.06);
+  border-radius: 6px;
+  border-left: 2px solid rgba(99,102,241,0.3);
+}
+</style>
+
+<h2>Tool Definitions</h2>
+<p class="subtitle">Section 2 of 3 — The 4 MCP tools Velocity exposes. Each maps to existing FastAPI logic.</p>
+
+<div class="section-note">
+  VELOCITY_USER_ID is resolved from env at startup — never passed by the caller. All tools know who they're serving automatically.
+</div>
+
+<!-- Tool 1 -->
+<div class="tool-card">
+  <div class="tool-header">
+    <span class="tool-name">enhance_prompt</span>
+    <span class="tag tag-trigger">on demand</span>
+    <span class="tool-desc">Transform a raw prompt into a precision-engineered one</span>
+  </div>
+  <div class="params">
+    <div class="param-row">
+      <span class="param-name">prompt<span class="param-req">*</span></span>
+      <span class="param-type">string</span>
+      <span class="param-note">The raw prompt to enhance</span>
+    </div>
+    <div class="param-row">
+      <span class="param-name">target_ai</span>
+      <span class="param-type">string?</span>
+      <span class="param-note">claude · chatgpt · cursor · gemini · bolt · etc.</span>
+    </div>
+  </div>
+  <div class="returns">
+    Returns → <strong>annotated card</strong> — enhanced prompt, colored technique segments, framework badge, quality score, clarification questions if any
+  </div>
+  <div class="call-example">
+    <span class="fn">enhance_prompt</span>(<span class="key">prompt</span>=<span class="str">"write a function to parse nested json"</span>, <span class="key">target_ai</span>=<span class="str">"cursor"</span>)
+  </div>
+</div>
+
+<!-- Tool 2 -->
+<div class="tool-card">
+  <div class="tool-header">
+    <span class="tool-name">refine_prompt</span>
+    <span class="tag tag-trigger">on demand</span>
+    <span class="tool-desc">Incorporate clarification answers into a tighter refined prompt</span>
+  </div>
+  <div class="params">
+    <div class="param-row">
+      <span class="param-name">original_prompt<span class="param-req">*</span></span>
+      <span class="param-type">string</span>
+      <span class="param-note">The original raw prompt</span>
+    </div>
+    <div class="param-row">
+      <span class="param-name">clarification_qa<span class="param-req">*</span></span>
+      <span class="param-type">array</span>
+      <span class="param-note">[{question, answer}] pairs from enhance_prompt output</span>
+    </div>
+  </div>
+  <div class="returns">
+    Returns → <strong>refined annotated card</strong> — same structure as enhance, with key_additions list showing what changed
+  </div>
+  <div class="call-example">
+    <span class="fn">refine_prompt</span>(<span class="key">original_prompt</span>=<span class="str">"..."</span>, <span class="key">clarification_qa</span>=[{<span class="key">question</span>:<span class="str">"..."</span>, <span class="key">answer</span>:<span class="str">"..."</span>}])
+  </div>
+</div>
+
+<!-- Tool 3 -->
+<div class="tool-card">
+  <div class="tool-header">
+    <span class="tool-name">get_my_context</span>
+    <span class="tag tag-read">read-only</span>
+    <span class="tool-desc">Inspect your Velocity memory graph — persona, domains, recent sessions</span>
+  </div>
+  <div class="params">
+    <div class="param-row">
+      <span class="param-name">(no params)</span>
+      <span class="param-type"></span>
+      <span class="param-note">Resolved entirely from VELOCITY_USER_ID</span>
+    </div>
+  </div>
+  <div class="returns">
+    Returns → <strong>context summary card</strong> — persona label, enhancement count, top domains, frameworks used, recent session summaries, preference tags
+  </div>
+  <div class="call-example">
+    <span class="fn">get_my_context</span>()
+  </div>
+</div>
+
+<!-- Tool 4 -->
+<div class="tool-card">
+  <div class="tool-header">
+    <span class="tool-name">inject_context</span>
+    <span class="tag tag-auto">always-on</span>
+    <span class="tool-desc">Returns a system-prompt block the AI prepends to personalize this session</span>
+  </div>
+  <div class="params">
+    <div class="param-row">
+      <span class="param-name">(no params)</span>
+      <span class="param-type"></span>
+      <span class="param-note">Resolved entirely from VELOCITY_USER_ID</span>
+    </div>
+  </div>
+  <div class="returns">
+    Returns → <strong>plain text block</strong> — "User context: expertise=senior, domain=software_engineering, preferred style=concise, recent work: auth system, API design..." Claude prepends this to its own context.
+  </div>
+  <div class="call-example">
+    <span class="fn">inject_context</span>()  <span style="color:rgba(255,255,255,0.2)">// Claude adds result to session context automatically</span>
+  </div>
+</div>
