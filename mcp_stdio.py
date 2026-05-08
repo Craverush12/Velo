@@ -18,8 +18,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _canonical_script_path() -> str:
+    """Return the real project path, not a git-worktree copy."""
+    p = pathlib.Path(__file__).resolve()
+    # If running from a worktree (.claude/worktrees/<name>/...) walk up to the project root
+    parts = p.parts
+    for i, part in enumerate(parts):
+        if part == "worktrees" and i >= 2 and parts[i - 1] == ".claude":
+            # parts[0..i-2] is the project root
+            project_root = pathlib.Path(*parts[: i - 1])
+            candidate = project_root / "mcp_stdio.py"
+            if candidate.exists():
+                return str(candidate)
+    return str(p)
+
+
 def _install():
-    script_path = str(pathlib.Path(__file__).resolve())
+    script_path = _canonical_script_path()
     entry = {
         "command": sys.executable,
         "args": [script_path],

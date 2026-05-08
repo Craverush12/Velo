@@ -159,6 +159,8 @@ async def _handle_enhance(args: dict) -> list[TextContent]:
         len(result.get("placeholder_fields") or []),
         tokens_used,
         tokens_saved,
+        clean_prompt,                       # original_prompt
+        result.get("enhanced_prompt", ""),  # enhanced_prompt
     )
 
     return [TextContent(type="text", text=_format_enhance_result(raw_prompt, result))]

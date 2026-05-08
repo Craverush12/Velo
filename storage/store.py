@@ -3,7 +3,34 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-_STORAGE_PATH = Path(os.getenv("STORAGE_PATH", "storage/data"))
+# ── Storage backend feature flag ──────────────────────────────────────────────
+# STORAGE_BACKEND controls where user data lives.
+# "local"     — JSON files on disk (default, no extra deps)
+# "s3"        — AWS S3 (requires S3_BUCKET, AWS_* env vars + boto3)
+# "lightsail" — LightSail object storage (requires LIGHTSAIL_* env vars + boto3)
+_BACKEND = os.getenv("STORAGE_BACKEND", "local")
+
+if _BACKEND not in ("local",):
+    raise RuntimeError(
+        f"STORAGE_BACKEND={_BACKEND!r} is not yet implemented.\n"
+        "Supported now: 'local'.\n"
+        "To migrate: implement the backend in storage/store.py, then set the env var."
+    )
+
+# ── Path resolution (always absolute — safe regardless of CWD) ───────────────
+def _resolve_path() -> Path:
+    env = os.getenv("STORAGE_PATH", "").strip()
+    if env:
+        p = Path(env)
+        if not p.is_absolute():
+            raise ValueError(
+                f"STORAGE_PATH must be an absolute path, got: {env!r}\n"
+                "Remove STORAGE_PATH from .env to use the built-in default."
+            )
+        return p
+    return Path(__file__).parent / "data"
+
+_STORAGE_PATH = _resolve_path()
 
 _DEFAULT_CONTEXT = {
     "user_id": "",
@@ -59,6 +86,12 @@ def reset_user_context(user_id: str) -> dict:
     return ctx
 
 
+def get_history(user_id: str) -> list[dict]:
+    """Return recent_context entries newest-first, safe for API exposure."""
+    ctx = get_user_context(user_id)
+    return ctx.get("recent_context", [])
+
+
 def update_after_enhancement(
     user_id: str,
     intent: str,
@@ -68,6 +101,8 @@ def update_after_enhancement(
     placeholder_count: int = 0,
     tokens_used: int = 0,
     tokens_saved: int = 0,
+    original_prompt: str = "",
+    enhanced_prompt: str = "",
 ) -> None:
     ctx = get_user_context(user_id)
 
@@ -88,11 +123,13 @@ def update_after_enhancement(
                 "placeholder_count": placeholder_count,
                 "tokens_used": tokens_used,
                 "tokens_saved": tokens_saved,
+                "original_prompt": original_prompt,
+                "enhanced_prompt": enhanced_prompt,
                 "at": datetime.now(timezone.utc).isoformat(),
             }
         ]
         + ctx["recent_context"]
-    )[:7]
+    )[:20]  # bumped from 7 → 20 so history sidebar has real depth
 
     ctx["enhancement_count"] = ctx.get("enhancement_count", 0) + 1
     ctx["placeholder_count"] = ctx.get("placeholder_count", 0) + max(0, int(placeholder_count or 0))

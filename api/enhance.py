@@ -77,6 +77,8 @@ async def _generate(request: EnhanceRequest, background_tasks: BackgroundTasks):
                     len(result.get("placeholder_fields") or []),
                     tokens_used,
                     tokens_saved,
+                    clean_prompt,                       # original_prompt
+                    result.get("enhanced_prompt", ""),  # enhanced_prompt
                 )
                 payload = json.dumps({"type": "done", "result": result})
                 yield f"data: {payload}\n\n"

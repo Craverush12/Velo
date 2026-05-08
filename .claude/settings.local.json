@@ -8,7 +8,11 @@
       "Bash(python -c \"from api.mcp import router; print\\('ok'\\)\")",
       "Bash(python -c \"from main import app; print\\([r.path for r in app.routes if 'mcp' in r.path]\\)\")",
       "Bash(git -C \"C:/Users/Arjun/Desktop/ThinkVelocity\" add .)",
-      "Bash(git -C \"C:/Users/Arjun/Desktop/ThinkVelocity\" commit -m \"chore: verified full MCP integration smoke test passes\")"
+      "Bash(git -C \"C:/Users/Arjun/Desktop/ThinkVelocity\" commit -m \"chore: verified full MCP integration smoke test passes\")",
+      "Bash(git rm *)",
+      "Bash(git -C \"C:/Users/Arjun/Desktop/ThinkVelocity\" add .gitignore)",
+      "Bash(git -C \"C:/Users/Arjun/Desktop/ThinkVelocity\" commit -m \"chore: add .gitignore — exclude .env, __pycache__, user data, dev state\")",
+      "mcp__velocity__inject_context"
     ]
   }
 }

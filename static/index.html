@@ -705,7 +705,7 @@ const state = {
   currentContext: null,
   network: null,
   graphNodes: [],
-  history: JSON.parse(localStorage.getItem("tv_history") || "[]")
+  history: []
 };
 
 const TECHNIQUE_LABELS = {
@@ -1149,28 +1149,47 @@ function bindInfoButtons() {
   });
 }
 
-function addToHistory(original, result) {
-  state.history.unshift({ id: Date.now(), original, result, at: new Date().toISOString() });
-  state.history = state.history.slice(0, 10);
-  localStorage.setItem("tv_history", JSON.stringify(state.history));
-  renderHistory();
+function addToHistory(_original, _result) {
+  // Server already saved the entry via background task in /enhance.
+  // Wait briefly then pull the authoritative list from the server.
+  setTimeout(refreshHistory, 600);
+}
+
+async function refreshHistory() {
+  const userId = $("userId").value.trim() || "anonymous";
+  try {
+    const res = await fetch(`/history/${encodeURIComponent(userId)}`);
+    state.history = await res.json();
+    renderHistory();
+  } catch (_) {
+    // silently skip — server may be starting up
+  }
 }
 
 function renderHistory() {
   $("history").innerHTML = state.history.map((entry, i) => `
     <button class="history-card" data-h="${i}">
-      <div class="history-title">${escapeHtml((entry.result.domain || "general").replaceAll("_", " "))}</div>
-      <div class="history-meta">${escapeHtml((entry.result.intent || "intent").replaceAll("_", " "))} / ${relativeTime(entry.at)}</div>
+      <div class="history-title">${escapeHtml((entry.domain || "general").replaceAll("_", " "))}</div>
+      <div class="history-meta">${escapeHtml((entry.intent || "intent").replaceAll("_", " "))} · ${relativeTime(entry.at)}</div>
     </button>
   `).join("") || '<div class="subtle">No saved enhancements yet.</div>';
+
   document.querySelectorAll("[data-h]").forEach(btn => btn.addEventListener("click", () => {
     const entry = state.history[Number(btn.dataset.h)];
-    $("promptInput").value = entry.original;
-    state.currentPrompt = entry.original;
-    const out = document.createElement("div");
-    out.className = "prompt-output";
-    addMessage("Restored enhancement", "history", out);
-    renderResult(entry.result, out);
+    if (!entry) return;
+    const original = entry.original_prompt || "";
+    $("promptInput").value = original;
+    state.currentPrompt = original;
+    if (entry.enhanced_prompt) {
+      const out = document.createElement("div");
+      out.className = "prompt-output";
+      out.textContent = entry.enhanced_prompt;
+      addMessage(
+        "Restored: " + escapeHtml((entry.domain || "").replaceAll("_", " ")),
+        "history · " + relativeTime(entry.at),
+        out
+      );
+    }
   }));
 }
 
@@ -1347,6 +1366,26 @@ function clearWorkspace() {
   state.currentSegments = [];
 }
 
+async function initUserId() {
+  // Restore previously saved userId, or fetch the server default
+  const saved = localStorage.getItem("tv_user_id");
+  if (saved) {
+    $("userId").value = saved;
+  } else {
+    try {
+      const res = await fetch("/config");
+      const cfg = await res.json();
+      if (cfg.default_user_id && cfg.default_user_id !== "anonymous") {
+        $("userId").value = cfg.default_user_id;
+        localStorage.setItem("tv_user_id", cfg.default_user_id);
+      }
+    } catch (_) {}
+  }
+  // Load history and graph for whoever we resolved to
+  await refreshHistory();
+  refreshContextGraph();
+}
+
 async function initHealth() {
   try {
     const res = await fetch("/health");
@@ -1359,14 +1398,17 @@ async function initHealth() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  renderHistory();
+  initUserId();   // resolves userId → loads history + context graph
   initHealth();
-  refreshContextGraph();
   $("enhanceBtn").addEventListener("click", enhance);
   $("promptInput").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) enhance(); });
   $("refreshBrain").addEventListener("click", refreshContextGraph);
   $("resetContext").addEventListener("click", resetContext);
-  $("userId").addEventListener("change", refreshContextGraph);
+  $("userId").addEventListener("change", () => {
+    localStorage.setItem("tv_user_id", $("userId").value.trim());
+    refreshContextGraph();
+    refreshHistory();
+  });
   $("toggleLeft").addEventListener("click", () => $("appShell").classList.toggle("left-collapsed"));
   $("toggleRight").addEventListener("click", () => $("appShell").classList.toggle("right-collapsed"));
   document.querySelectorAll("[data-view]").forEach(btn => btn.addEventListener("click", () => showView(btn.dataset.view)));
