@@ -7,8 +7,14 @@ from fastapi import HTTPException
 
 load_dotenv()
 
-_client = AsyncGroq(api_key=os.environ["GROQ_API_KEY"])
 _MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+
+
+def _client() -> AsyncGroq:
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GROQ_API_KEY is not configured")
+    return AsyncGroq(api_key=api_key)
 
 
 async def stream_completion(
@@ -35,7 +41,7 @@ async def stream_completion(
         if usage_sink is not None:
             create_kwargs["stream_options"] = {"include_usage": True}
 
-        stream = await _client.chat.completions.create(**create_kwargs)
+        stream = await _client().chat.completions.create(**create_kwargs)
         async for chunk in stream:
             content = chunk.choices[0].delta.content if chunk.choices else None
             if content:
@@ -61,7 +67,7 @@ async def complete(
     max_tokens: int = 4096,
 ) -> str:
     try:
-        response = await _client.chat.completions.create(
+        response = await _client().chat.completions.create(
             model=_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -87,7 +93,7 @@ async def complete_with_usage(
     """Non-streaming completion that returns (content, usage_dict).
     usage_dict keys: prompt_tokens, completion_tokens, total_tokens."""
     try:
-        response = await _client.chat.completions.create(
+        response = await _client().chat.completions.create(
             model=_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},

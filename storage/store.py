@@ -1,5 +1,7 @@
 import json
 import os
+import re
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,14 +25,14 @@ def _resolve_path() -> Path:
     if env:
         p = Path(env)
         if not p.is_absolute():
-            raise ValueError(
-                f"STORAGE_PATH must be an absolute path, got: {env!r}\n"
-                "Remove STORAGE_PATH from .env to use the built-in default."
-            )
-        return p
+            p = Path(__file__).parent.parent / p
+        return p.resolve()
     return Path(__file__).parent / "data"
 
 _STORAGE_PATH = _resolve_path()
+_USER_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+_LOCKS: dict[str, threading.Lock] = {}
+_LOCKS_GUARD = threading.Lock()
 
 _DEFAULT_CONTEXT = {
     "user_id": "",
@@ -54,14 +56,26 @@ _DEFAULT_CONTEXT = {
 
 
 def _path(user_id: str) -> Path:
+    if not _USER_ID_RE.fullmatch(user_id):
+        raise ValueError("user_id must match ^[A-Za-z0-9_-]{1,64}$")
     _STORAGE_PATH.mkdir(parents=True, exist_ok=True)
-    return _STORAGE_PATH / f"user_{user_id}.json"
+    path = (_STORAGE_PATH / f"user_{user_id}.json").resolve()
+    if not path.is_relative_to(_STORAGE_PATH):
+        raise ValueError("resolved storage path escaped STORAGE_PATH")
+    return path
+
+
+def _lock_for(user_id: str) -> threading.Lock:
+    with _LOCKS_GUARD:
+        if user_id not in _LOCKS:
+            _LOCKS[user_id] = threading.Lock()
+        return _LOCKS[user_id]
 
 
 def get_user_context(user_id: str) -> dict:
     p = _path(user_id)
     if not p.exists():
-        ctx = dict(_DEFAULT_CONTEXT)
+        ctx = json.loads(json.dumps(_DEFAULT_CONTEXT))
         ctx["user_id"] = user_id
         now = datetime.now(timezone.utc).isoformat()
         ctx["created_at"] = now
@@ -72,8 +86,13 @@ def get_user_context(user_id: str) -> dict:
 
 
 def save_user_context(user_id: str, context: dict) -> None:
-    with open(_path(user_id), "w") as f:
-        json.dump(context, f, indent=2)
+    path = _path(user_id)
+    tmp = path.with_suffix(".json.tmp")
+    with _lock_for(user_id):
+        with open(tmp, "w") as f:
+            json.dump(context, f, indent=2)
+            f.write("\n")
+        os.replace(tmp, path)
 
 
 def reset_user_context(user_id: str) -> dict:
@@ -103,6 +122,8 @@ def update_after_enhancement(
     tokens_saved: int = 0,
     original_prompt: str = "",
     enhanced_prompt: str = "",
+    schema_version: str | None = None,
+    prompt_version: str | None = None,
 ) -> None:
     ctx = get_user_context(user_id)
 
@@ -125,6 +146,8 @@ def update_after_enhancement(
                 "tokens_saved": tokens_saved,
                 "original_prompt": original_prompt,
                 "enhanced_prompt": enhanced_prompt,
+                "schema_version": schema_version,
+                "prompt_version": prompt_version,
                 "at": datetime.now(timezone.utc).isoformat(),
             }
         ]

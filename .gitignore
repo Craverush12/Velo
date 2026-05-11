@@ -8,6 +8,10 @@ venv/
 
 # Storage (user data - not committed)
 storage/data/*.json
+storage/data/*.tmp
+
+# Local Docker overrides
+docker-compose.override.yml
 
 # Dev tools
 .superpowers/brainstorm/*/state/

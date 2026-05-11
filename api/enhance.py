@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
@@ -6,13 +5,25 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 
 from core import context_loader, safety
-from core.llm import stream_completion
-from core.normalize import quality_ceiling as _quality_ceiling, normalize_result as _normalize_result
+from core.llm import complete, stream_completion
+from core.output_validator import OutputValidationError, parse_validate_with_repair
+from core.prompt_metadata import prompt_hash
 from storage import store
+import json
 
 router = APIRouter()
 
 _SYSTEM_PROMPT = (Path(__file__).parent.parent / "core" / "prompts" / "enhance_system.md").read_text()
+_PROMPT_HASH = prompt_hash("enhance_system.md")
+
+
+async def _repair_output(kind: str, raw: str, repair_prompt: str) -> str:
+    return await complete(
+        "You repair ThinkVelocity JSON outputs. Return only valid JSON.",
+        repair_prompt,
+        temperature=0,
+        max_tokens=4096,
+    )
 
 
 class EnhanceRequest(BaseModel):
@@ -58,7 +69,13 @@ async def _generate(request: EnhanceRequest, background_tasks: BackgroundTasks):
                 yield f"data: {payload}\n\n"
 
             try:
-                result = _normalize_result(json.loads(accumulated), clean_prompt)
+                result = await parse_validate_with_repair(
+                    "enhance",
+                    accumulated,
+                    raw_prompt=clean_prompt,
+                    prompt_hash=_PROMPT_HASH,
+                    repair_callback=_repair_output,
+                )
                 if redactions:
                     result["_redactions"] = redactions
                 tokens_used = usage_sink.get("total_tokens", 0)
@@ -79,14 +96,15 @@ async def _generate(request: EnhanceRequest, background_tasks: BackgroundTasks):
                     tokens_saved,
                     clean_prompt,                       # original_prompt
                     result.get("enhanced_prompt", ""),  # enhanced_prompt
+                    result.get("schema_version"),
+                    result.get("prompt_version"),
                 )
                 payload = json.dumps({"type": "done", "result": result})
                 yield f"data: {payload}\n\n"
-            except json.JSONDecodeError:
+            except OutputValidationError as e:
                 payload = json.dumps({
                     "type": "error",
-                    "message": "Failed to parse enhancement output",
-                    "raw": accumulated[:500],
+                    "message": e.to_detail(),
                 })
                 yield f"data: {payload}\n\n"
         except HTTPException as e:

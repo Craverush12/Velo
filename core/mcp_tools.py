@@ -7,12 +7,15 @@ from mcp.server import Server
 from mcp.types import Tool, TextContent
 
 from core import context_loader, safety
-from core.llm import complete_with_usage
-from core.normalize import normalize_result, quality_ceiling
+from core.llm import complete, complete_with_usage
+from core.output_validator import OutputValidationError, parse_validate_with_repair, quality_ceiling
+from core.prompt_metadata import prompt_hash
 from storage import store
 
 _ENHANCE_PROMPT = (Path(__file__).parent / "prompts" / "enhance_system.md").read_text()
 _REFINE_PROMPT = (Path(__file__).parent / "prompts" / "refine_system.md").read_text()
+_ENHANCE_PROMPT_HASH = prompt_hash("enhance_system.md")
+_REFINE_PROMPT_HASH = prompt_hash("refine_system.md")
 
 mcp_server = Server("velocity")
 
@@ -78,6 +81,29 @@ async def list_tools() -> list[Tool]:
                         "type": "string",
                         "description": "Target AI surface (optional)",
                     },
+                    "previous_enhanced_prompt": {
+                        "type": "string",
+                        "description": "The current enhanced prompt to refine, if available",
+                    },
+                    "previous_annotated_segments": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Annotated segments from the previous enhancement, if available",
+                    },
+                    "previous_framework_used": {
+                        "type": "string",
+                        "description": "Framework used by the previous enhancement",
+                    },
+                    "previous_pe_techniques_applied": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Technique keys from the previous enhancement",
+                    },
+                    "previous_placeholder_fields": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Placeholder field metadata from the previous enhancement",
+                    },
                 },
                 "required": ["original_prompt", "clarification_qa"],
             },
@@ -140,8 +166,14 @@ async def _handle_enhance(args: dict) -> list[TextContent]:
     raw, usage = await complete_with_usage(_ENHANCE_PROMPT, user_message)
 
     try:
-        result = normalize_result(json.loads(raw), clean_prompt)
-    except json.JSONDecodeError:
+        result = await parse_validate_with_repair(
+            "enhance",
+            raw,
+            raw_prompt=clean_prompt,
+            prompt_hash=_ENHANCE_PROMPT_HASH,
+            repair_callback=_repair_output,
+        )
+    except OutputValidationError:
         return [TextContent(type="text", text="Velocity: Failed to parse enhancement output. Please try again.")]
 
     # Store with token tracking
@@ -161,6 +193,8 @@ async def _handle_enhance(args: dict) -> list[TextContent]:
         tokens_saved,
         clean_prompt,                       # original_prompt
         result.get("enhanced_prompt", ""),  # enhanced_prompt
+        result.get("schema_version"),
+        result.get("prompt_version"),
     )
 
     return [TextContent(type="text", text=_format_enhance_result(raw_prompt, result))]
@@ -170,33 +204,76 @@ async def _handle_refine(args: dict) -> list[TextContent]:
     original = args.get("original_prompt", "")
     qa_pairs = args.get("clarification_qa", [])
     target_ai = args.get("target_ai")
+    previous_enhanced_prompt = args.get("previous_enhanced_prompt")
+    previous_annotated_segments = args.get("previous_annotated_segments", [])
+    previous_framework_used = args.get("previous_framework_used")
+    previous_pe_techniques_applied = args.get("previous_pe_techniques_applied", [])
+    previous_placeholder_fields = args.get("previous_placeholder_fields", [])
 
     qa_lines = []
     for i, qa in enumerate(qa_pairs, 1):
         qa_lines.append(f"Q{i}: {qa.get('question', '')}")
         qa_lines.append(f"A{i}: {qa.get('answer', '')}")
 
-    user_message = "\n".join([
+    lines = [
         f"Original prompt: {original}",
         f"Target AI: {target_ai or 'not specified'}",
         "",
+    ]
+    if previous_enhanced_prompt:
+        lines.extend([
+            "Previously enhanced prompt:",
+            previous_enhanced_prompt,
+            "",
+            f"Previous framework used: {previous_framework_used or 'not specified'}",
+            "Previous PE techniques:",
+            json.dumps(previous_pe_techniques_applied, ensure_ascii=False),
+            "",
+            "Previous placeholder fields JSON:",
+            json.dumps(previous_placeholder_fields, ensure_ascii=False),
+            "",
+            "Previous annotated segments JSON:",
+            json.dumps(previous_annotated_segments, ensure_ascii=False),
+            "",
+        ])
+    else:
+        lines.extend([
+            "Previously enhanced prompt: not provided",
+            "Refine from the original prompt and clarification answers only.",
+            "",
+        ])
+    lines.extend([
         "Clarification Q&A:",
         *qa_lines,
     ])
+    user_message = "\n".join(lines)
 
     raw = await _refine_complete(user_message)
 
     try:
-        result = json.loads(raw)
-    except json.JSONDecodeError:
+        result = await parse_validate_with_repair(
+            "refine",
+            raw,
+            prompt_hash=_REFINE_PROMPT_HASH,
+            repair_callback=_repair_output,
+        )
+    except OutputValidationError:
         return [TextContent(type="text", text="Velocity Refine: Failed to parse output. Please try again.")]
 
     return [TextContent(type="text", text=_format_refine_result(result))]
 
 
 async def _refine_complete(user_message: str) -> str:
-    from core.llm import complete
-    return await complete(_REFINE_PROMPT, user_message)
+    return await complete(_REFINE_PROMPT, user_message, temperature=0.3)
+
+
+async def _repair_output(kind: str, raw: str, repair_prompt: str) -> str:
+    return await complete(
+        "You repair ThinkVelocity JSON outputs. Return only valid JSON.",
+        repair_prompt,
+        temperature=0,
+        max_tokens=4096,
+    )
 
 
 # ── Formatters ────────────────────────────────────────────────────────────────

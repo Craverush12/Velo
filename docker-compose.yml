@@ -1,0 +1,18 @@
+services:
+  thinkvelocity:
+    build: .
+    image: thinkvelocity-backend:local
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      APP_ENV: development
+      PORT: 8000
+      STORAGE_PATH: /data
+    volumes:
+      - thinkvelocity-data:/data
+    restart: unless-stopped
+
+volumes:
+  thinkvelocity-data:

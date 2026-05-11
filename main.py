@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from core.prompt_metadata import prompt_metadata
 
 load_dotenv()
 
@@ -45,6 +46,7 @@ def health():
         "status": "ok",
         "model": os.getenv("LLM_MODEL", "llama-3.3-70b-versatile"),
         "env": os.getenv("APP_ENV", "development"),
+        **prompt_metadata(),
     }
 
 
