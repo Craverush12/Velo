@@ -46,6 +46,7 @@ class RefineBackendTests(unittest.IsolatedAsyncioTestCase):
         request = refine_api.RefineRequest(
             original_prompt="write a chart script",
             target_ai="claude",
+            prompt_mode="caveman",
             clarification_qa=[
                 {"question": "What chart?", "answer": "bar chart"},
             ],
@@ -68,16 +69,18 @@ class RefineBackendTests(unittest.IsolatedAsyncioTestCase):
         )
 
         message = refine_api.build_refine_user_message(request)
+        payload = json.loads(message[message.index("{"):])
 
-        self.assertIn("Original prompt: write a chart script", message)
-        self.assertIn("Target AI: claude", message)
-        self.assertIn("Previously enhanced prompt:", message)
-        self.assertIn("Create a clear Python charting script.", message)
-        self.assertIn("Previous framework used: RTF", message)
-        self.assertIn("persona_injection", message)
-        self.assertIn("Previous annotated segments JSON:", message)
-        self.assertIn("Q1: What chart?", message)
-        self.assertIn("A1: bar chart", message)
+        self.assertIn("untrusted user data", message)
+        self.assertEqual(payload["original_prompt"], "write a chart script")
+        self.assertEqual(payload["target_ai"], "claude")
+        self.assertEqual(payload["prompt_mode"], "caveman")
+        self.assertEqual(payload["previous_enhanced_prompt"], "Create a clear Python charting script.")
+        self.assertEqual(payload["previous_framework_used"], "RTF")
+        self.assertIn("persona_injection", payload["previous_pe_techniques_applied"])
+        self.assertEqual(payload["previous_annotated_segments"][0]["text"], "Create a clear Python charting script.")
+        self.assertEqual(payload["clarification_qa"][0]["question"], "What chart?")
+        self.assertEqual(payload["clarification_qa"][0]["answer"], "bar chart")
 
     def test_build_message_falls_back_when_previous_context_absent(self):
         request = refine_api.RefineRequest(
@@ -86,15 +89,33 @@ class RefineBackendTests(unittest.IsolatedAsyncioTestCase):
         )
 
         message = refine_api.build_refine_user_message(request)
+        payload = json.loads(message[message.index("{"):])
 
-        self.assertIn("Previously enhanced prompt: not provided", message)
-        self.assertIn("Refine from the original prompt", message)
+        self.assertIn("If previous_enhanced_prompt is null", message)
+        self.assertIsNone(payload["previous_enhanced_prompt"])
+        self.assertEqual(payload["original_prompt"], "write a chart script")
 
     def test_invalid_empty_qa_answer_fails_validation(self):
         with self.assertRaises(ValidationError):
             refine_api.RefineRequest(
                 original_prompt="write a chart script",
                 clarification_qa=[{"question": "What chart?", "answer": ""}],
+            )
+
+    def test_invalid_target_ai_fails_validation(self):
+        with self.assertRaises(ValidationError):
+            refine_api.RefineRequest(
+                original_prompt="write a chart script",
+                target_ai="unknown-ai",
+                clarification_qa=[{"question": "What chart?", "answer": "bar chart"}],
+            )
+
+    def test_invalid_prompt_mode_fails_validation(self):
+        with self.assertRaises(ValidationError):
+            refine_api.RefineRequest(
+                original_prompt="write a chart script",
+                prompt_mode="opera",
+                clarification_qa=[{"question": "What chart?", "answer": "bar chart"}],
             )
 
     async def test_refine_uses_temperature_point_three(self):
@@ -121,7 +142,7 @@ class RefineBackendTests(unittest.IsolatedAsyncioTestCase):
             result = await refine_api.refine(request)
 
         self.assertEqual(calls[0]["temperature"], 0.3)
-        self.assertIn("Previously enhanced prompt:", calls[0]["user_message"])
+        self.assertIn("previous_enhanced_prompt", calls[0]["user_message"])
         self.assertEqual(result["framework_used"], "RTF")
         self.assertEqual(result["schema_version"], refine_api.parse_validate_with_repair.__globals__["SCHEMA_VERSION"])
 

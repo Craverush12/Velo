@@ -3,8 +3,8 @@
 Velocity MCP stdio shim.
 
 Usage:
-  python mcp_stdio.py              # run as stdio MCP server
-  python mcp_stdio.py --install    # auto-install into Claude Code / Claude Desktop config
+  python mcp/stdio.py              # run as stdio MCP server
+  python mcp/stdio.py --install    # auto-install into Claude Code / Claude Desktop config
 """
 import asyncio
 import json
@@ -27,7 +27,7 @@ def _canonical_script_path() -> str:
         if part == "worktrees" and i >= 2 and parts[i - 1] == ".claude":
             # parts[0..i-2] is the project root
             project_root = pathlib.Path(*parts[: i - 1])
-            candidate = project_root / "mcp_stdio.py"
+            candidate = project_root / "mcp" / "stdio.py"
             if candidate.exists():
                 return str(candidate)
     return str(p)

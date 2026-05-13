@@ -124,6 +124,7 @@ def update_after_enhancement(
     enhanced_prompt: str = "",
     schema_version: str | None = None,
     prompt_version: str | None = None,
+    prompt_mode: str = "normal",
 ) -> None:
     ctx = get_user_context(user_id)
 
@@ -148,6 +149,7 @@ def update_after_enhancement(
                 "enhanced_prompt": enhanced_prompt,
                 "schema_version": schema_version,
                 "prompt_version": prompt_version,
+                "prompt_mode": prompt_mode,
                 "at": datetime.now(timezone.utc).isoformat(),
             }
         ]

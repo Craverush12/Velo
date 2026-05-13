@@ -1,9 +1,10 @@
 import json
 import unittest
 
-from core.contracts import SCHEMA_VERSION
+from core.contracts import SCHEMA_VERSION, TECHNIQUE_COLORS
 from core.output_validator import (
     OutputValidationError,
+    _repair_prompt,
     parse_validate_with_repair,
     validate_enhance_result,
     validate_refine_result,
@@ -89,6 +90,7 @@ class OutputValidatorTests(unittest.IsolatedAsyncioTestCase):
             valid_enhance_payload(),
             raw_prompt="parse JSON",
             prompt_hash="abc123",
+            prompt_mode="caveman",
         )
 
         self.assertEqual(result["annotated_segments"][0]["color_key"], "indigo")
@@ -97,6 +99,7 @@ class OutputValidatorTests(unittest.IsolatedAsyncioTestCase):
             ["persona_injection", "task_clarification"],
         )
         self.assertEqual(result["prompt_version"], "abc123")
+        self.assertEqual(result["prompt_mode"], "caveman")
         self.assertEqual(result["schema_version"], SCHEMA_VERSION)
         self.assertLessEqual(result["prompt_quality_score"], 0.18)
         self.assertEqual(result["clarification_questions"][0]["question"], "Which Python version should this support?")
@@ -117,6 +120,37 @@ class OutputValidatorTests(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaises(OutputValidationError):
             validate_refine_result(payload)
+
+    def test_all_allowed_techniques_have_matching_colors(self):
+        prompt = "".join(f"{key}. " for key in TECHNIQUE_COLORS)
+        payload = {
+            "refined_prompt": prompt,
+            "annotated_segments": [
+                {
+                    "id": f"r{i}",
+                    "text": f"{key}. ",
+                    "technique": key,
+                    "technique_label": key.replace("_", " ").title(),
+                    "color_key": "red",
+                    "reason": f"Exercises {key}.",
+                    "is_original": False,
+                    "original_text": None,
+                }
+                for i, key in enumerate(TECHNIQUE_COLORS, 1)
+            ],
+            "placeholder_fields": [],
+            "framework_used": "RTF",
+            "pe_techniques_applied": [],
+            "key_additions": [],
+            "summary": "All techniques validate.",
+        }
+
+        result = validate_refine_result(payload)
+
+        self.assertEqual(
+            [seg["color_key"] for seg in result["annotated_segments"]],
+            [TECHNIQUE_COLORS[seg["technique"]] for seg in result["annotated_segments"]],
+        )
 
     def test_placeholder_mismatch_fails(self):
         payload = valid_refine_payload()
@@ -146,6 +180,15 @@ class OutputValidatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(calls[0][0], "refine")
         self.assertEqual(result["_repair_status"], "llm_repaired")
         self.assertEqual(result["framework_used"], "RTF")
+
+    def test_repair_prompt_is_conservative_and_lists_enums(self):
+        error = OutputValidationError("bad", validation_errors=[{"field": "x"}])
+        repair_prompt = _repair_prompt("enhance", '{"bad": true}', error)
+
+        self.assertIn("Preserve the final prompt text exactly", repair_prompt)
+        self.assertIn("tree_of_thought", repair_prompt)
+        self.assertIn("structured_output", repair_prompt)
+        self.assertIn("Allowed color keys", repair_prompt)
 
 
 if __name__ == "__main__":

@@ -24,10 +24,8 @@ async def stream_completion(
     max_tokens: int = 4096,
     usage_sink: dict | None = None,
 ) -> AsyncGenerator[str, None]:
-    """Yields content chunks. If usage_sink dict is provided, populates it with
-    token counts after streaming completes."""
     try:
-        create_kwargs = dict(
+        stream = await _client().chat.completions.create(
             model=_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -38,22 +36,10 @@ async def stream_completion(
             response_format={"type": "json_object"},
             stream=True,
         )
-        if usage_sink is not None:
-            create_kwargs["stream_options"] = {"include_usage": True}
-
-        stream = await _client().chat.completions.create(**create_kwargs)
         async for chunk in stream:
             content = chunk.choices[0].delta.content if chunk.choices else None
             if content:
                 yield content
-            if usage_sink is not None and getattr(chunk, "usage", None):
-                usage_sink.update(
-                    {
-                        "prompt_tokens": chunk.usage.prompt_tokens,
-                        "completion_tokens": chunk.usage.completion_tokens,
-                        "total_tokens": chunk.usage.total_tokens,
-                    }
-                )
     except RateLimitError as e:
         raise HTTPException(status_code=429, detail=f"Rate limit hit: {e}")
     except APIError as e:
@@ -72,6 +58,31 @@ async def complete(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message},
+            ],
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format={"type": "json_object"},
+        )
+        return response.choices[0].message.content
+    except RateLimitError as e:
+        raise HTTPException(status_code=429, detail=f"Rate limit hit: {e}")
+    except APIError as e:
+        raise HTTPException(status_code=502, detail=f"LLM API error: {e}")
+
+
+async def complete_multi_turn(
+    system_prompt: str,
+    messages: list[dict],
+    temperature: float = 0.7,
+    max_tokens: int = 1024,
+) -> str:
+    """Multi-turn completion. messages is a list of {role, content} dicts."""
+    try:
+        response = await _client().chat.completions.create(
+            model=_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                *messages,
             ],
             temperature=temperature,
             max_tokens=max_tokens,

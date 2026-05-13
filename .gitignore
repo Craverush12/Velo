@@ -17,3 +17,8 @@ docker-compose.override.yml
 .superpowers/brainstorm/*/state/
 .claude/worktrees/
 .claude/settings.local.json
+.playwright-mcp/
+
+# Scratch / build files
+*.patch
+C:/tmp/

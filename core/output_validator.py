@@ -10,9 +10,11 @@ from pydantic import ValidationError
 from core.contracts import (
     SCHEMA_VERSION,
     TECHNIQUE_COLORS,
+    AnnotatedSegment,
     ClarificationQuestion,
     EnhanceResult,
     RefineResult,
+    normalize_prompt_mode,
 )
 
 
@@ -111,6 +113,7 @@ def validate_enhance_result(
     *,
     raw_prompt: str = "",
     prompt_hash: str | None = None,
+    prompt_mode: str | None = None,
 ) -> dict:
     normalized = _normalize_common(result, prompt_field="enhanced_prompt")
     raw_score = normalized.get("prompt_quality_score", 0.0)
@@ -123,6 +126,7 @@ def validate_enhance_result(
     )
     normalized["schema_version"] = SCHEMA_VERSION
     normalized["prompt_version"] = prompt_hash
+    normalized["prompt_mode"] = normalize_prompt_mode(prompt_mode)
     try:
         validated = EnhanceResult.model_validate(normalized)
     except ValidationError as exc:
@@ -131,7 +135,10 @@ def validate_enhance_result(
             validation_errors=_validation_errors(exc),
             raw_excerpt=json.dumps(result, default=str)[:500],
         ) from exc
-    _validate_segments(validated.enhanced_prompt, validated.annotated_segments)
+    try:
+        _validate_segments(validated.enhanced_prompt, validated.annotated_segments)
+    except OutputValidationError:
+        validated.annotated_segments = [_single_segment(validated.enhanced_prompt, prefix="s")]
     _validate_placeholders(validated.enhanced_prompt, validated.placeholder_fields)
     return validated.model_dump(mode="json")
 
@@ -140,10 +147,12 @@ def validate_refine_result(
     result: dict,
     *,
     prompt_hash: str | None = None,
+    prompt_mode: str | None = None,
 ) -> dict:
     normalized = _normalize_common(result, prompt_field="refined_prompt")
     normalized["schema_version"] = SCHEMA_VERSION
     normalized["prompt_version"] = prompt_hash
+    normalized["prompt_mode"] = normalize_prompt_mode(prompt_mode)
     try:
         validated = RefineResult.model_validate(normalized)
     except ValidationError as exc:
@@ -152,7 +161,10 @@ def validate_refine_result(
             validation_errors=_validation_errors(exc),
             raw_excerpt=json.dumps(result, default=str)[:500],
         ) from exc
-    _validate_segments(validated.refined_prompt, validated.annotated_segments)
+    try:
+        _validate_segments(validated.refined_prompt, validated.annotated_segments)
+    except OutputValidationError:
+        validated.annotated_segments = [_single_segment(validated.refined_prompt, prefix="r")]
     _validate_placeholders(validated.refined_prompt, validated.placeholder_fields)
     return validated.model_dump(mode="json")
 
@@ -163,10 +175,17 @@ async def parse_validate_with_repair(
     *,
     raw_prompt: str = "",
     prompt_hash: str | None = None,
+    prompt_mode: str | None = None,
     repair_callback: RepairCallback | None = None,
 ) -> dict:
     try:
-        return _validate_kind(kind, parse_json_object(raw), raw_prompt=raw_prompt, prompt_hash=prompt_hash)
+        return _validate_kind(
+            kind,
+            parse_json_object(raw),
+            raw_prompt=raw_prompt,
+            prompt_hash=prompt_hash,
+            prompt_mode=prompt_mode,
+        )
     except OutputValidationError as first_error:
         if repair_callback is None:
             raise first_error
@@ -178,6 +197,7 @@ async def parse_validate_with_repair(
                 parse_json_object(repaired_raw),
                 raw_prompt=raw_prompt,
                 prompt_hash=prompt_hash,
+                prompt_mode=prompt_mode,
             )
         except OutputValidationError as repair_error:
             raise OutputValidationError(
@@ -190,11 +210,23 @@ async def parse_validate_with_repair(
         return repaired
 
 
-def _validate_kind(kind: str, result: dict, *, raw_prompt: str, prompt_hash: str | None) -> dict:
+def _validate_kind(
+    kind: str,
+    result: dict,
+    *,
+    raw_prompt: str,
+    prompt_hash: str | None,
+    prompt_mode: str | None,
+) -> dict:
     if kind == "enhance":
-        return validate_enhance_result(result, raw_prompt=raw_prompt, prompt_hash=prompt_hash)
+        return validate_enhance_result(
+            result,
+            raw_prompt=raw_prompt,
+            prompt_hash=prompt_hash,
+            prompt_mode=prompt_mode,
+        )
     if kind == "refine":
-        return validate_refine_result(result, prompt_hash=prompt_hash)
+        return validate_refine_result(result, prompt_hash=prompt_hash, prompt_mode=prompt_mode)
     raise ValueError(f"Unknown output kind: {kind}")
 
 
@@ -202,6 +234,7 @@ def _normalize_common(result: dict, *, prompt_field: str) -> dict:
     normalized = dict(result)
     _normalize_clarification_questions(normalized)
     _repair_segment_texts(normalized, prompt_field)
+    _clamp_segment_techniques(normalized)
     _normalize_segment_colors(normalized)
     _normalize_placeholder_fields(normalized, prompt_field)
     _normalize_techniques(normalized)
@@ -225,6 +258,34 @@ def _normalize_clarification_questions(result: dict) -> None:
     ]
 
 
+def _norm_ws(s: str) -> str:
+    """Collapse all whitespace runs to a single space and strip edges."""
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _find_normalized(prompt: str, target_normalized: str, start_pos: int) -> int:
+    """Search for target_normalized (whitespace-collapsed) in prompt from start_pos.
+
+    Uses a sliding window over the original prompt; window size is estimated from
+    len(target_normalized) ± 20% (minimum 1 character).  Returns the start position
+    in the *original* prompt on the first match, or -1 if not found.
+    """
+    if not target_normalized:
+        return -1
+    target_len = len(target_normalized)
+    # Estimate a window of original characters that could normalize to target_len chars.
+    # Whitespace collapsing can only shrink text, so upper bound adds slack.
+    min_win = max(1, int(target_len * 0.8))
+    max_win = int(target_len * 1.4) + 4  # small constant for edge safety
+    prompt_len = len(prompt)
+    for pos in range(start_pos, prompt_len):
+        for win in range(min_win, min(max_win + 1, prompt_len - pos + 1)):
+            candidate = prompt[pos : pos + win]
+            if _norm_ws(candidate) == target_normalized:
+                return pos
+    return -1
+
+
 def _repair_segment_texts(result: dict, prompt_field: str) -> None:
     prompt = result.get(prompt_field) or ""
     segments = result.get("annotated_segments") or []
@@ -238,16 +299,78 @@ def _repair_segment_texts(result: dict, prompt_field: str) -> None:
     for seg in segments:
         text = str(seg.get("text", ""))
         stripped = text.strip()
-        found = prompt.find(stripped, cursor) if stripped else -1
+        if not stripped:
+            continue
+        found = prompt.find(stripped, cursor)
         if found < 0:
-            return
+            # Primary search failed — try whitespace-normalized match.
+            norm_stripped = _norm_ws(stripped)
+            actual_found = _find_normalized(prompt, norm_stripped, cursor)
+            if actual_found >= 0:
+                # Determine the length of the matched span in the original prompt.
+                # _find_normalized already returned the position; we need the window
+                # length — re-run the inner scan to get it.
+                prompt_len = len(prompt)
+                target_len = len(norm_stripped)
+                min_win = max(1, int(target_len * 0.8))
+                max_win = int(target_len * 1.4) + 4
+                matched_len = None
+                for win in range(min_win, min(max_win + 1, prompt_len - actual_found + 1)):
+                    if _norm_ws(prompt[actual_found : actual_found + win]) == norm_stripped:
+                        matched_len = win
+                        break
+                if matched_len is not None:
+                    found = actual_found
+                    stripped = prompt[actual_found : actual_found + matched_len]
+        if found < 0:
+            # Segment text still not found — skip; prefix absorbed by next found segment.
+            continue
         new_seg = dict(seg)
-        new_seg["text"] = prompt[cursor:found] + stripped
+        # Include any gap between previous cursor and this match as part of this segment
+        new_seg["text"] = prompt[cursor : found + len(stripped)]
         repaired.append(new_seg)
         cursor = found + len(stripped)
-    if repaired and cursor <= len(prompt):
+
+    if not repaired:
+        return
+
+    # Absorb any trailing text into the last segment
+    if cursor < len(prompt):
         repaired[-1]["text"] += prompt[cursor:]
+
+    joined = "".join(seg["text"] for seg in repaired)
+    if joined == prompt:
         result["annotated_segments"] = repaired
+        return
+
+    # Safety net: join doesn't equal prompt (edge case).
+    # Try to absorb unaccounted prefix into the first segment and suffix into the last.
+    if repaired:
+        # Find where repaired content starts in prompt
+        first_text = repaired[0]["text"]
+        prefix_pos = prompt.find(first_text)
+        if prefix_pos > 0:
+            repaired[0]["text"] = prompt[:prefix_pos] + repaired[0]["text"]
+        last_text = repaired[-1]["text"]
+        end_pos = prompt.rfind(last_text)
+        if end_pos >= 0:
+            tail_start = end_pos + len(last_text)
+            if tail_start < len(prompt):
+                repaired[-1]["text"] += prompt[tail_start:]
+        if "".join(seg["text"] for seg in repaired) == prompt:
+            result["annotated_segments"] = repaired
+        # If still not equal, fall through — _validate_segments → _single_segment handles it.
+
+
+_VALID_TECHNIQUES = set(TECHNIQUE_COLORS)
+_FALLBACK_TECHNIQUE = "task_clarification"
+
+
+def _clamp_segment_techniques(result: dict) -> None:
+    for seg in result.get("annotated_segments") or []:
+        if seg.get("technique") not in _VALID_TECHNIQUES:
+            seg["technique"] = _FALLBACK_TECHNIQUE
+            seg["technique_label"] = "Task Clarification"
 
 
 def _normalize_segment_colors(result: dict) -> None:
@@ -277,14 +400,33 @@ def _normalize_placeholder_fields(result: dict, prompt_field: str) -> None:
         if not isinstance(field, dict):
             continue
         key = str(field.get("key") or "").strip().upper()
+        if not key:
+            continue
         placeholder = str(field.get("placeholder") or f"[{key}]").strip()
-        if key and not placeholder.startswith("["):
+        if not placeholder.startswith("["):
             placeholder = f"[{placeholder}]"
+        label = str(field.get("label") or "").strip() or key.replace("_", " ").title()
+        description = str(field.get("description") or "").strip() or f"Provide a value for {label}."
         field = dict(field)
         field["key"] = key
         field["placeholder"] = placeholder
+        field["label"] = label
+        field["description"] = description
         normalized.append(field)
     result["placeholder_fields"] = normalized
+
+
+def _single_segment(prompt: str, prefix: str = "s") -> AnnotatedSegment:
+    return AnnotatedSegment(
+        id=f"{prefix}1",
+        text=prompt,
+        technique="task_clarification",
+        technique_label="Task Clarification",
+        color_key="sky",
+        reason="Full enhanced prompt rendered as a single segment.",
+        is_original=False,
+        original_text=None,
+    )
 
 
 def _validate_segments(prompt: str, segments: list[Any]) -> None:
@@ -327,12 +469,18 @@ def _validation_errors(exc: ValidationError) -> list[dict]:
 
 def _repair_prompt(kind: str, raw: str, error: OutputValidationError) -> str:
     target_prompt_field = "enhanced_prompt" if kind == "enhance" else "refined_prompt"
+    technique_keys = sorted(TECHNIQUE_COLORS)
+    color_keys = sorted(set(TECHNIQUE_COLORS.values()))
     return "\n".join([
         "Repair the following JSON so it exactly matches the ThinkVelocity output schema.",
+        "Repair syntax, missing required fields, enum values, placeholder metadata, and segment boundaries only.",
+        "Preserve the final prompt text exactly unless whitespace must be reassigned between annotated_segments to satisfy concatenation.",
         "Return ONLY a valid JSON object. Do not add markdown fences.",
         f"The required final prompt field is `{target_prompt_field}`.",
         "The `annotated_segments` text values must concatenate exactly to that final prompt field.",
-        "Use only valid technique keys and their matching color keys.",
+        f"Allowed technique keys: {', '.join(technique_keys)}.",
+        f"Allowed color keys: {', '.join(color_keys)}.",
+        "Use each technique key with its matching color key.",
         "Every uppercase bracket placeholder like [TARGET_AUDIENCE] must have one placeholder_fields item, and no extras.",
         f"Schema version: {SCHEMA_VERSION}",
         "",

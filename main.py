@@ -12,8 +12,11 @@ load_dotenv()
 
 from api.enhance import router as enhance_router
 from api.refine import router as refine_router
+from api.intent import router as intent_router
 from api.context import router as context_router
 from api.mcp import router as mcp_router
+from api.diagnostics import router as diagnostics_router
+from api.cothinker import router as cothinker_router
 
 app = FastAPI(title="ThinkVelocity", version="2.0.0")
 
@@ -27,8 +30,11 @@ app.add_middleware(
 
 app.include_router(enhance_router)
 app.include_router(refine_router)
+app.include_router(intent_router)
 app.include_router(context_router)
 app.include_router(mcp_router)
+app.include_router(diagnostics_router)
+app.include_router(cothinker_router)
 
 _STATIC = Path(__file__).parent / "static"
 if _STATIC.exists():
