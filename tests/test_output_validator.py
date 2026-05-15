@@ -114,12 +114,12 @@ class OutputValidatorTests(unittest.IsolatedAsyncioTestCase):
             result["refined_prompt"],
         )
 
-    def test_invalid_technique_fails(self):
+    def test_invalid_technique_is_clamped(self):
         payload = valid_refine_payload()
         payload["annotated_segments"][0]["technique"] = "made_up"
 
-        with self.assertRaises(OutputValidationError):
-            validate_refine_result(payload)
+        result = validate_refine_result(payload)
+        self.assertEqual(result["annotated_segments"][0]["technique"], "task_clarification")
 
     def test_all_allowed_techniques_have_matching_colors(self):
         prompt = "".join(f"{key}. " for key in TECHNIQUE_COLORS)

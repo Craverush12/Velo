@@ -6,8 +6,26 @@
 <title>ThinkVelocity Sandbox</title>
 <link rel="icon" href="data:,">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/vis-network.min.css" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/vis-network.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/vis-network.min.css" rel="stylesheet" id="visCss" onerror="this.href='https://unpkg.com/vis-network@9.1.9/styles/vis-network.min.css'">
+<script id="visScript" src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/vis-network.min.js" onload="window.__visLoaded=true" onerror="loadVisFallback()"></script>
+<script>
+function loadVisFallback() {
+  var s = document.createElement('script');
+  s.src = 'https://unpkg.com/vis-network@9.1.9/dist/vis-network.min.js';
+  s.onload = function() { window.__visLoaded = true; };
+  s.onerror = function() {
+    // Last resort: jsdelivr
+    var s2 = document.createElement('script');
+    s2.src = 'https://cdn.jsdelivr.net/npm/vis-network@9.1.9/dist/vis-network.min.js';
+    s2.onload = function() { window.__visLoaded = true; };
+    s2.onerror = function() { window.__visFailed = true; };
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s);
+}
+window.__visLoaded = typeof vis !== 'undefined';
+window.__visFailed = false;
+</script>
 <style>
 :root {
   --bg: #07080d;
@@ -60,11 +78,15 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   grid-template-rows: 46px 1fr;
   height: 100vh;
 }
-.app.page-brain,
+.app.page-brain {
+  grid-template-columns: 220px 1fr 0;
+}
+.app.page-brain .details {
+  display: none;
+}
 .app.page-diagnostics {
   grid-template-columns: 220px 1fr 0;
 }
-.app.page-brain .details,
 .app.page-diagnostics .details {
   display: none;
 }
@@ -654,36 +676,13 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 .seg-reason { font-size: 12px; color: var(--muted); line-height: 1.5; }
 .seg-original { font-size: 11px; color: var(--faint); margin-top: 4px; font-style: italic; }
 
-/* ─── Brain page ─────────────────────────────────────────────────── */
+/* ─── Brain page (full-size persona) ────────────────────────────── */
 .page-brain {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
 }
-.brain-topbar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 10px 20px;
-  border-bottom: 1px solid var(--line);
-  flex-wrap: wrap;
-}
-.brain-legend { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.legend-item { display: flex; align-items: center; gap: 5px; }
-.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.legend-label { font-size: 11px; color: var(--muted); }
-.brain-incognito-warn {
-  display: none;
-  font-size: 11px;
-  color: #ff9aab;
-  padding: 3px 10px;
-  background: rgba(242,99,123,0.1);
-  border: 1px solid rgba(242,99,123,0.3);
-  border-radius: 4px;
-  margin-left: auto;
-}
-.brain-incognito-warn.visible { display: block; }
 .brain-body {
   flex: 1;
   display: flex;
@@ -691,60 +690,110 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 }
 #brainCanvas {
   flex: 1;
+  min-height: 300px;
+  min-width: 200px;
   background: var(--bg);
+  position: relative;
 }
-.brain-side {
-  width: 260px;
-  border-left: 1px solid var(--line);
+#brainCanvas canvas { display: block; }
+#brainCanvas .brain-empty {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  background: var(--panel);
-  padding: 14px;
-  gap: 14px;
+  align-items: center;
+  justify-content: center;
+  color: var(--faint);
+  gap: 8px;
+  font-size: 13px;
 }
-.brain-side-title {
+#brainCanvas .brain-empty .icon { font-size: 28px; opacity: 0.4; }
+.brain-node-detail {
+  pointer-events: none;
+}
+
+/* ─── Persona bar ───────────────────────────────────────────────── */
+.persona-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  flex-wrap: wrap;
+  min-height: 56px;
+}
+.persona-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.persona-avatar {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #8b9cff, #6366f1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: #fff;
+  letter-spacing: -0.5px;
+  flex-shrink: 0;
+}
+.persona-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.2px;
+  line-height: 1.2;
+}
+.persona-sub {
   font-size: 11px;
+  color: var(--faint);
+  line-height: 1.3;
+}
+.persona-stats {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.p-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.p-stat-val {
+  font-family: var(--mono);
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  color: var(--text);
+}
+.p-stat-lbl {
+  font-size: 10px;
   color: var(--faint);
   text-transform: uppercase;
-  margin-bottom: 6px;
+  letter-spacing: 0.04em;
 }
-.brain-stat-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+.persona-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 100px;
 }
-.brain-stat {
+.persona-chip {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
   background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 7px;
-  padding: 10px 12px;
-}
-.brain-stat-val {
-  font-family: var(--mono);
-  font-size: 20px;
-  color: var(--text);
-  font-weight: 500;
-}
-.brain-stat-lbl { font-size: 10px; color: var(--faint); margin-top: 2px; }
-.brain-recent {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.brain-recent-item {
-  font-size: 11px;
   color: var(--muted);
-  padding: 5px 8px;
-  background: var(--panel-2);
-  border-radius: 4px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-.brain-actions { display: flex; flex-direction: column; gap: 6px; }
+.persona-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
 
 /* ─── Diagnostics page ───────────────────────────────────────────── */
 .page-diagnostics {
@@ -1155,6 +1204,142 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   padding: 3px 14px 0;
   text-align: right;
 }
+
+/* ─── Intent Q&A panel ──────────────────────────────────────────── */
+.intent-qa-panel {
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+}
+.intent-qa-panel.visible { display: flex; }
+.intent-qa-status {
+  font-size: 11px;
+  color: var(--faint);
+  padding: 4px 10px;
+  background: var(--panel-2);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.intent-qa-status .conf { color: var(--accent); font-family: var(--mono); }
+.intent-qa-status .finalized { color: var(--ok); }
+.intent-qa-card {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.intent-qa-q {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+.intent-qa-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.intent-qa-opt {
+  padding: 5px 12px;
+  background: var(--panel-3);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.intent-qa-opt:hover,
+.intent-qa-opt.selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(139,156,255,0.12);
+}
+.intent-qa-custom {
+  width: 100%;
+  background: var(--panel-3);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 12px;
+  padding: 7px 10px;
+  outline: none;
+  margin-top: 4px;
+}
+.intent-qa-custom:focus { border-color: var(--accent); }
+.intent-qa-actions { display: flex; gap: 8px; align-items: center; }
+.intent-qa-summary {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  padding: 8px 12px;
+  background: var(--panel-2);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 5px 5px 0;
+}
+
+/* ─── AI Recommendations ────────────────────────────────────────── */
+.ai-recs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.ai-recs-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.ai-rec-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 0;
+}
+.ai-rec-rank {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--mono);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.ai-rec-rank.r1 { background: var(--gold); color: #07080d; }
+.ai-rec-rank.r2 { background: rgba(139,156,255,0.2); color: var(--accent); border: 1px solid var(--accent); }
+.ai-rec-rank.r3 { background: rgba(139,156,255,0.1); color: var(--muted); border: 1px solid var(--line-2); }
+.ai-rec-body { flex: 1; min-width: 0; }
+.ai-rec-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.ai-rec-reason {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.45;
+  margin-top: 1px;
+}
 </style>
 </head>
 <body>
@@ -1228,20 +1413,20 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
       </div>
 
       <div class="enhance-output-zone" id="enhanceOutputZone">
-        <!-- Intent confirmation -->
-        <div class="intent-panel" id="intentPanel">
+        <!-- Intent Q&A panel -->
+        <div class="intent-qa-panel" id="intentQAPanel">
           <div class="intent-panel-header">
-            <span class="intent-label">Here's what I understood</span>
+            <span class="intent-label">Let's clarify your intent</span>
             <span class="intent-confidence" id="intentConfidence"></span>
           </div>
-          <div class="intent-meta-row" id="intentMetaRow"></div>
-          <div class="intent-field-label">Goal — edit if this is off</div>
-          <textarea class="intent-edit" id="intentEdit"></textarea>
-          <div class="intent-question" id="intentQuestion"></div>
-          <div class="intent-assumptions" id="intentAssumptions"></div>
-          <div class="intent-actions">
-            <button class="btn-primary" onclick="confirmIntent(true)">✓ Looks right — Enhance</button>
-            <button class="btn-secondary" onclick="confirmIntent(false)">↷ Skip</button>
+          <div class="intent-qa-status" id="intentQAStatus">
+            <span>Answer the questions below to help me understand your task.</span>
+          </div>
+          <div id="intentQAQuestions"></div>
+          <div class="intent-qa-summary" id="intentQASummary" style="display:none"></div>
+          <div class="intent-qa-actions">
+            <button class="btn-primary" id="btnIntentSubmit" onclick="submitIntentQA()">→ Submit Answers</button>
+            <button class="btn-secondary" onclick="skipIntentQA()">Skip Q&A</button>
           </div>
         </div>
 
@@ -1315,53 +1500,29 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
       </div>
     </div>
 
-    <!-- ========= BRAIN PAGE ========= -->
+    <!-- ========= BRAIN PAGE (full-size, persona-first) ========= -->
     <div class="page-brain" id="pageBrain" style="display:none">
-      <div class="brain-topbar">
-        <div class="brain-legend">
-          <span class="legend-item"><span class="legend-dot" style="background:#6366f1"></span><span class="legend-label">User</span></span>
-          <span class="legend-item"><span class="legend-dot" style="background:#0284c7"></span><span class="legend-label">Domain</span></span>
-          <span class="legend-item"><span class="legend-dot" style="background:#d97706"></span><span class="legend-label">Intent</span></span>
-          <span class="legend-item"><span class="legend-dot" style="background:#059669"></span><span class="legend-label">Strategy</span></span>
-          <span class="legend-item"><span class="legend-dot" style="background:#475569"></span><span class="legend-label">Context</span></span>
+      <div class="persona-bar" id="personaBar">
+        <div class="persona-identity">
+          <div class="persona-avatar" id="personaAvatar">TV</div>
+          <div>
+            <div class="persona-name" id="personaName">Your Persona</div>
+            <div class="persona-sub" id="personaSub">Loading…</div>
+          </div>
         </div>
-        <div class="brain-incognito-warn" id="brainIncognitoWarn">⊘ Incognito — memory is off</div>
-        <button class="btn-secondary" style="margin-left:auto" onclick="loadBrainData()">⟳ Refresh</button>
+        <div class="persona-stats" id="personaStats">
+          <div class="p-stat"><span class="p-stat-val" id="pEnhancements">—</span><span class="p-stat-lbl">enhancements</span></div>
+          <div class="p-stat"><span class="p-stat-val" id="pDomains">—</span><span class="p-stat-lbl">domains</span></div>
+          <div class="p-stat"><span class="p-stat-val" id="pIntents">—</span><span class="p-stat-lbl">intents</span></div>
+        </div>
+        <div class="persona-chips" id="personaChips"></div>
+        <div class="persona-actions">
+          <button class="btn-ghost" onclick="loadBrainData()" title="Refresh">⟳</button>
+          <button class="btn-ghost" onclick="resetMemory()" title="Reset memory" style="color:var(--bad)">⏾</button>
+        </div>
       </div>
       <div class="brain-body">
         <div id="brainCanvas"></div>
-        <div class="brain-side">
-          <div>
-            <div class="brain-side-title">Memory Profile</div>
-            <div class="brain-stat-grid">
-              <div class="brain-stat">
-                <div class="brain-stat-val" id="statEnhancements">—</div>
-                <div class="brain-stat-lbl">Enhancements</div>
-              </div>
-              <div class="brain-stat">
-                <div class="brain-stat-val" id="statDomains">—</div>
-                <div class="brain-stat-lbl">Domains</div>
-              </div>
-              <div class="brain-stat">
-                <div class="brain-stat-val" id="statIntents">—</div>
-                <div class="brain-stat-lbl">Intents</div>
-              </div>
-              <div class="brain-stat">
-                <div class="brain-stat-val" id="statTemplates">—</div>
-                <div class="brain-stat-lbl">Templates</div>
-              </div>
-            </div>
-          </div>
-          <div>
-            <div class="brain-side-title">Context Stats</div>
-            <div class="brain-recent" id="brainRecentList">
-              <div class="brain-recent-item" style="color:var(--faint)">No data yet</div>
-            </div>
-          </div>
-          <div class="brain-actions">
-            <button class="btn-secondary" style="width:100%" onclick="resetMemory()">⚠ Reset Memory</button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -1579,6 +1740,9 @@ const state = {
   clarificationAnswers: [],
   refineAnswers: [],
   brainNetwork: null,
+  _brainCtx: null,
+  intentQAAnswers: [],
+  intentQARound: 0,
 };
 
 // ── View switching ────────────────────────────────────────────────
@@ -1597,6 +1761,12 @@ function showView(view) {
     document.getElementById("nav-" + v)?.classList.remove("active");
   });
   document.getElementById("nav-" + view)?.classList.add("active");
+
+  // Cleanup brain canvas when leaving
+  if (view !== "brain" && state._brainCanvasCleanup) {
+    state._brainCanvasCleanup();
+    state._brainCanvasCleanup = null;
+  }
 
   if (view === "brain") {
     shell.classList.add("page-brain");
@@ -1618,20 +1788,17 @@ function showView(view) {
 function toggleIncognito() {
   state.incognito = !state.incognito;
   const btn = document.getElementById("incognitoBtn");
-  const warn = document.getElementById("brainIncognitoWarn");
   if (state.incognito) {
     btn.classList.add("active");
-    warn.classList.add("visible");
   } else {
     btn.classList.remove("active");
-    warn.classList.remove("visible");
   }
 }
 
 // ── Clear workspace ───────────────────────────────────────────────
 function clearWorkspace() {
   document.getElementById("promptInput").value = "";
-  document.getElementById("intentPanel").classList.remove("visible");
+  document.getElementById("intentQAPanel").classList.remove("visible");
   document.getElementById("clarificationPanel").classList.remove("visible");
   document.getElementById("streamCard").classList.remove("visible");
   document.getElementById("placeholderCard").classList.remove("visible");
@@ -1647,6 +1814,8 @@ function clearWorkspace() {
   state.lastIntent = null;
   state.clarificationAnswers = [];
   state.refineAnswers = [];
+  state.intentQAAnswers = [];
+  state.intentQARound = 0;
 }
 
 function clearDetails() {
@@ -1667,7 +1836,7 @@ function userId() {
   return document.getElementById("userIdInput").value.trim() || "sandbox-user";
 }
 
-// ── Intent detection (auto, called by runEnhance) ─────────────────
+// ── Intent Q&A flow (called by runEnhance) ───────────────────────
 async function runEnhance() {
   const prompt = document.getElementById("promptInput").value.trim();
   if (!prompt) return;
@@ -1676,84 +1845,171 @@ async function runEnhance() {
   document.getElementById("btnEnhance").disabled = true;
   document.getElementById("btnCompare").disabled = true;
   document.getElementById("emptyState").style.display = "none";
-  document.getElementById("intentPanel").classList.remove("visible");
+  document.getElementById("intentQAPanel").classList.remove("visible");
   document.getElementById("clarificationPanel").classList.remove("visible");
   document.getElementById("streamCard").classList.remove("visible");
   document.getElementById("compareCard").classList.remove("visible");
   document.getElementById("fallbackNotice").classList.remove("visible");
 
-  // Auto-detect intent first
+  state.intentQAAnswers = [];
+  state.intentQARound = 0;
+
   try {
-    const res = await fetch(`${BASE}/intent/confirm`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt,
-        user_id: userId(),
-        target_ai: document.getElementById("targetAiSelect").value || null,
-        prompt_mode: document.getElementById("promptModeSelect").value || "normal",
-        incognito: state.incognito,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error("intent failed");
-    state.lastIntent = data;
-    showIntentPanel(data);
-    // Enhance will continue after user confirms/skips
-    document.getElementById("btnEnhance").disabled = false;
-    document.getElementById("btnCompare").disabled = false;
-    setStatus("ok");
+    await runIntentQATurn(null);
   } catch {
-    // Intent failed — proceed directly to enhance without it
     document.getElementById("btnEnhance").disabled = false;
     document.getElementById("btnCompare").disabled = false;
     runActualEnhance(null);
   }
 }
 
-function showIntentPanel(data) {
-  // Confidence badge
-  const conf = Math.round((data.confidence || 0) * 100);
-  document.getElementById("intentConfidence").textContent = conf + "% confident";
+async function runIntentQATurn(answers) {
+  const prompt = document.getElementById("promptInput").value.trim();
+  const body = {
+    prompt,
+    user_id: userId(),
+    target_ai: document.getElementById("targetAiSelect").value || null,
+    prompt_mode: document.getElementById("promptModeSelect").value || "normal",
+    incognito: state.incognito,
+  };
 
-  // Meta tags: intent + domain
-  const metaRow = document.getElementById("intentMetaRow");
-  metaRow.innerHTML = "";
-  if (data.intent) metaRow.innerHTML += `<span class="intent-tag">intent: ${data.intent.replace(/_/g, " ")}</span>`;
-  if (data.domain) metaRow.innerHTML += `<span class="intent-tag">domain: ${data.domain.replace(/_/g, " ")}</span>`;
-  if (data.suggested_prompt_mode) metaRow.innerHTML += `<span class="intent-tag">mode: ${data.suggested_prompt_mode}</span>`;
-
-  // Editable interpreted need
-  document.getElementById("intentEdit").value = data.interpreted_need || "";
-
-  // Confirmation question
-  const q = data.confirmation_question || "";
-  const qEl = document.getElementById("intentQuestion");
-  qEl.style.display = q ? "" : "none";
-  qEl.textContent = q ? "❓ " + q : "";
-
-  // Assumptions — show as amber chips so user knows what was inferred
-  const assumptions = data.assumptions || [];
-  const assEl = document.getElementById("intentAssumptions");
-  assEl.innerHTML = "";
-  if (assumptions.length > 0) {
-    assEl.innerHTML = assumptions.map(a =>
-      `<span class="intent-assumption-chip" title="Assumed">⚑ ${a}</span>`
-    ).join("");
+  if (state.lastIntent && answers) {
+    body.previous_context = state.lastIntent;
+    body.answers = answers;
   }
 
-  document.getElementById("intentPanel").classList.add("visible");
+  const res = await fetch(`${BASE}/intent/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error("intent failed");
+
+  state.lastIntent = data;
+  state.intentQARound++;
+
+  if (data.is_finalized) {
+    showIntentFinalized(data);
+    return;
+  }
+
+  showIntentQAQuestions(data);
 }
 
-function confirmIntent(doEnhance) {
-  document.getElementById("intentPanel").classList.remove("visible");
-  if (doEnhance && state.lastIntent) {
-    // Merge edited interpreted_need back into the intent object
-    const edited = {
-      ...state.lastIntent,
-      interpreted_need: document.getElementById("intentEdit").value.trim() || state.lastIntent.interpreted_need,
-    };
-    runActualEnhance(edited);
+function showIntentQAQuestions(data) {
+  const panel = document.getElementById("intentQAPanel");
+  const questions = data.questions || [];
+  const conf = Math.round((data.confidence || 0) * 100);
+
+  document.getElementById("intentConfidence").textContent = conf + "% confident";
+  document.getElementById("intentQAStatus").innerHTML = `
+    <span>Round ${state.intentQARound} — ${questions.length} question${questions.length > 1 ? 's' : ''} to help narrow down your intent</span>
+    <span style="margin-left:auto">
+      <span class="intent-tag">${data.intent ? data.intent.replace(/_/g, " ") : "?"}</span>
+      <span class="intent-tag">${data.domain ? data.domain.replace(/_/g, " ") : "?"}</span>
+    </span>
+  `;
+
+  const container = document.getElementById("intentQAQuestions");
+  container.innerHTML = "";
+  state.intentQAAnswers = [];
+
+  questions.forEach((q, i) => {
+    const card = document.createElement("div");
+    card.className = "intent-qa-card";
+    card.innerHTML = `
+      <div class="intent-qa-q">${i + 1}. ${q.question}</div>
+      <div class="intent-qa-opts" id="qaOpts-${i}">
+        ${(q.options || []).map(opt =>
+          `<span class="intent-qa-opt" data-qi="${i}" data-val="${opt}" onclick="selectQAOpt(this)">${opt}</span>`
+        ).join("")}
+      </div>
+      <input class="intent-qa-custom" data-qi="${i}" placeholder="Or type your own answer…" oninput="onQACustomInput(${i}, this.value)" />
+    `;
+    container.appendChild(card);
+    state.intentQAAnswers.push({ question_id: q.id || `q${i+1}`, question: q.question, answer: "" });
+  });
+
+  document.getElementById("intentQASummary").style.display = "none";
+  document.getElementById("btnIntentSubmit").disabled = false;
+  panel.classList.add("visible");
+  document.getElementById("btnEnhance").disabled = false;
+  document.getElementById("btnCompare").disabled = false;
+  setStatus("ok");
+}
+
+function showIntentFinalized(data) {
+  const panel = document.getElementById("intentQAPanel");
+  const conf = Math.round((data.confidence || 0) * 100);
+
+  document.getElementById("intentConfidence").textContent = conf + "% confident — finalized";
+  document.getElementById("intentQAStatus").innerHTML = `
+    <span class="finalized">✓ Intent confirmed</span>
+    <span style="margin-left:auto">
+      <span class="intent-tag">${data.intent.replace(/_/g, " ")}</span>
+      <span class="intent-tag">${data.domain.replace(/_/g, " ")}</span>
+      <span class="intent-tag">mode: ${data.suggested_prompt_mode}</span>
+    </span>
+  `;
+
+  document.getElementById("intentQAQuestions").innerHTML = "";
+  const summary = document.getElementById("intentQASummary");
+  summary.style.display = "";
+  summary.textContent = data.interpreted_need || "Intent confirmed.";
+
+  const actions = document.querySelector(".intent-qa-actions");
+  actions.innerHTML = `
+    <button class="btn-primary" onclick="proceedWithIntent()">✓ Looks right — Enhance</button>
+    <button class="btn-secondary" onclick="skipIntentQA()">Skip</button>
+  `;
+
+  panel.classList.add("visible");
+  document.getElementById("btnEnhance").disabled = false;
+  document.getElementById("btnCompare").disabled = false;
+  setStatus("ok");
+}
+
+function selectQAOpt(el) {
+  const qi = parseInt(el.dataset.qi);
+  const opts = el.closest(".intent-qa-opts");
+  opts.querySelectorAll(".intent-qa-opt").forEach(o => o.classList.remove("selected"));
+  el.classList.add("selected");
+  state.intentQAAnswers[qi].answer = el.dataset.val;
+  const custom = document.querySelector(`.intent-qa-custom[data-qi="${qi}"]`);
+  if (custom) custom.value = el.dataset.val;
+}
+
+function onQACustomInput(qi, value) {
+  const opts = document.getElementById(`qaOpts-${qi}`);
+  if (opts) opts.querySelectorAll(".intent-qa-opt").forEach(o => o.classList.remove("selected"));
+  state.intentQAAnswers[qi].answer = value;
+}
+
+async function submitIntentQA() {
+  const answered = state.intentQAAnswers.filter(a => a.answer.trim());
+  if (answered.length === 0) return;
+
+  document.getElementById("btnIntentSubmit").disabled = true;
+  setStatus("busy");
+
+  try {
+    await runIntentQATurn(answered);
+  } catch {
+    document.getElementById("btnIntentSubmit").disabled = false;
+    setStatus("error");
+  }
+}
+
+function skipIntentQA() {
+  document.getElementById("intentQAPanel").classList.remove("visible");
+  runActualEnhance(null);
+}
+
+function proceedWithIntent() {
+  document.getElementById("intentQAPanel").classList.remove("visible");
+  if (state.lastIntent) {
+    runActualEnhance(state.lastIntent);
   } else {
     runActualEnhance(null);
   }
@@ -1866,6 +2122,9 @@ function handleEnhanceResult(result) {
   const techniques = result.pe_techniques_applied || [];
   renderTechniques(techniques);
 
+  // AI Recommendations
+  renderAIRecommendations(result.target_ai_recommendations);
+
   // Placeholders
   const fields = result.placeholder_fields || [];
   renderPlaceholders(fields);
@@ -1880,6 +2139,35 @@ function handleEnhanceResult(result) {
   if (questions.length > 0) {
     renderClarificationQuestions(questions);
   }
+}
+
+function renderAIRecommendations(recs) {
+  const existing = document.getElementById("aiRecsContainer");
+  if (existing) existing.remove();
+
+  if (!recs || recs.length === 0) return;
+
+  const container = document.createElement("div");
+  container.id = "aiRecsContainer";
+  container.className = "ai-recs";
+  container.innerHTML = `<div class="ai-recs-title">Recommended AI for this task</div>`;
+
+  const rankLabels = { 1: "Best", 2: "Good", 3: "Also suitable" };
+  recs.forEach(rec => {
+    const row = document.createElement("div");
+    row.className = "ai-rec-row";
+    row.innerHTML = `
+      <div class="ai-rec-rank r${rec.rank}">${rec.rank}</div>
+      <div class="ai-rec-body">
+        <div class="ai-rec-name">${rec.ai} <span style="font-size:10px;color:var(--faint);font-weight:400">— ${rankLabels[rec.rank] || ""}</span></div>
+        <div class="ai-rec-reason">${rec.reason}</div>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+
+  const techniquesRow = document.getElementById("techniquesRow");
+  techniquesRow.parentNode.insertBefore(container, techniquesRow.nextSibling);
 }
 
 function renderSegments(container, segments) {
@@ -2220,18 +2508,55 @@ function hideTooltip() {
 // ── Brain / Memory ────────────────────────────────────────────────
 async function loadBrainData() {
   const uid = userId();
+  const container = document.getElementById("brainCanvas");
+  // Show loading state
+  container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>Loading memory graph…</div></div>`;
   try {
     const res = await fetch(`${BASE}/context/${uid}`);
     if (!res.ok) throw new Error("context fetch failed");
     const ctx = await res.json();
+    state._brainCtx = ctx;
+    // Wait for layout to settle
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     renderBrainGraph(ctx, uid);
     renderBrainStats(ctx);
   } catch (e) {
+    state._brainCtx = null;
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     renderBrainGraph(null, uid);
   }
 }
 
 function renderBrainGraph(ctx, uid) {
+  const container = document.getElementById("brainCanvas");
+
+  const visAvailable = typeof vis !== "undefined" && typeof vis.Network !== "undefined";
+  if (!visAvailable && !window.__visFailed) {
+    // Wait a bit for fallback to load
+    setTimeout(() => {
+      if (typeof vis !== "undefined" && typeof vis.Network !== "undefined") {
+        renderBrainGraph(ctx, uid);
+      } else {
+        renderBrainGraphCanvas(ctx, uid);
+      }
+    }, 2000);
+    container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>Loading graph library…</div></div>`;
+    return;
+  }
+
+  if (!visAvailable) {
+    renderBrainGraphCanvas(ctx, uid);
+    return;
+  }
+
+  // Measure container dimensions
+  const rect = container.getBoundingClientRect();
+  if (rect.width < 50 || rect.height < 50) {
+    // Container not visible yet — show message
+    container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>Resize or refresh to load graph.</div></div>`;
+    return;
+  }
+
   const nodeStyles = {
     user: { shape: "dot", size: 34, color: { background: "#6366f1", border: "#a5b4fc", highlight: { background: "#818cf8", border: "#c7d2fe" } }, font: { color: "#ffffff", size: 14, bold: true, strokeWidth: 2, strokeColor: "#07080d" } },
     domain: { shape: "dot", size: 22, color: { background: "#0284c7", border: "#38bdf8", highlight: { background: "#0ea5e9", border: "#7dd3fc" } }, font: { color: "#ffffff", size: 12, strokeWidth: 2, strokeColor: "#07080d" } },
@@ -2239,6 +2564,9 @@ function renderBrainGraph(ctx, uid) {
     preference: { shape: "square", size: 14, color: { background: "#059669", border: "#34d399", highlight: { background: "#10b981", border: "#6ee7b7" } }, font: { color: "#ffffff", size: 11, strokeWidth: 2, strokeColor: "#07080d" } },
     context: { shape: "dot", size: 12, color: { background: "#1e293b", border: "#475569", highlight: { background: "#334155", border: "#64748b" } }, font: { color: "#cbd5e1", size: 11, strokeWidth: 1, strokeColor: "#07080d" } },
   };
+
+  // Clear container (remove loading state)
+  container.innerHTML = "";
 
   const nodes = new vis.DataSet();
   const edges = new vis.DataSet();
@@ -2249,20 +2577,23 @@ function renderBrainGraph(ctx, uid) {
     const domains = ctx.domains || [];
     const strategies = ctx.frameworks_used || [];
     const recentCtx = ctx.recent_context || [];
-    // Derive unique intents from recent_context entries
     const intents = [...new Set(recentCtx.map(r => r.intent).filter(Boolean))];
-    // Derive recent prompts from recent_context
     const recentPrompts = recentCtx.map(r => r.original_prompt || r.summary || "").filter(Boolean);
+
+    if (domains.length === 0 && intents.length === 0 && strategies.length === 0 && recentPrompts.length === 0) {
+      container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>No memory data yet — run some enhancements first.</div></div>`;
+      return;
+    }
 
     domains.slice(0, 8).forEach((d, i) => {
       const nid = "domain-" + i;
-      nodes.add({ id: nid, label: d, title: "Domain: " + d, ...nodeStyles.domain });
+      nodes.add({ id: nid, label: d.replace(/_/g, " "), title: "Domain: " + d, ...nodeStyles.domain });
       edges.add({ from: "user", to: nid, title: "uses domain" });
     });
 
     intents.slice(0, 8).forEach((intent, i) => {
       const nid = "intent-" + i;
-      nodes.add({ id: nid, label: intent, title: "Intent: " + intent, ...nodeStyles.intent });
+      nodes.add({ id: nid, label: intent.replace(/_/g, " "), title: "Intent: " + intent, ...nodeStyles.intent });
       edges.add({ from: "user", to: nid, title: "intent" });
     });
 
@@ -2278,9 +2609,11 @@ function renderBrainGraph(ctx, uid) {
       nodes.add({ id: nid, label: label, title: p, ...nodeStyles.context });
       edges.add({ from: "user", to: nid, title: "recent prompt" });
     });
+  } else {
+    container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>No memory data yet — run some enhancements first.</div></div>`;
+    return;
   }
 
-  const container = document.getElementById("brainCanvas");
   const data = { nodes, edges };
   const options = {
     edges: {
@@ -2309,38 +2642,495 @@ function renderBrainGraph(ctx, uid) {
     state.brainNetwork.destroy();
   }
   state.brainNetwork = new vis.Network(container, data, options);
+  state.brainNetwork.on("afterDrawing", () => {
+    if (container.querySelector("canvas")) {
+      container.querySelectorAll(".brain-empty").forEach(e => e.remove());
+    }
+  });
   state.brainNetwork.once("stabilizationIterationsDone", () => {
     state.brainNetwork.redraw();
     state.brainNetwork.fit({ animation: { duration: 500, easingFunction: "easeInOutQuad" } });
   });
 }
 
-function renderBrainStats(ctx) {
+function renderBrainGraphCanvas(ctx, uid) {
+  const container = document.getElementById("brainCanvas");
+  container.innerHTML = "";
+
   if (!ctx) {
-    ["statEnhancements","statDomains","statIntents","statTemplates"].forEach(id => {
-      document.getElementById(id).textContent = "0";
-    });
-    document.getElementById("brainRecentList").innerHTML = `<div class="brain-recent-item" style="color:var(--faint)">No data yet</div>`;
+    container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>No memory data yet.</div></div>`;
     return;
   }
+
   const domains = ctx.domains || [];
   const strategies = ctx.frameworks_used || [];
   const recentCtx = ctx.recent_context || [];
+  const rawIntents = [...new Set(recentCtx.map(r => r.intent).filter(Boolean))];
+  const recentPrompts = recentCtx.map(r => r.original_prompt || r.summary || "").filter(Boolean);
+
+  if (domains.length === 0 && rawIntents.length === 0 && strategies.length === 0) {
+    container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>No memory data yet — run some enhancements first.</div></div>`;
+    return;
+  }
+
+  const nodeColors = {
+    user: "#6366f1", domain: "#0284c7", intent: "#d97706",
+    strategy: "#059669", context: "#475569", highlighted: "#8b9cff",
+  };
+  const nodeShapes = {
+    user: "circle", domain: "circle", intent: "diamond",
+    strategy: "square", context: "dot",
+  };
+
+  // Build graph data
+  const graphNodes = [];
+  const graphEdges = [];
+  const nodeMap = {};
+
+  const addNode = (id, label, type, title) => {
+    const n = {
+      id, label: label.slice(0, 20), title: title || label, type,
+      x: Math.random() * 400 + 50, y: Math.random() * 200 + 50,
+      vx: 0, vy: 0, pinned: false, radius: type === "user" ? 28 : type === "domain" ? 18 : type === "intent" ? 15 : type === "strategy" ? 13 : 11,
+      color: nodeColors[type] || nodeColors.context,
+    };
+    graphNodes.push(n);
+    nodeMap[id] = n;
+  };
+
+  addNode("user", uid, "user", "User profile");
+  domains.slice(0, 8).forEach((d, i) => addNode("dom-" + i, d.replace(/_/g, " "), "domain", "Domain: " + d));
+  rawIntents.slice(0, 8).forEach((it, i) => addNode("int-" + i, it.replace(/_/g, " "), "intent", "Intent: " + it));
+  strategies.slice(0, 6).forEach((s, i) => addNode("str-" + i, s, "strategy", "Framework: " + s));
+  recentPrompts.slice(0, 5).forEach((p, i) => {
+    const label = p.slice(0, 28) + (p.length > 28 ? "…" : "");
+    addNode("ctx-" + i, label, "context", p);
+  });
+
+  // Edges: user connects to all
+  graphNodes.forEach(n => {
+    if (n.id === "user") return;
+    graphEdges.push({ from: "user", to: n.id });
+  });
+
+  // Canvas setup
+  const canvas = document.createElement("canvas");
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
+  canvas.style.display = "block";
+  container.appendChild(canvas);
+  const detailEl = document.createElement("div");
+  detailEl.className = "brain-node-detail";
+  Object.assign(detailEl.style, {
+    display: "none", position: "absolute", zIndex: "100",
+    background: "#171b26", border: "1px solid rgba(255,255,255,0.14)",
+    borderRadius: "8px", padding: "10px 14px", maxWidth: "260px",
+    fontSize: "12px", color: "#e6e8ef", lineHeight: "1.5",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.5)", pointerEvents: "none",
+  });
+  container.appendChild(detailEl);
+  container.style.position = "relative";
+
+  let W, H, ctx2;
+  let mouseX = -1, mouseY = -1, hoveredNode = null, draggedNode = null, selectedNode = null;
+  let animId = null, simId = null;
+  let isStable = false;
+
+  const resize = () => {
+    const rect = container.getBoundingClientRect();
+    W = rect.width;
+    H = rect.height;
+    canvas.width = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx2 = canvas.getContext("2d");
+    ctx2.scale(devicePixelRatio, devicePixelRatio);
+  };
+  resize();
+
+  const dist = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+
+  // Force layout tick
+  const tick = () => {
+    if (isStable) return;
+    const repulsion = 1200, attraction = 0.004, centerForce = 0.002, damping = 0.85, minDist = 40;
+    const cx = W / 2, cy = H / 2;
+    let totalMove = 0;
+
+    for (let i = 0; i < graphNodes.length; i++) {
+      const a = graphNodes[i];
+      if (a.pinned) continue;
+
+      let fx = 0, fy = 0;
+
+      // Repulsion (all pairs)
+      for (let j = 0; j < graphNodes.length; j++) {
+        if (i === j) continue;
+        const b = graphNodes[j];
+        const d = Math.max(dist(a, b), 10);
+        const f = repulsion / (d * d);
+        fx += f * (a.x - b.x) / d;
+        fy += f * (a.y - b.y) / d;
+      }
+
+      // Attraction along edges
+      for (const edge of graphEdges) {
+        const other = edge.from === a.id ? nodeMap[edge.to] : edge.to === a.id ? nodeMap[edge.from] : null;
+        if (!other) continue;
+        const d = dist(a, other);
+        const targetDist = a.radius + other.radius + 60;
+        if (d > targetDist) {
+          const f = (d - targetDist) * attraction;
+          fx -= f * (a.x - other.x) / d;
+          fy -= f * (a.y - other.y) / d;
+        }
+      }
+
+      // Centering
+      fx += (cx - a.x) * centerForce;
+      fy += (cy - a.y) * centerForce;
+
+      // Wall repulsion
+      const margin = 30;
+      if (a.x < margin) fx += (margin - a.x) * 0.05;
+      if (a.x > W - margin) fx -= (a.x - W + margin) * 0.05;
+      if (a.y < margin) fy += (margin - a.y) * 0.05;
+      if (a.y > H - margin) fy -= (a.y - H + margin) * 0.05;
+
+      a.vx = (a.vx + fx) * damping;
+      a.vy = (a.vy + fy) * damping;
+      a.x += a.vx;
+      a.y += a.vy;
+      totalMove += Math.abs(a.vx) + Math.abs(a.vy);
+    }
+
+    if (totalMove < 0.5 && animId) {
+      isStable = true;
+      if (simId) { cancelAnimationFrame(simId); simId = null; }
+    }
+  };
+
+  const draw = () => {
+    ctx2.clearRect(0, 0, W, H);
+
+    // Draw edges
+    ctx2.lineWidth = 1.5;
+    for (const edge of graphEdges) {
+      const from = nodeMap[edge.from], to = nodeMap[edge.to];
+      if (!from || !to) continue;
+      ctx2.strokeStyle = selectedNode && (selectedNode === from || selectedNode === to) ? "#8b9cff" : "#6272a4";
+      ctx2.globalAlpha = selectedNode && selectedNode !== from && selectedNode !== to ? 0.2 : 0.5;
+      ctx2.beginPath();
+      ctx2.moveTo(from.x, from.y);
+      ctx2.lineTo(to.x, to.y);
+      ctx2.stroke();
+    }
+    ctx2.globalAlpha = 1;
+
+    // Draw nodes
+    for (const n of graphNodes) {
+      const isHover = n === hoveredNode;
+      const isSelected = n === selectedNode;
+      const r = isHover ? n.radius + 3 : n.radius;
+      const alpha = selectedNode && n !== selectedNode ? 0.35 : 1;
+
+      ctx2.globalAlpha = alpha;
+      ctx2.shadowColor = isHover ? n.color : "rgba(0,0,0,0.5)";
+      ctx2.shadowBlur = isHover ? 12 : 4;
+
+      if (n.type === "user") {
+        ctx2.beginPath();
+        ctx2.arc(n.x, n.y, r, 0, Math.PI * 2);
+        ctx2.fillStyle = n.color;
+        ctx2.fill();
+        ctx2.strokeStyle = isSelected ? "#c7d2fe" : isHover ? "#a5b4fc" : "transparent";
+        ctx2.lineWidth = isSelected || isHover ? 3 : 0;
+        ctx2.stroke();
+      } else if (n.type === "intent") {
+        ctx2.beginPath();
+        const s = r * 0.7;
+        ctx2.moveTo(n.x, n.y - r);
+        ctx2.lineTo(n.x + s, n.y);
+        ctx2.lineTo(n.x, n.y + r);
+        ctx2.lineTo(n.x - s, n.y);
+        ctx2.closePath();
+        ctx2.fillStyle = n.color;
+        ctx2.fill();
+        ctx2.strokeStyle = isSelected ? "#fde68a" : isHover ? "#fcd34d" : "transparent";
+        ctx2.lineWidth = isSelected || isHover ? 2.5 : 0;
+        ctx2.stroke();
+      } else if (n.type === "strategy") {
+        const s = r * 0.8;
+        ctx2.fillStyle = n.color;
+        ctx2.fillRect(n.x - s, n.y - s, s * 2, s * 2);
+        ctx2.strokeStyle = isSelected ? "#6ee7b7" : isHover ? "#34d399" : "transparent";
+        ctx2.lineWidth = isSelected || isHover ? 2.5 : 0;
+        ctx2.strokeRect(n.x - s, n.y - s, s * 2, s * 2);
+      } else {
+        ctx2.beginPath();
+        ctx2.arc(n.x, n.y, r, 0, Math.PI * 2);
+        ctx2.fillStyle = n.color;
+        ctx2.fill();
+        ctx2.strokeStyle = isSelected ? "#94a3b8" : isHover ? "#64748b" : "transparent";
+        ctx2.lineWidth = isSelected || isHover ? 2.5 : 0;
+        ctx2.stroke();
+      }
+
+      ctx2.shadowBlur = 0;
+      ctx2.fillStyle = "#ffffff";
+      ctx2.font = (n.type === "user" ? "bold 11px " : "10px ") + "Inter, system-ui, sans-serif";
+      ctx2.textAlign = "center";
+      ctx2.textBaseline = "top";
+      // Text background for readability
+      const tw = ctx2.measureText(n.label).width;
+      ctx2.fillStyle = "rgba(7,8,13,0.7)";
+      ctx2.fillRect(n.x - tw / 2 - 3, n.y + r + 3, tw + 6, n.type === "user" ? 16 : 14);
+      ctx2.fillStyle = "#cbd5e1";
+      ctx2.font = (n.type === "user" ? "bold 11px " : "10px ") + "Inter, system-ui, sans-serif";
+      ctx2.fillText(n.label, n.x, n.y + r + 4);
+    }
+    ctx2.globalAlpha = 1;
+    ctx2.shadowBlur = 0;
+
+    // Bottom status bar
+    ctx2.fillStyle = "#586174";
+    ctx2.font = "10px Inter, system-ui, sans-serif";
+    ctx2.textAlign = "left";
+    ctx2.textBaseline = "bottom";
+    ctx2.fillText(graphNodes.length + " nodes · " + graphEdges.length + " connections · click a node for details", 8, H - 4);
+  };
+
+  const loop = () => {
+    tick();
+    draw();
+    if (!isStable) simId = requestAnimationFrame(loop);
+  };
+
+  const hitTest = (mx, my) => {
+    for (let i = graphNodes.length - 1; i >= 0; i--) {
+      const n = graphNodes[i];
+      const d = dist(n, { x: mx, y: my });
+      if (d < n.radius + 5) return n;
+    }
+    return null;
+  };
+
+  const showDetail = (n) => {
+    if (!n) { detailEl.style.display = "none"; return; }
+    detailEl.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="width:10px;height:10px;border-radius:${n.type === "intent" ? "2px" : "50%"};background:${n.color};display:inline-block"></span>
+        <strong>${n.title || n.label}</strong>
+      </div>
+      <div style="color:#8a92a6;font-size:11px">
+        ${n.type === "user" ? "User profile — the central identity for this memory graph." :
+          n.type === "domain" ? "Domain worked in across enhancements." :
+          n.type === "intent" ? "Intent type detected in past prompts." :
+          n.type === "strategy" ? "Prompt engineering framework used." :
+          "Recent prompt or enhancement summary."}
+      </div>
+    `;
+    const rect = container.getBoundingClientRect();
+    const nx = n.x + rect.left;
+    const ny = n.y + rect.top;
+    detailEl.style.left = Math.min(nx + 20, rect.width - 270) + "px";
+    detailEl.style.top = Math.max(10, ny - 20) + "px";
+    detailEl.style.display = "block";
+  };
+
+  // Mouse events
+  const onMouseMove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+    if (draggedNode) {
+      draggedNode.x = mouseX;
+      draggedNode.y = mouseY;
+      draggedNode.pinned = true;
+      isStable = false;
+      return;
+    }
+    const hit = hitTest(mouseX, mouseY);
+    canvas.style.cursor = hit ? "pointer" : "default";
+    if (hit !== hoveredNode) {
+      hoveredNode = hit;
+      draw();
+    }
+  };
+
+  const onMouseDown = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const hit = hitTest(mx, my);
+    if (hit) {
+      draggedNode = hit;
+      hit.pinned = false;
+    }
+  };
+
+  const onMouseUp = (e) => {
+    if (draggedNode) {
+      const rect = canvas.getBoundingClientRect();
+      draggedNode.x = e.clientX - rect.left;
+      draggedNode.y = e.clientY - rect.top;
+      setTimeout(() => { if (draggedNode) { draggedNode.pinned = false; draggedNode = null; isStable = false; loop(); } }, 300);
+      draggedNode = null;
+    }
+  };
+
+  const onClick = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const hit = hitTest(mx, my);
+    if (hit) {
+      selectedNode = hit;
+      showDetail(hit);
+      draw();
+    } else {
+      selectedNode = null;
+      showDetail(null);
+      draw();
+    }
+  };
+
+  canvas.addEventListener("mousemove", onMouseMove);
+  canvas.addEventListener("mousedown", onMouseDown);
+  canvas.addEventListener("mouseup", onMouseUp);
+  canvas.addEventListener("mouseleave", () => { hoveredNode = null; draw(); });
+  canvas.addEventListener("click", onClick);
+
+  // Resize observer
+  const ro = new ResizeObserver(() => {
+    const r = container.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+      resize();
+      draw();
+    }
+  });
+  ro.observe(container);
+
+  // Start simulation
+  isStable = false;
+  loop();
+
+  // Cleanup on page hide
+  state._brainCanvasCleanup = () => {
+    if (simId) cancelAnimationFrame(simId);
+    if (animId) cancelAnimationFrame(animId);
+    canvas.removeEventListener("mousemove", onMouseMove);
+    canvas.removeEventListener("mousedown", onMouseDown);
+    canvas.removeEventListener("mouseup", onMouseUp);
+    canvas.removeEventListener("click", onClick);
+    ro.disconnect();
+  };
+}
+
+// Redraw brain graph on window resize
+let _brainResizeTimer = null;
+window.addEventListener("resize", () => {
+  if (document.getElementById("pageBrain").style.display !== "flex") return;
+  clearTimeout(_brainResizeTimer);
+  _brainResizeTimer = setTimeout(() => {
+    if (state.brainNetwork && typeof vis !== "undefined" && vis.Network) {
+      state.brainNetwork.redraw();
+      state.brainNetwork.fit({ animation: { duration: 300 } });
+    } else {
+      // Re-trigger canvas render if needed
+      const ctx = state._brainCtx;
+      const uid = userId();
+      if (ctx) renderBrainGraphCanvas(ctx, uid);
+    }
+  }, 300);
+});
+
+function derivePersona(ctx) {
+  if (!ctx) return { label: "New User", sub: "No data yet", emoji: "TV" };
+  const domains = ctx.domains || [];
+  const recentCtx = ctx.recent_context || [];
+  const strategies = ctx.frameworks_used || [];
   const intents = [...new Set(recentCtx.map(r => r.intent).filter(Boolean))];
+  const prefs = ctx.preferences || {};
+  const count = ctx.enhancement_count || 0;
 
-  document.getElementById("statEnhancements").textContent = ctx.enhancement_count ?? 0;
-  document.getElementById("statDomains").textContent = domains.length;
-  document.getElementById("statIntents").textContent = intents.length;
-  document.getElementById("statTemplates").textContent = strategies.length;
+  const intentLabels = {
+    code_generation: "Builder", debugging: "Fixer", code_review: "Reviewer",
+    architecture_design: "Architect", data_analysis: "Analyst", research: "Researcher",
+    creative_writing: "Writer", copywriting: "Copywriter", marketing: "Marketer",
+    business_strategy: "Strategist", legal_analysis: "Legal Analyst",
+    financial_analysis: "Financial Analyst", design_brief: "Designer",
+    learning_explanation: "Learner", system_design: "Systems Architect",
+    product_strategy: "Product Strategist", testing_qa: "QA Engineer",
+    data_extraction: "Data Engineer", code_conversion: "Migrator",
+    task_automation: "Automator", general_qa: "Explorer",
+  };
 
-  const list = document.getElementById("brainRecentList");
-  if (recentCtx.length === 0) {
-    list.innerHTML = `<div class="brain-recent-item" style="color:var(--faint)">No recent prompts</div>`;
+  const domainLabels = {
+    software_engineering: "Software", data_science: "Data", devops_infrastructure: "DevOps",
+    mobile_development: "Mobile", marketing_growth: "Marketing", design_ux: "Design",
+    legal: "Legal", finance: "Finance", education: "Education",
+    health_science: "Health", business_operations: "Business", creative_arts: "Creative",
+    product_management: "Product", cybersecurity: "Security", ecommerce: "E-commerce",
+    general: "General",
+  };
+
+  const domainShort = domains.map(d => domainLabels[d] || d).slice(0, 3);
+  const intentShort = intents.map(it => intentLabels[it] || it.replace(/_/g, " ")).slice(0, 3);
+
+  let title = "";
+  if (count === 0) {
+    title = "New Explorer";
+  } else if (intentShort.length > 0) {
+    title = intentShort[0];
+    if (domainShort.length > 0) title += " · " + domainShort[0];
   } else {
-    list.innerHTML = recentCtx.slice(0, 6).map(r => {
-      const label = r.original_prompt || r.summary || r.domain || "—";
-      return `<div class="brain-recent-item" title="${label}">${label.slice(0, 60)}</div>`;
-    }).join("");
+    title = "ThinkVelocity User";
+  }
+
+  const level = prefs.expertise_level || "intermediate";
+  const levelLabel = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced", expert: "Expert" };
+  const expLabel = levelLabel[level] || "Intermediate";
+  const industry = prefs.industry || "";
+
+  let sub = `${expLabel} · ${count} enhancement${count !== 1 ? "s" : ""}`;
+  if (industry) sub += ` · ${industry}`;
+  if (domains.length > 0) sub += ` · ${domainShort.join(", ")}`;
+  if (strategies.length > 0) sub += ` · prefers ${strategies[0]}`;
+
+  return { label: title, sub, chips: [...domainShort, ...intentShort].slice(0, 6) };
+}
+
+function renderBrainStats(ctx) {
+  const persona = derivePersona(ctx);
+  document.getElementById("personaName").textContent = persona.label;
+  document.getElementById("personaSub").textContent = persona.sub;
+
+  if (!ctx) {
+    document.getElementById("pEnhancements").textContent = "0";
+    document.getElementById("pDomains").textContent = "0";
+    document.getElementById("pIntents").textContent = "0";
+    document.getElementById("personaChips").innerHTML = "";
+    return;
+  }
+
+  const domains = ctx.domains || [];
+  const recentCtx = ctx.recent_context || [];
+  const intents = [...new Set(recentCtx.map(r => r.intent).filter(Boolean))];
+  const count = ctx.enhancement_count || 0;
+
+  document.getElementById("pEnhancements").textContent = count;
+  document.getElementById("pDomains").textContent = domains.length;
+  document.getElementById("pIntents").textContent = intents.length;
+
+  const chipsContainer = document.getElementById("personaChips");
+  if (persona.chips.length > 0) {
+    chipsContainer.innerHTML = persona.chips.map(c =>
+      `<span class="persona-chip">${c}</span>`
+    ).join("");
+  } else {
+    chipsContainer.innerHTML = `<span class="persona-chip" style="color:var(--faint)">No activity yet</span>`;
   }
 }
 

@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from core.contracts import (
     SCHEMA_VERSION,
     TECHNIQUE_COLORS,
+    AIRecommendation,
     AnnotatedSegment,
     ClarificationQuestion,
     EnhanceResult,
@@ -153,6 +154,20 @@ def validate_refine_result(
     normalized["schema_version"] = SCHEMA_VERSION
     normalized["prompt_version"] = prompt_hash
     normalized["prompt_mode"] = normalize_prompt_mode(prompt_mode)
+
+    raw_score = normalized.get("prompt_quality_score", 0.0)
+    try:
+        model_score = float(raw_score or 0.0)
+    except (TypeError, ValueError):
+        model_score = 0.0
+    normalized["prompt_quality_score"] = round(max(0.0, min(model_score, 1.0)), 2)
+
+    raw_delta = normalized.get("quality_delta", 0.0)
+    try:
+        normalized["quality_delta"] = float(raw_delta or 0.0)
+    except (TypeError, ValueError):
+        normalized["quality_delta"] = 0.0
+
     try:
         validated = RefineResult.model_validate(normalized)
     except ValidationError as exc:
@@ -233,6 +248,7 @@ def _validate_kind(
 def _normalize_common(result: dict, *, prompt_field: str) -> dict:
     normalized = dict(result)
     _normalize_clarification_questions(normalized)
+    _normalize_ai_recommendations(normalized)
     _repair_segment_texts(normalized, prompt_field)
     _clamp_segment_techniques(normalized)
     _normalize_segment_colors(normalized)
@@ -256,6 +272,39 @@ def _normalize_clarification_questions(result: dict) -> None:
         for item in normalized
         if item.get("question")
     ]
+
+
+_AI_ORDER = ["claude", "chatgpt", "gpt-5", "gemini", "groq", "cursor", "bolt", "replit", "gamma", "midjourney"]
+
+
+def _normalize_ai_recommendations(result: dict) -> None:
+    recs = result.get("target_ai_recommendations")
+    if not recs or not isinstance(recs, list):
+        return
+    normalized = []
+    for item in recs:
+        if not isinstance(item, dict):
+            continue
+        ai = str(item.get("ai", "")).strip().lower()
+        if ai not in _AI_ORDER:
+            continue
+        reason = str(item.get("reason", "")).strip()
+        if not reason:
+            continue
+        rank = item.get("rank", 0)
+        try:
+            rank = max(1, min(3, int(rank)))
+        except (TypeError, ValueError):
+            rank = len(normalized) + 1
+        normalized.append(AIRecommendation(ai=ai, rank=rank, reason=reason).model_dump(mode="json"))
+    if not normalized:
+        return
+    # Sort by rank, then by AI order
+    normalized.sort(key=lambda r: (r["rank"], _AI_ORDER.index(r["ai"]) if r["ai"] in _AI_ORDER else 99))
+    # Re-assign ranks 1-3
+    for i, rec in enumerate(normalized[:3]):
+        rec["rank"] = i + 1
+    result["target_ai_recommendations"] = normalized[:3]
 
 
 def _norm_ws(s: str) -> str:

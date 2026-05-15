@@ -6,7 +6,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-SCHEMA_VERSION = "2026-05-12.prompt-contracts.v2"
+SCHEMA_VERSION = "2026-05-14.prompt-contracts.v3"
 PROMPT_MODE_VALUES = ("normal", "caveman")
 
 TARGET_AI_VALUES = (
@@ -269,15 +269,51 @@ class ClarificationQA(BaseModel):
 
 class SourceInspiration(BaseModel):
     model_config = ConfigDict(extra="ignore")
-
     name: str
     url: str
     category: str
     use_case: str
 
+class ConnectorRecommendation(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str
+    category: str
+    use_case: str
+    url: str = ""
+    connector_type: str = "ai_platform"
+
     @field_validator("name", "url", "category", "use_case")
     @classmethod
     def source_text_not_empty(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("must not be empty")
+        return value.strip()
+
+
+class IntentQuestion(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    question: str
+    options: list[str] = Field(default_factory=list)
+    type: str = "multiple_choice"
+
+    @field_validator("id", "question")
+    @classmethod
+    def not_empty(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("must not be empty")
+        return value.strip()
+
+
+class AIRecommendation(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    ai: str
+    rank: int = Field(ge=1, le=3)
+    reason: str
+
+    @field_validator("ai", "reason")
+    @classmethod
+    def not_empty(cls, value: str) -> str:
         if not value or not value.strip():
             raise ValueError("must not be empty")
         return value.strip()
@@ -297,6 +333,10 @@ class IntentConfirmationResult(BaseModel):
     assumptions: list[str] = Field(default_factory=list)
     missing_context: list[str] = Field(default_factory=list)
     confirmation_question: str
+    questions: list[IntentQuestion] = Field(default_factory=list)
+    questions_answered: int = 0
+    questions_total: int = 0
+    is_finalized: bool = False
     confidence: float = Field(ge=0.0, le=1.0)
     suggested_prompt_mode: PromptMode = "normal"
     suggested_techniques: list[Technique] = Field(default_factory=list)
@@ -305,12 +345,17 @@ class IntentConfirmationResult(BaseModel):
     target_ai: TargetAI | None = None
     prompt_mode: PromptMode = "normal"
 
-    @field_validator("interpreted_need", "deliverable", "confirmation_question")
+    @field_validator("interpreted_need", "deliverable")
     @classmethod
     def intent_text_not_empty(cls, value: str) -> str:
         if not value or not value.strip():
             raise ValueError("must not be empty")
         return value.strip()
+
+    @field_validator("confirmation_question", mode="before")
+    @classmethod
+    def optional_confirmation_question(cls, value: Any) -> str:
+        return "" if value is None else str(value).strip()
 
     @field_validator(
         "target_audience",
@@ -334,7 +379,6 @@ class IntentConfirmationResult(BaseModel):
 
 class EnhanceResult(BaseModel):
     model_config = ConfigDict(extra="ignore")
-
     enhanced_prompt: str
     annotated_segments: list[AnnotatedSegment]
     placeholder_fields: list[PlaceholderField] = Field(default_factory=list)
@@ -345,7 +389,9 @@ class EnhanceResult(BaseModel):
     domain: Domain
     prompt_quality_score: float = Field(ge=0.0, le=1.0)
     target_ai_optimized: bool = False
+    target_ai_recommendations: list[AIRecommendation] = Field(default_factory=list)
     clarification_questions: list[ClarificationQuestion] = Field(default_factory=list)
+    recommended_connectors: list[ConnectorRecommendation] = Field(default_factory=list)
     summary: str
     schema_version: str = SCHEMA_VERSION
     prompt_version: str | None = None
@@ -366,13 +412,16 @@ class EnhanceResult(BaseModel):
 
 class RefineResult(BaseModel):
     model_config = ConfigDict(extra="ignore")
-
     refined_prompt: str
     annotated_segments: list[AnnotatedSegment]
     placeholder_fields: list[PlaceholderField] = Field(default_factory=list)
     framework_used: str
+    framework_rationale: str = ""
     pe_techniques_applied: list[Technique] = Field(default_factory=list)
+    prompt_quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    quality_delta: float = 0.0
     key_additions: list[str] = Field(default_factory=list)
+    recommended_connectors: list[ConnectorRecommendation] = Field(default_factory=list)
     summary: str
     schema_version: str = SCHEMA_VERSION
     prompt_version: str | None = None
@@ -384,3 +433,8 @@ class RefineResult(BaseModel):
         if not value or not value.strip():
             raise ValueError("must not be empty")
         return value
+
+    @field_validator("framework_rationale", mode="before")
+    @classmethod
+    def default_framework_rationale(cls, value: Any) -> str:
+        return "" if value is None else str(value)

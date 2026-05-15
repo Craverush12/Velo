@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator
 
+from core.connectors_catalog import connector_catalog_summary
 from core.contracts import PromptMode, TargetAI, normalize_prompt_mode, normalize_target_ai
 from core.llm import complete, complete_multi_turn
 from core.output_validator import parse_json_object, parse_validate_with_repair
@@ -321,6 +322,7 @@ async def cothinker_finalize(request: FinalizeRequest):
             "confirmed_fields": confirmed,
             "target_ai": request.target_ai,
             "prompt_mode": request.prompt_mode,
+            "connector_catalog": connector_catalog_summary(),
         },
         ensure_ascii=False,
     )

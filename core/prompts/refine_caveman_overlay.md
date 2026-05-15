@@ -27,7 +27,7 @@ Always preserve:
 - Existing placeholders when facts are still unknown.
 - Target-AI optimization when present or previously included.
 - Domain-specific precision and safety caveats.
-- Required output schema fields.
+- Required output schema fields, including `recommended_connectors`.
 - Exact annotation concatenation rules.
 
 Never preserve:

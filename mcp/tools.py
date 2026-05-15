@@ -361,6 +361,19 @@ def _format_enhance_result(original: str, result: dict) -> str:
     if summary:
         lines += ["", f"*{summary}*"]
 
+    # Connector recommendations
+    connectors = result.get("recommended_connectors", [])
+    if connectors:
+        lines += ["", "### Recommended tools"]
+        for c in connectors:
+            name = c.get("name", "")
+            use_case = c.get("use_case", "")
+            url = c.get("url", "")
+            if url:
+                lines.append(f"- **{name}** — {use_case} ({url})")
+            else:
+                lines.append(f"- **{name}** — {use_case}")
+
     # Clarification questions
     if clarifications:
         lines += ["", "### Clarify further (call refine_prompt with answers)"]
@@ -402,6 +415,19 @@ def _format_refine_result(result: dict) -> str:
     if techniques:
         tech_display = " · ".join(t.replace("_", " ").title() for t in techniques)
         lines += ["", f"**Techniques:** {tech_display}"]
+
+    # Connector recommendations
+    connectors = result.get("recommended_connectors", [])
+    if connectors:
+        lines += ["", "### Recommended tools"]
+        for c in connectors:
+            name = c.get("name", "")
+            use_case = c.get("use_case", "")
+            url = c.get("url", "")
+            if url:
+                lines.append(f"- **{name}** — {use_case} ({url})")
+            else:
+                lines.append(f"- **{name}** — {use_case}")
 
     if summary:
         lines += ["", f"*{summary}*"]

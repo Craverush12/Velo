@@ -141,6 +141,23 @@ Apply the most relevant rule set for the classified domain:
 
 ---
 
+## ## Connector Recommendations
+
+When the user's task maps naturally to a specific AI tool, platform, MCP server, or skill ecosystem, recommend it in `recommended_connectors`. Only recommend when the connection is concrete and would materially improve the user's workflow. Use the conversation context to ground the recommendation.
+
+Guidelines:
+- UI / frontend code → v0.dev, Bolt.new, Cursor
+- Database queries / schema design → Postgres MCP, MySQL MCP
+- Marketing / SEO / copy → ChatGPT, Claude with web search
+- Presentations / decks → Gamma
+- Images / visual design → Midjourney, DALL-E, Canva
+- Full-stack web app → Lovable, Bolt.new, Replit
+- Data analysis / research → Brave Search MCP, ChatGPT Advanced Data Analysis
+- API integration → Stripe MCP, GitHub MCP, Slack MCP
+- Agent / tool building → OpenCode Skills, Cline MCP Plugins, Claude Code Tools
+
+Return an empty array `[]` when no connector is clearly relevant.
+
 ## Target AI Optimization
 
 If `target_ai` is provided, add a final target-AI section as its own annotated segment. Accepted values and aliases:
@@ -199,7 +216,7 @@ Return one `placeholder_fields` entry for every placeholder present in the final
 
 ```json
 {
-  "schema_version": "1.1",
+  "schema_version": "2026-05-14.prompt-contracts.v3",
   "enhanced_prompt": "complete enhanced prompt as a plain string",
   "annotated_segments": [
     {
@@ -232,6 +249,7 @@ Return one `placeholder_fields` entry for every placeholder present in the final
   "prompt_quality_score": 0.75,
   "target_ai_optimized": false,
   "clarification_questions": [],
+  "recommended_connectors": [],
   "summary": "one sentence, max 25 words, describing what this enhancement improves",
   "injection_detected": false
 }

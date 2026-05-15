@@ -25,7 +25,7 @@ Always preserve:
 - Domain-specific precision.
 - Safety and refusal boundaries from the base system prompt.
 - Missing-data placeholders instead of invented facts.
-- All required output schema fields.
+- All required output schema fields, including `recommended_connectors`.
 - Exact annotation concatenation rules.
 - Target-AI optimization when `target_ai` is provided.
 - Clarification questions when a missing decision would materially change the result.
