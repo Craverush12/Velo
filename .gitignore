@@ -10,11 +10,15 @@ venv/
 storage/data/*.json
 storage/data/*.tmp
 
+# Runtime logs
+*.log
+
 # Local Docker overrides
 docker-compose.override.yml
 
 # Dev tools
-.superpowers/brainstorm/*/state/
+.pytest_cache/
+.superpowers/
 .claude/worktrees/
 .claude/settings.local.json
 .playwright-mcp/
