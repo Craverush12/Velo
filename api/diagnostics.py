@@ -74,12 +74,20 @@ async def context_smoke(user_id: str):
 
 @router.post("/tests")
 async def run_tests(request: TestRunRequest):
+    if os.getenv("APP_ENV") == "production" and os.getenv("ENABLE_REMOTE_TEST_RUNNER") != "true":
+        raise HTTPException(
+            status_code=403,
+            detail="Remote test runner is disabled in production. Set ENABLE_REMOTE_TEST_RUNNER=true only during deployment verification.",
+        )
+
     suites = {
         "all": [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
         "prompt_contracts": [sys.executable, "-m", "unittest", "tests.test_prompt_contracts"],
         "output_validator": [sys.executable, "-m", "unittest", "tests.test_output_validator"],
         "refine_backend": [sys.executable, "-m", "unittest", "tests.test_refine_backend"],
         "intent_backend": [sys.executable, "-m", "unittest", "tests.test_intent_backend"],
+        "personalization_backend": [sys.executable, "-m", "unittest", "tests.test_personalization_backend"],
+        "neuro_backend": [sys.executable, "-m", "unittest", "tests.test_neuro_backend"],
         "health_metadata": [sys.executable, "-m", "unittest", "tests.test_health_metadata"],
         "store": [sys.executable, "-m", "unittest", "tests.test_store"],
     }

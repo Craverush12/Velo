@@ -7,7 +7,6 @@
 <link rel="icon" href="data:,">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/vis-network.min.css" rel="stylesheet" id="visCss" onerror="this.href='https://unpkg.com/vis-network@9.1.9/styles/vis-network.min.css'">
-<script id="visScript" src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/vis-network.min.js" onload="window.__visLoaded=true" onerror="loadVisFallback()"></script>
 <script>
 function loadVisFallback() {
   var s = document.createElement('script');
@@ -26,6 +25,7 @@ function loadVisFallback() {
 window.__visLoaded = typeof vis !== 'undefined';
 window.__visFailed = false;
 </script>
+<script id="visScript" src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/vis-network.min.js" onload="window.__visLoaded=true" onerror="loadVisFallback()"></script>
 <style>
 :root {
   --bg: #07080d;
@@ -1340,6 +1340,139 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   line-height: 1.45;
   margin-top: 1px;
 }
+
+/* Velocity vNext surfaces: Profile + NeuroPrompt Signal */
+:root {
+  --velocity-bg: #131313;
+  --velocity-panel: #1c1b1b;
+  --velocity-panel-deep: #0e0e0e;
+  --velocity-cyan: #6df3ff;
+  --velocity-text: #e5e2e1;
+  --velocity-muted: #bac9cb;
+  --velocity-border: rgba(59,73,75,0.2);
+}
+.app.page-profile { grid-template-columns: 220px 1fr 0; }
+.app.page-profile .details { display: none; }
+.page-profile {
+  height: 100%;
+  overflow: auto;
+  padding: 48px;
+  background: var(--velocity-bg);
+}
+.profile-shell { max-width: 1184px; margin: 0 auto; display: grid; gap: 24px; }
+.velocity-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 5px 13px;
+  border-radius: 9999px;
+  border: 1px solid var(--velocity-border);
+  background: #2a2a2a;
+  color: var(--velocity-cyan);
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+.velocity-pill::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--velocity-cyan);
+  box-shadow: 0 0 8px rgba(109,243,255,0.45);
+}
+.profile-hero {
+  border: 1px solid rgba(59,73,75,0.1);
+  background: var(--velocity-panel);
+  border-radius: 24px;
+  padding: 48px;
+}
+.profile-title {
+  margin-top: 20px;
+  color: var(--velocity-text);
+  font-size: 48px;
+  line-height: 1;
+  letter-spacing: -2px;
+  font-weight: 800;
+}
+.profile-subtitle {
+  margin-top: 14px;
+  max-width: 660px;
+  color: rgba(186,201,203,0.72);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.profile-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; }
+.profile-card {
+  border: 1px solid rgba(59,73,75,0.1);
+  background: var(--velocity-panel);
+  border-radius: 16px;
+  padding: 28px;
+}
+.profile-label {
+  color: var(--velocity-cyan);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-family: var(--mono);
+  margin-bottom: 12px;
+}
+.profile-textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  border-radius: 12px;
+  border: 1px solid rgba(59,73,75,0.2);
+  background: var(--velocity-panel-deep);
+  color: var(--velocity-text);
+  padding: 18px;
+  font-family: var(--body);
+  font-size: 14px;
+  line-height: 1.65;
+  outline: none;
+}
+.profile-actions { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+.profile-review { display: grid; gap: 10px; color: var(--velocity-muted); font-size: 13px; }
+.profile-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(59,73,75,0.12);
+}
+.profile-kv span:first-child {
+  color: rgba(186,201,203,0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  font-size: 10px;
+}
+.profile-kv span:last-child { color: var(--velocity-text); text-align: right; }
+.neuro-card {
+  margin-top: 18px;
+  border: 1px solid rgba(59,73,75,0.14);
+  background: #101111;
+  border-radius: 16px;
+  padding: 22px;
+  display: none;
+}
+.neuro-card.visible { display: block; }
+.neuro-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.neuro-score { color: var(--velocity-text); font-size: 44px; line-height: 1; font-weight: 800; letter-spacing: -1.8px; }
+.neuro-label { color: var(--velocity-cyan); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; }
+.neuro-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-top: 18px; }
+.neuro-bar-row { display: grid; gap: 6px; }
+.neuro-bar-meta { display: flex; justify-content: space-between; color: var(--velocity-muted); font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; }
+.neuro-bar-track { height: 4px; border-radius: 999px; overflow: hidden; background: #2a2a2a; }
+.neuro-bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(135deg, #6df3ff 0%, #19d8e6 100%); }
+.neuro-note { margin-top: 14px; color: rgba(186,201,203,0.6); font-size: 11px; line-height: 1.55; }
+@media (max-width: 900px) {
+  .profile-grid { grid-template-columns: 1fr; }
+  .page-profile { padding: 24px; }
+  .profile-title { font-size: 34px; }
+  .neuro-grid { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -1368,6 +1501,9 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
       </button>
       <button class="nav-btn" id="nav-brain" onclick="showView('brain')">
         <span class="nav-icon">◈</span> Memory
+      </button>
+      <button class="nav-btn" id="nav-profile" onclick="showView('profile')">
+        <span class="nav-icon">◎</span> Profile
       </button>
       <button class="nav-btn" id="nav-diagnostics" onclick="showView('diagnostics')">
         <span class="nav-icon">⚙</span> Diagnostics
@@ -1456,6 +1592,17 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
               <div class="score-bar"><div class="score-fill" id="scoreFill" style="width:0%"></div></div>
               <span class="score-value" id="scoreValue">—</span>
             </div>
+            <div class="neuro-card" id="neuroSignalCard">
+              <div class="neuro-head">
+                <div>
+                  <div class="velocity-pill">NeuroPrompt Signal</div>
+                  <div class="neuro-label" id="neuroSignalLabel">Scoring prompt fit</div>
+                </div>
+                <div class="neuro-score" id="neuroSignalScore">--</div>
+              </div>
+              <div class="neuro-grid" id="neuroSignalBars"></div>
+              <div class="neuro-note" id="neuroSignalNote">Heuristic prompt-quality scoring inspired by brain-response modeling. Not fMRI prediction.</div>
+            </div>
             <div class="techniques-row" id="techniquesRow"></div>
           </div>
         </div>
@@ -1523,6 +1670,40 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
       </div>
       <div class="brain-body">
         <div id="brainCanvas"></div>
+      </div>
+    </div>
+
+    <!-- ========= PROFILE PAGE ========= -->
+    <div class="page-profile" id="pageProfile" style="display:none">
+      <div class="profile-shell">
+        <section class="profile-hero">
+          <div class="velocity-pill">Profile Signal</div>
+          <div class="profile-title">Tell Velocity how you work.</div>
+          <div class="profile-subtitle">
+            Describe your preferences once. Velocity extracts a reusable profile, applies it to prompt enhancement, and shows when personalization improved the output.
+          </div>
+        </section>
+        <section class="profile-grid">
+          <div class="profile-card">
+            <div class="profile-label">Preference Input</div>
+            <textarea class="profile-textarea" id="profileNotesInput" placeholder="Example: I prefer concise prompts, senior-level technical depth, explicit acceptance criteria, direct tone, and implementation checklists. Avoid generic advice and long intros."></textarea>
+            <div class="profile-actions">
+              <button class="btn-primary" onclick="extractProfile(false)">Extract Preferences</button>
+              <button class="btn-secondary" onclick="extractProfile(true)">Extract + Save</button>
+              <button class="btn-secondary" onclick="loadProfile()">Load Current</button>
+            </div>
+          </div>
+          <div class="profile-card">
+            <div class="profile-label">Review Profile</div>
+            <div class="profile-review" id="profileReview">
+              <div style="color:var(--faint);font-size:12px">No profile loaded yet.</div>
+            </div>
+            <div class="profile-actions">
+              <button class="btn-primary" onclick="saveExtractedProfile()">Save Reviewed Profile</button>
+              <button class="btn-secondary" onclick="clearProfileDraft()">Discard Draft</button>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -1610,6 +1791,28 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
             <div class="diag-spinner" id="spin-incognito"></div>
           </div>
           <pre class="diag-result" id="res-incognito"></pre>
+        </div>
+
+        <!-- Personalization -->
+        <div class="diag-panel">
+          <div class="diag-panel-title">Personalization Extractor</div>
+          <div class="diag-desc">POST /personalization/:userId/extract — extracts reusable profile preferences without saving by default.</div>
+          <div class="diag-actions">
+            <button class="btn-secondary" title="POST /personalization/:userId/extract" onclick="diagRun('personalization')">Run</button>
+            <div class="diag-spinner" id="spin-personalization"></div>
+          </div>
+          <pre class="diag-result" id="res-personalization"></pre>
+        </div>
+
+        <!-- NeuroPrompt -->
+        <div class="diag-panel">
+          <div class="diag-panel-title">NeuroPrompt Signal</div>
+          <div class="diag-desc">POST /neuro/score — verifies heuristic signal scoring and JSON contract.</div>
+          <div class="diag-actions">
+            <button class="btn-secondary" title="POST /neuro/score" onclick="diagRun('neuro')">Run</button>
+            <div class="diag-spinner" id="spin-neuro"></div>
+          </div>
+          <pre class="diag-result" id="res-neuro"></pre>
         </div>
 
         <!-- Annotation segments -->
@@ -1700,6 +1903,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   <aside class="details" id="detailsPanel">
     <div class="details-tabs">
       <button class="details-tab active" onclick="switchTab('annotations')">Annotations</button>
+      <button class="details-tab" onclick="switchTab('signal')">Signal</button>
       <button class="details-tab" onclick="switchTab('metadata')">Metadata</button>
       <button class="details-tab" onclick="switchTab('raw')">Raw</button>
     </div>
@@ -1707,6 +1911,12 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
       <div class="empty-state" style="height:auto;padding:24px 0">
         <div class="empty-state-icon" style="font-size:24px">◫</div>
         <div class="empty-state-text" style="font-size:12px">Annotations appear after enhancement.</div>
+      </div>
+    </div>
+    <div class="details-pane" id="tab-signal">
+      <div class="empty-state" style="height:auto;padding:24px 0">
+        <div class="empty-state-icon" style="font-size:24px">◎</div>
+        <div class="empty-state-text" style="font-size:12px">Signal scoring appears after enhancement.</div>
       </div>
     </div>
     <div class="details-pane" id="tab-metadata">
@@ -1737,6 +1947,8 @@ const state = {
   incognito: false,
   lastResult: null,
   lastIntent: null,
+  lastNeuroSignal: null,
+  profileDraft: null,
   clarificationAnswers: [],
   refineAnswers: [],
   brainNetwork: null,
@@ -1748,16 +1960,17 @@ const state = {
 // ── View switching ────────────────────────────────────────────────
 function showView(view) {
   const shell = document.getElementById("appShell");
-  shell.classList.remove("page-brain", "page-diagnostics", "page-cothinker");
+  shell.classList.remove("page-brain", "page-diagnostics", "page-cothinker", "page-profile");
   document.getElementById("pageEnhance").style.display = "none";
   document.getElementById("pageBrain").style.display = "none";
+  document.getElementById("pageProfile").style.display = "none";
   document.getElementById("pageDiagnostics").style.display = "none";
   document.getElementById("pageCothinker").style.display = "none";
 
-  const titles = { enhance: "Enhance", brain: "Memory", diagnostics: "Diagnostics", cothinker: "CoThinker" };
+  const titles = { enhance: "Enhance", brain: "Memory", profile: "Profile", diagnostics: "Diagnostics", cothinker: "CoThinker" };
   document.getElementById("topbarViewTitle").textContent = titles[view] || view;
 
-  ["enhance","brain","diagnostics","cothinker"].forEach(v => {
+  ["enhance","brain","profile","diagnostics","cothinker"].forEach(v => {
     document.getElementById("nav-" + v)?.classList.remove("active");
   });
   document.getElementById("nav-" + view)?.classList.add("active");
@@ -1772,6 +1985,10 @@ function showView(view) {
     shell.classList.add("page-brain");
     document.getElementById("pageBrain").style.display = "flex";
     requestAnimationFrame(() => requestAnimationFrame(loadBrainData));
+  } else if (view === "profile") {
+    shell.classList.add("page-profile");
+    document.getElementById("pageProfile").style.display = "block";
+    loadProfile();
   } else if (view === "diagnostics") {
     shell.classList.add("page-diagnostics");
     document.getElementById("pageDiagnostics").style.display = "flex";
@@ -1808,10 +2025,12 @@ function clearWorkspace() {
   document.getElementById("enhancedText").textContent = "";
   document.getElementById("techniquesRow").innerHTML = "";
   document.getElementById("scoreRow").style.display = "none";
+  document.getElementById("neuroSignalCard").classList.remove("visible");
   document.getElementById("fallbackNotice").classList.remove("visible");
   clearDetails();
   state.lastResult = null;
   state.lastIntent = null;
+  state.lastNeuroSignal = null;
   state.clarificationAnswers = [];
   state.refineAnswers = [];
   state.intentQAAnswers = [];
@@ -1820,6 +2039,7 @@ function clearWorkspace() {
 
 function clearDetails() {
   document.getElementById("tab-annotations").innerHTML = `<div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-icon" style="font-size:24px">◫</div><div class="empty-state-text" style="font-size:12px">Annotations appear after enhancement.</div></div>`;
+  document.getElementById("tab-signal").innerHTML = `<div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-icon" style="font-size:24px">◎</div><div class="empty-state-text" style="font-size:12px">Signal scoring appears after enhancement.</div></div>`;
   document.getElementById("tab-metadata").innerHTML = `<div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-icon" style="font-size:24px">◫</div><div class="empty-state-text" style="font-size:12px">Metadata appears after enhancement.</div></div>`;
   document.getElementById("tab-raw").innerHTML = `<div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-icon" style="font-size:24px">◫</div><div class="empty-state-text" style="font-size:12px">Raw JSON appears after enhancement.</div></div>`;
 }
@@ -1834,6 +2054,15 @@ function setStatus(s) {
 // ── User ID ───────────────────────────────────────────────────────
 function userId() {
   return document.getElementById("userIdInput").value.trim() || "sandbox-user";
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 // ── Intent Q&A flow (called by runEnhance) ───────────────────────
@@ -2133,6 +2362,7 @@ function handleEnhanceResult(result) {
   renderDetailsAnnotations(segments);
   renderDetailsMetadata(result);
   renderDetailsRaw(result);
+  scoreNeuroPrompt(result);
 
   // Clarification questions
   const questions = result.clarification_questions || [];
@@ -2168,6 +2398,76 @@ function renderAIRecommendations(recs) {
 
   const techniquesRow = document.getElementById("techniquesRow");
   techniquesRow.parentNode.insertBefore(container, techniquesRow.nextSibling);
+}
+
+async function scoreNeuroPrompt(result) {
+  const card = document.getElementById("neuroSignalCard");
+  const pane = document.getElementById("tab-signal");
+  card.classList.add("visible");
+  document.getElementById("neuroSignalScore").textContent = "--";
+  document.getElementById("neuroSignalLabel").textContent = "Scoring prompt fit";
+  document.getElementById("neuroSignalBars").innerHTML = "";
+  pane.innerHTML = `<div style="color:var(--muted);font-size:12px">Scoring NeuroPrompt Signal...</div>`;
+
+  try {
+    const personalization = result._personalization_used || null;
+    const r = await fetch(`${BASE}/neuro/score`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        raw_prompt: document.getElementById("promptInput").value.trim(),
+        enhanced_prompt: result.enhanced_prompt,
+        target_ai: document.getElementById("targetAiSelect").value || null,
+        prompt_mode: document.getElementById("promptModeSelect").value || "normal",
+        personalization_context: personalization,
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail?.message || data.detail || "NeuroPrompt scoring failed");
+    state.lastNeuroSignal = data;
+    renderNeuroSignal(data);
+  } catch (e) {
+    document.getElementById("neuroSignalLabel").textContent = "Signal unavailable";
+    pane.innerHTML = `<div style="color:var(--bad);font-size:12px">${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderNeuroSignal(data) {
+  document.getElementById("neuroSignalScore").textContent = data.overall_score || 0;
+  document.getElementById("neuroSignalLabel").textContent = `${data.label || "Signal"} · Delta ${(data.score_delta || 0) >= 0 ? "+" : ""}${data.score_delta || 0}`;
+  const bars = document.getElementById("neuroSignalBars");
+  bars.innerHTML = "";
+  Object.entries(data.dimensions || {}).forEach(([key, value]) => {
+    const row = document.createElement("div");
+    row.className = "neuro-bar-row";
+    row.innerHTML = `
+      <div class="neuro-bar-meta"><span>${key.replace(/_/g, " ")}</span><span>${value}</span></div>
+      <div class="neuro-bar-track"><div class="neuro-bar-fill" style="width:${Math.max(0, Math.min(100, value))}%"></div></div>
+    `;
+    bars.appendChild(row);
+  });
+  document.getElementById("neuroSignalNote").textContent = data.disclaimer || "Heuristic prompt-quality score. Not fMRI prediction.";
+  renderSignalDetails(data);
+}
+
+function renderSignalDetails(data) {
+  const pane = document.getElementById("tab-signal");
+  const strengths = (data.strengths || []).map(x => `<li>${escapeHtml(x)}</li>`).join("");
+  const risks = (data.risks || []).map(x => `<li>${escapeHtml(x)}</li>`).join("");
+  const improvements = (data.suggested_improvements || []).map(x => `<li>${escapeHtml(x)}</li>`).join("");
+  pane.innerHTML = `
+    <div class="detail-section">
+      <div class="detail-section-label">NeuroPrompt Signal</div>
+      <div class="detail-kv">
+        <div class="detail-row"><span class="detail-key">Score</span><span class="detail-val">${data.overall_score}/100</span></div>
+        <div class="detail-row"><span class="detail-key">Label</span><span class="detail-val">${escapeHtml(data.label || "")}</span></div>
+        <div class="detail-row"><span class="detail-key">Delta</span><span class="detail-val">${data.score_delta}</span></div>
+      </div>
+    </div>
+    <div class="detail-section"><div class="detail-section-label">Strengths</div><ul class="detail-text-block">${strengths || "<li>No strengths returned.</li>"}</ul></div>
+    <div class="detail-section"><div class="detail-section-label">Risks</div><ul class="detail-text-block">${risks || "<li>No risks returned.</li>"}</ul></div>
+    <div class="detail-section"><div class="detail-section-label">Improve Next</div><ul class="detail-text-block">${improvements || "<li>No improvements returned.</li>"}</ul></div>
+  `;
 }
 
 function renderSegments(container, segments) {
@@ -2408,7 +2708,7 @@ async function copyEnhanced() {
 // ── Details tabs ──────────────────────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll(".details-tab").forEach((t, i) => {
-    const names = ["annotations","metadata","raw"];
+    const names = ["annotations","signal","metadata","raw"];
     t.classList.toggle("active", names[i] === name);
   });
   document.querySelectorAll(".details-pane").forEach(p => p.classList.remove("active"));
@@ -2486,6 +2786,101 @@ function renderDetailsMetadata(result) {
 function renderDetailsRaw(result) {
   const pane = document.getElementById("tab-raw");
   pane.innerHTML = `<pre style="font-family:var(--mono);font-size:11px;color:var(--muted);white-space:pre-wrap;word-break:break-all">${JSON.stringify(result, null, 2)}</pre>`;
+}
+
+// ── Profile / Personalization ─────────────────────────────────────
+async function loadProfile() {
+  const review = document.getElementById("profileReview");
+  if (!review) return;
+  review.innerHTML = `<div style="color:var(--muted);font-size:12px">Loading profile...</div>`;
+  try {
+    const r = await fetch(`${BASE}/context/${userId()}`);
+    const ctx = await r.json();
+    if (!r.ok) throw new Error(ctx.detail || "Profile load failed");
+    document.getElementById("profileNotesInput").value = ctx.personalization_notes || "";
+    state.profileDraft = { preferences: ctx.preferences || {}, summary: ctx.personalization_notes || "Current saved profile." };
+    renderProfileReview(state.profileDraft, false);
+  } catch (e) {
+    review.innerHTML = `<div style="color:var(--bad);font-size:12px">${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function extractProfile(apply) {
+  const notes = document.getElementById("profileNotesInput").value.trim();
+  if (!notes) return;
+  const review = document.getElementById("profileReview");
+  review.innerHTML = `<div style="color:var(--muted);font-size:12px">Extracting preferences...</div>`;
+  try {
+    const r = await fetch(`${BASE}/personalization/${userId()}/extract`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notes, apply }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail?.message || data.detail || "Extraction failed");
+    state.profileDraft = data;
+    renderProfileReview(data, apply);
+  } catch (e) {
+    review.innerHTML = `<div style="color:var(--bad);font-size:12px">${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function saveExtractedProfile() {
+  if (!state.profileDraft?.preferences) return;
+  try {
+    const notes = document.getElementById("profileNotesInput").value.trim();
+    const r = await fetch(`${BASE}/context/${userId()}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        personalization_notes: notes,
+        preferences: state.profileDraft.preferences,
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || "Save failed");
+    state.profileDraft = { preferences: data.preferences || {}, summary: "Saved profile." };
+    renderProfileReview(state.profileDraft, true);
+  } catch (e) {
+    document.getElementById("profileReview").innerHTML = `<div style="color:var(--bad);font-size:12px">${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function clearProfileDraft() {
+  state.profileDraft = null;
+  document.getElementById("profileReview").innerHTML = `<div style="color:var(--faint);font-size:12px">Draft discarded.</div>`;
+}
+
+function renderProfileReview(data, saved) {
+  const prefs = data.preferences || {};
+  const rows = [
+    ["Status", saved || data.applied ? "Saved" : "Draft"],
+    ["Output style", prefs.output_style],
+    ["Expertise", prefs.expertise_level],
+    ["Tone", prefs.tone],
+    ["Target AI", prefs.default_target_ai],
+    ["Tools", (prefs.preferred_tools || []).join(", ")],
+    ["Formats", (prefs.format_preferences || []).join(", ")],
+    ["Must include", (prefs.must_include || []).join(", ")],
+    ["Avoid", (prefs.avoid || []).join(", ")],
+    ["Examples", prefs.examples_preference],
+  ];
+  const review = document.getElementById("profileReview");
+  review.innerHTML = "";
+  if (data.summary) {
+    const summary = document.createElement("div");
+    summary.className = "neuro-note";
+    summary.style.marginTop = "0";
+    summary.textContent = data.summary;
+    review.appendChild(summary);
+  }
+  rows.forEach(([key, value]) => {
+    if (!value) return;
+    const row = document.createElement("div");
+    row.className = "profile-kv";
+    row.innerHTML = `<span>${escapeHtml(key)}</span><span>${escapeHtml(value)}</span>`;
+    review.appendChild(row);
+  });
 }
 
 // ── Segment tooltip ───────────────────────────────────────────────
@@ -3232,6 +3627,30 @@ const DIAG_TESTS = {
     });
     const result = await readSSE(r);
     return { status: "ok", incognito: true, enhanced_prompt: result?.enhanced_prompt?.slice(0, 80) + "…" };
+  },
+  personalization: async () => {
+    const r = await fetch(`${BASE}/personalization/${userId()}/extract`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notes: "Prefer concise senior implementation checklists. Avoid generic advice.", apply: false }),
+    });
+    const d = await r.json();
+    if (!r.ok) return { status: "error", detail: d.detail || d };
+    return { status: "ok", output_style: d.preferences?.output_style, expertise_level: d.preferences?.expertise_level, applied: d.applied };
+  },
+  neuro: async () => {
+    const r = await fetch(`${BASE}/neuro/score`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        raw_prompt: "write a plan",
+        enhanced_prompt: "Write a concise senior engineering implementation plan with tests, risks, and acceptance criteria.",
+        personalization_context: { tone: "direct", format_preferences: ["implementation checklist"] },
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) return { status: "error", detail: d.detail || d };
+    return { status: "ok", score: d.overall_score, label: d.label, personal_fit: d.dimensions?.personal_fit };
   },
   segments: async () => {
     const r = await fetch(`${BASE}/enhance`, {

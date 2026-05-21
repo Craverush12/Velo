@@ -17,6 +17,7 @@ from core.contracts import (
     RefineResult,
     normalize_prompt_mode,
 )
+from core.connectors_catalog import load_connector_catalog
 
 
 class OutputValidationError(ValueError):
@@ -254,6 +255,7 @@ def _normalize_common(result: dict, *, prompt_field: str) -> dict:
     _normalize_segment_colors(normalized)
     _normalize_placeholder_fields(normalized, prompt_field)
     _normalize_techniques(normalized)
+    _normalize_connector_recommendations(normalized)
     return normalized
 
 
@@ -305,6 +307,75 @@ def _normalize_ai_recommendations(result: dict) -> None:
     for i, rec in enumerate(normalized[:3]):
         rec["rank"] = i + 1
     result["target_ai_recommendations"] = normalized[:3]
+
+
+def _normalize_connector_recommendations(result: dict) -> None:
+    recs = result.get("recommended_connectors")
+    if recs is None:
+        return
+    if isinstance(recs, dict):
+        recs = [recs]
+    if not isinstance(recs, list):
+        result["recommended_connectors"] = []
+        return
+
+    catalog = load_connector_catalog()
+    catalog_by_name = {entry["name"].lower(): entry for entry in catalog}
+    normalized = []
+    for item in recs:
+        if not isinstance(item, dict):
+            continue
+        name = str(
+            item.get("name")
+            or item.get("connector_name")
+            or item.get("connector")
+            or ""
+        ).strip()
+        if not name:
+            continue
+        catalog_entry = _match_connector_catalog_entry(name, catalog_by_name)
+        category = str(item.get("category") or "").strip()
+        use_case = str(item.get("use_case") or item.get("reason") or "").strip()
+        url = str(item.get("url") or "").strip()
+        connector_type = str(item.get("connector_type") or item.get("type") or "").strip()
+        if catalog_entry:
+            name = catalog_entry["name"]
+            category = category or catalog_entry["category"]
+            use_case = use_case or catalog_entry["use_case"]
+            url = url or catalog_entry["url"]
+            connector_type = connector_type or catalog_entry["connector_type"]
+        if not (name and category and use_case and url):
+            continue
+        normalized.append({
+            "name": name,
+            "category": category,
+            "use_case": use_case,
+            "url": url,
+            "connector_type": connector_type or "ai_platform",
+        })
+    result["recommended_connectors"] = normalized[:4]
+
+
+def _match_connector_catalog_entry(name: str, catalog_by_name: dict[str, dict[str, str]]) -> dict[str, str] | None:
+    lowered = name.lower()
+    if lowered in catalog_by_name:
+        return catalog_by_name[lowered]
+    for catalog_name, entry in catalog_by_name.items():
+        if lowered in catalog_name or catalog_name in lowered:
+            return entry
+    aliases = {
+        "claude": "claude (anthropic)",
+        "anthropic": "claude (anthropic)",
+        "chatgpt": "chatgpt (openai)",
+        "openai": "chatgpt (openai)",
+        "dalle": "dall-e (openai)",
+        "dall-e": "dall-e (openai)",
+        "bolt": "bolt.new",
+    }
+    alias = aliases.get(lowered)
+    if alias:
+        return catalog_by_name.get(alias)
+    return None
 
 
 def _norm_ws(s: str) -> str:
@@ -443,8 +514,10 @@ def _normalize_techniques(result: dict) -> None:
 
 
 def _normalize_placeholder_fields(result: dict, prompt_field: str) -> None:
+    prompt = str(result.get(prompt_field) or "")
+    prompt_placeholders = sorted(set(re.findall(r"\[[A-Z][A-Z0-9_]{2,}\]", prompt)))
     fields = result.get("placeholder_fields") or []
-    normalized = []
+    normalized_by_placeholder = {}
     for field in fields:
         if not isinstance(field, dict):
             continue
@@ -461,6 +534,23 @@ def _normalize_placeholder_fields(result: dict, prompt_field: str) -> None:
         field["placeholder"] = placeholder
         field["label"] = label
         field["description"] = description
+        normalized_by_placeholder[placeholder] = field
+
+    normalized = []
+    for placeholder in prompt_placeholders:
+        field = normalized_by_placeholder.get(placeholder)
+        if field is None:
+            key = placeholder.strip("[]")
+            label = key.replace("_", " ").title()
+            field = {
+                "key": key,
+                "label": label,
+                "placeholder": placeholder,
+                "description": f"Provide a value for {label}.",
+                "required": True,
+                "example": "",
+                "type": "text",
+            }
         normalized.append(field)
     result["placeholder_fields"] = normalized
 

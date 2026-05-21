@@ -44,6 +44,13 @@ _DEFAULT_CONTEXT = {
         "expertise_level": "intermediate",
         "preferred_tools": [],
         "industry": "",
+        "tone": "",
+        "default_target_ai": "",
+        "format_preferences": [],
+        "must_include": [],
+        "avoid": [],
+        "examples_preference": "balanced",
+        "personalization_source": "manual",
     },
     "recent_context": [],
     "personalization_notes": "",
@@ -65,6 +72,33 @@ def _path(user_id: str) -> Path:
     return path
 
 
+def storage_path() -> str:
+    """Return the resolved storage directory and create it if needed."""
+    _STORAGE_PATH.mkdir(parents=True, exist_ok=True)
+    return str(_STORAGE_PATH)
+
+
+def storage_healthcheck() -> dict:
+    """Verify that the configured JSON storage directory is writable."""
+    _STORAGE_PATH.mkdir(parents=True, exist_ok=True)
+    marker = _STORAGE_PATH / ".healthcheck"
+    try:
+        marker.write_text(datetime.now(timezone.utc).isoformat(), encoding="utf-8")
+        marker.unlink(missing_ok=True)
+    except OSError as exc:
+        return {
+            "ok": False,
+            "backend": _BACKEND,
+            "path": str(_STORAGE_PATH),
+            "error": str(exc),
+        }
+    return {
+        "ok": True,
+        "backend": _BACKEND,
+        "path": str(_STORAGE_PATH),
+    }
+
+
 def _lock_for(user_id: str) -> threading.Lock:
     with _LOCKS_GUARD:
         if user_id not in _LOCKS:
@@ -81,7 +115,7 @@ def get_user_context(user_id: str) -> dict:
         ctx["created_at"] = now
         ctx["updated_at"] = now
         return ctx
-    with open(p) as f:
+    with open(p, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -89,7 +123,7 @@ def save_user_context(user_id: str, context: dict) -> None:
     path = _path(user_id)
     tmp = path.with_suffix(".json.tmp")
     with _lock_for(user_id):
-        with open(tmp, "w") as f:
+        with open(tmp, "w", encoding="utf-8") as f:
             json.dump(context, f, indent=2)
             f.write("\n")
         os.replace(tmp, path)
@@ -166,7 +200,9 @@ def update_after_enhancement(
 
 def update_preferences(user_id: str, preferences: dict) -> None:
     ctx = get_user_context(user_id)
-    ctx["preferences"].update(preferences)
+    allowed = set(_DEFAULT_CONTEXT["preferences"].keys())
+    clean = {k: v for k, v in preferences.items() if k in allowed}
+    ctx["preferences"].update(clean)
     ctx["updated_at"] = datetime.now(timezone.utc).isoformat()
     save_user_context(user_id, ctx)
 

@@ -22,8 +22,8 @@ Required environment:
 GROQ_API_KEY=...
 LLM_MODEL=llama-3.3-70b-versatile
 APP_ENV=production
-API_SECRET=...
 STORAGE_PATH=/data
+ENABLE_REMOTE_TEST_RUNNER=false
 ```
 
 ## AWS Recommendation
@@ -70,4 +70,5 @@ Health check:
 
 ```text
 GET /health
+GET /ready
 ```

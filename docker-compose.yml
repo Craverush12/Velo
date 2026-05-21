@@ -3,13 +3,14 @@ services:
     build: .
     image: thinkvelocity-backend:local
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     env_file:
       - .env
     environment:
-      APP_ENV: development
-      PORT: 8000
+      APP_ENV: ${APP_ENV:-development}
+      PORT: ${PORT:-8000}
       STORAGE_PATH: /data
+      ENABLE_REMOTE_TEST_RUNNER: ${ENABLE_REMOTE_TEST_RUNNER:-false}
     volumes:
       - thinkvelocity-data:/data
     restart: unless-stopped

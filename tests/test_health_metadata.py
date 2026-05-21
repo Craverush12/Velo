@@ -1,7 +1,11 @@
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from core.contracts import SCHEMA_VERSION
-from main import health
+from main import health, ready
+from storage import store
 
 
 class HealthMetadataTests(unittest.TestCase):
@@ -22,6 +26,16 @@ class HealthMetadataTests(unittest.TestCase):
             result["prompt_versions"]["enhance"]["normal"],
             result["prompt_versions"]["enhance"]["caveman"],
         )
+
+    def test_ready_checks_storage_and_groq_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(store, "_STORAGE_PATH", Path(tmp).resolve()):
+                with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}, clear=False):
+                    result = ready()
+
+        self.assertEqual(result["status"], "ok")
+        self.assertTrue(result["checks"]["groq_api_key"])
+        self.assertTrue(result["checks"]["storage"]["ok"])
 
 
 if __name__ == "__main__":

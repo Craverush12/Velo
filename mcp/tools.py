@@ -8,8 +8,10 @@ from mcp.types import Tool, TextContent
 from core import context_loader, safety
 from core.contracts import PROMPT_MODE_VALUES, TARGET_AI_VALUES, normalize_prompt_mode, normalize_target_ai
 from core.llm import complete, complete_with_usage
+from core.neuro_contracts import NeuroScoreRequest
 from core.output_validator import OutputValidationError, parse_validate_with_repair
 from core.prompt_modes import prompt_bundle
+from api.neuro import score_neuroprompt
 from storage import store
 
 mcp_server = Server("velocity")
@@ -132,6 +134,35 @@ async def list_tools() -> list[Tool]:
             ),
             inputSchema={"type": "object", "properties": {}},
         ),
+        Tool(
+            name="score_neuroprompt",
+            description=(
+                "Score a prompt with ThinkVelocity's NeuroPrompt Signal heuristic. "
+                "This is prompt-quality scoring inspired by brain-response modeling, not fMRI prediction."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "raw_prompt": {
+                        "type": "string",
+                        "description": "The original prompt before enhancement.",
+                    },
+                    "enhanced_prompt": {
+                        "type": "string",
+                        "description": "The enhanced prompt to score, if available.",
+                    },
+                    "target_ai": {
+                        "type": "string",
+                        "enum": list(TARGET_AI_VALUES),
+                    },
+                    "prompt_mode": {
+                        "type": "string",
+                        "enum": list(PROMPT_MODE_VALUES),
+                    },
+                },
+                "required": ["raw_prompt"],
+            },
+        ),
     ]
 
 
@@ -149,8 +180,25 @@ async def call_tool(name: str, arguments: dict | None) -> list[TextContent]:
         return [TextContent(type="text", text=_format_context(store.get_user_context(_user_id())))]
     if name == "inject_context":
         return [TextContent(type="text", text=_format_inject(store.get_user_context(_user_id())))]
+    if name == "score_neuroprompt":
+        return await _handle_neuro_score(args)
 
     raise ValueError(f"Unknown tool: {name}")
+
+
+async def _handle_neuro_score(args: dict) -> list[TextContent]:
+    try:
+        request = NeuroScoreRequest(
+            raw_prompt=args.get("raw_prompt", ""),
+            enhanced_prompt=args.get("enhanced_prompt"),
+            target_ai=args.get("target_ai"),
+            prompt_mode=args.get("prompt_mode") or "normal",
+            personalization_context=store.get_user_context(_user_id()).get("preferences", {}),
+        )
+        result = await score_neuroprompt(request)
+    except Exception as exc:
+        return [TextContent(type="text", text=f"NeuroPrompt Signal failed: {exc}")]
+    return [TextContent(type="text", text=_format_neuro_score(result))]
 
 
 async def _handle_enhance(args: dict) -> list[TextContent]:
@@ -433,6 +481,31 @@ def _format_refine_result(result: dict) -> str:
         lines += ["", f"*{summary}*"]
 
     lines += ["", "---", "*Copy the refined prompt above.*"]
+    return "\n".join(lines)
+
+
+def _format_neuro_score(result: dict) -> str:
+    dimensions = result.get("dimensions", {})
+    lines = [
+        "## NeuroPrompt Signal",
+        "",
+        f"**{result.get('overall_score', 0)} / 100** · {result.get('label', 'Moderate')} · Delta {result.get('score_delta', 0):+}",
+        "",
+        "### Dimensions",
+    ]
+    for key, value in dimensions.items():
+        label = key.replace("_", " ").title()
+        lines.append(f"- **{label}:** {value}/100")
+    strengths = result.get("strengths", [])
+    risks = result.get("risks", [])
+    improvements = result.get("suggested_improvements", [])
+    if strengths:
+        lines += ["", "### Strengths", *[f"- {item}" for item in strengths]]
+    if risks:
+        lines += ["", "### Risks", *[f"- {item}" for item in risks]]
+    if improvements:
+        lines += ["", "### Suggested Improvements", *[f"- {item}" for item in improvements]]
+    lines += ["", f"*{result.get('disclaimer', '')}*"]
     return "\n".join(lines)
 
 

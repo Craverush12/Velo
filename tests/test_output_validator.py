@@ -121,6 +121,19 @@ class OutputValidatorTests(unittest.IsolatedAsyncioTestCase):
         result = validate_refine_result(payload)
         self.assertEqual(result["annotated_segments"][0]["technique"], "task_clarification")
 
+    def test_connector_recommendation_object_is_normalized(self):
+        payload = valid_enhance_payload()
+        payload["recommended_connectors"] = {
+            "connector_name": "Claude",
+            "reason": "Useful for nuanced product planning.",
+            "type": "language_model",
+        }
+
+        result = validate_enhance_result(payload, raw_prompt="plan roadmap")
+
+        self.assertEqual(result["recommended_connectors"][0]["name"], "Claude (Anthropic)")
+        self.assertEqual(result["recommended_connectors"][0]["url"], "https://claude.ai")
+
     def test_all_allowed_techniques_have_matching_colors(self):
         prompt = "".join(f"{key}. " for key in TECHNIQUE_COLORS)
         payload = {
@@ -152,15 +165,15 @@ class OutputValidatorTests(unittest.IsolatedAsyncioTestCase):
             [TECHNIQUE_COLORS[seg["technique"]] for seg in result["annotated_segments"]],
         )
 
-    def test_placeholder_mismatch_fails(self):
+    def test_missing_placeholder_metadata_is_generated(self):
         payload = valid_refine_payload()
         payload["refined_prompt"] += " Use [TARGET_AUDIENCE]."
         payload["annotated_segments"][-1]["text"] += " Use [TARGET_AUDIENCE]."
 
-        with self.assertRaises(OutputValidationError) as ctx:
-            validate_refine_result(payload)
+        result = validate_refine_result(payload)
 
-        self.assertEqual(ctx.exception.error_code, "placeholder_mismatch")
+        self.assertEqual(result["placeholder_fields"][0]["key"], "TARGET_AUDIENCE")
+        self.assertEqual(result["placeholder_fields"][0]["placeholder"], "[TARGET_AUDIENCE]")
 
     async def test_parse_validate_with_repair_uses_repair_callback(self):
         bad_raw = json.dumps({"refined_prompt": "missing required fields"})

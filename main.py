@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from core.prompt_metadata import prompt_metadata
+from storage import store
 
 load_dotenv()
 
@@ -17,6 +18,8 @@ from api.context import router as context_router
 from api.mcp import router as mcp_router
 from api.diagnostics import router as diagnostics_router
 from api.cothinker import router as cothinker_router
+from api.personalization import router as personalization_router
+from api.neuro import router as neuro_router
 
 app = FastAPI(title="ThinkVelocity", version="2.0.0")
 
@@ -35,6 +38,8 @@ app.include_router(context_router)
 app.include_router(mcp_router)
 app.include_router(diagnostics_router)
 app.include_router(cothinker_router)
+app.include_router(personalization_router)
+app.include_router(neuro_router)
 
 _STATIC = Path(__file__).parent / "static"
 if _STATIC.exists():
@@ -56,6 +61,20 @@ def health():
     }
 
 
+@app.get("/ready")
+def ready():
+    storage = store.storage_healthcheck()
+    groq_configured = bool(os.getenv("GROQ_API_KEY"))
+    ok = storage["ok"] and groq_configured
+    return {
+        "status": "ok" if ok else "not_ready",
+        "checks": {
+            "groq_api_key": groq_configured,
+            "storage": storage,
+        },
+    }
+
+
 @app.on_event("startup")
 def startup():
-    Path(os.getenv("STORAGE_PATH", "storage/data")).mkdir(parents=True, exist_ok=True)
+    store.storage_path()

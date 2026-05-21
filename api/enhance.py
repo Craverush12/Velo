@@ -135,6 +135,28 @@ def _prepare_enhance_input(request: EnhanceRequest) -> tuple[str, list[dict], st
     return clean_prompt, redactions, user_message
 
 
+def _personalization_metadata(request: EnhanceRequest) -> dict | None:
+    if request.incognito:
+        return None
+    user_ctx = store.get_user_context(request.user_id)
+    ctx_block = context_loader.format_context_for_prompt(user_ctx)
+    if not ctx_block:
+        return None
+    try:
+        payload = json.loads(ctx_block)
+    except json.JSONDecodeError:
+        return {"active": True}
+    return {
+        "active": True,
+        "expertise_level": payload.get("expertise_level"),
+        "tone": payload.get("tone"),
+        "default_target_ai": payload.get("default_target_ai"),
+        "format_preferences": payload.get("format_preferences", []),
+        "must_include": payload.get("must_include", []),
+        "avoid": payload.get("avoid", []),
+    }
+
+
 def _record_enhancement(
     request: EnhanceRequest,
     result: dict,
@@ -181,6 +203,9 @@ async def _run_enhance_once(request: EnhanceRequest, bundle: PromptBundle) -> di
     )
     if redactions:
         result["_redactions"] = redactions
+    personalization = _personalization_metadata(request)
+    if personalization:
+        result["_personalization_used"] = personalization
     result["_usage"] = usage
     result["_prompt_files"] = list(bundle.files)
     return result
@@ -212,6 +237,9 @@ async def _generate(request: EnhanceRequest, background_tasks: BackgroundTasks):
                 )
                 if redactions:
                     result["_redactions"] = redactions
+                personalization = _personalization_metadata(request)
+                if personalization:
+                    result["_personalization_used"] = personalization
                 result["_prompt_files"] = list(bundle.files)
                 _record_enhancement(request, result, clean_prompt, usage_sink, background_tasks)
                 payload = json.dumps({"type": "done", "result": result})

@@ -18,6 +18,14 @@ class StoreTests(unittest.TestCase):
                 self.assertTrue((Path(tmp) / "user_demo-user.json").exists())
                 self.assertFalse((Path(tmp) / "user_demo-user.json.tmp").exists())
 
+    def test_storage_healthcheck_verifies_writable_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(store, "_STORAGE_PATH", Path(tmp).resolve()):
+                result = store.storage_healthcheck()
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["backend"], "local")
+
 
 if __name__ == "__main__":
     unittest.main()

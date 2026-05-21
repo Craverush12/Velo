@@ -14,6 +14,10 @@ A lean, self-hosted prompt engineering assistant. Single FastAPI service with a 
 
 **Brain (Memory)** — a knowledge graph of your prompt history, visualised as a live network. Prompts cluster by domain and intent.
 
+**Profile (Personalization)** — tell Velocity how you work in natural language. It extracts reusable preferences such as style, tone, tools, formats, and things to avoid, then safely injects that profile into future prompt enhancement.
+
+**NeuroPrompt Signal** — scores prompts with a brain-response-inspired heuristic for clarity, attention, structure, output grounding, multimodal readiness, and personal fit. This is not fMRI prediction.
+
 **Diagnostics** — health dashboard showing model config, storage state, and API connectivity.
 
 **MCP server** — exposes Enhance and Refine as tools over the Model Context Protocol so Claude Desktop, Cursor, and other MCP clients can call ThinkVelocity directly.
@@ -82,27 +86,16 @@ Any Groq-hosted model works. `llama-3.3-70b-versatile` is the recommended defaul
 | Variable | Default | Description |
 |---|---|---|
 | `APP_ENV` | `development` | Environment label. Set to `production` for deployed instances. |
-| `API_SECRET` | `thinkvelo-dev-secret-2026` | Shared secret for API authentication. Change this for any non-local deployment. |
+| `ENABLE_REMOTE_TEST_RUNNER` | `false` | Set to `true` only during deployment verification if you need `POST /diagnostics/tests` in production. |
 
 ### Storage
 
 | Variable | Default | Description |
 |---|---|---|
-| `STORAGE_BACKEND` | `local` | Where prompts and sessions are persisted. Options: `local`, `s3`, `lightsail`. |
+| `STORAGE_BACKEND` | `local` | Where prompts and sessions are persisted. The current runtime supports local JSON storage only. |
 | `STORAGE_PATH` | `storage/data` | Path for local JSON storage. Created automatically on startup. When running in Docker, set to `/data` and mount a volume there. |
 
-S3 / LightSail storage (uncomment in `.env` and set `STORAGE_BACKEND` accordingly):
-
-| Variable | Description |
-|---|---|
-| `S3_BUCKET` | Bucket name |
-| `AWS_REGION` | AWS region |
-| `AWS_ACCESS_KEY_ID` | AWS access key |
-| `AWS_SECRET_ACCESS_KEY` | AWS secret key |
-| `LIGHTSAIL_BUCKET` | LightSail object storage bucket name |
-| `LIGHTSAIL_ENDPOINT` | LightSail storage endpoint URL |
-| `LIGHTSAIL_ACCESS_KEY` | LightSail access key |
-| `LIGHTSAIL_SECRET_KEY` | LightSail secret key |
+For Lightsail, keep `STORAGE_BACKEND=local` and use a persistent Docker volume or `/var/lib/thinkvelocity`.
 
 ### MCP client
 
@@ -158,10 +151,13 @@ You can also type instead of speaking using the text input below the mic button.
 ```
 POST /enhance                          — enhance a prompt
 POST /refine                           — refine with clarification answers
-POST /intent                           — classify intent before enhancement
+POST /intent/confirm                   — classify intent before enhancement
+POST /intent/update                    — normalize a client-edited intent confirmation
 GET  /context/{user_id}               — get stored user context
 PATCH /context/{user_id}              — update stored user context
 GET  /history/{user_id}               — prompt history
+POST /personalization/{user_id}/extract — extract and optionally save profile preferences
+POST /neuro/score                     — NeuroPrompt Signal heuristic scorecard
 
 POST /cothinker/turn                   — one dialogue turn
 POST /cothinker/transcribe             — audio → transcript (Groq Whisper)
@@ -170,9 +166,10 @@ POST /cothinker/finalize               — conversation → enhanced prompt
 
 GET  /diagnostics/systems             — system health check
 GET  /diagnostics/mcp-tools           — MCP tool manifest
-POST /diagnostics/tests               — run test suite (body: {"suite": "all"})
+POST /diagnostics/tests               — run test suite (disabled in production unless ENABLE_REMOTE_TEST_RUNNER=true)
 
 GET  /health                           — service health + model info
+GET  /ready                            — deployment readiness: Groq key configured + storage writable
 ```
 
 All LLM calls use Groq JSON mode. System prompts live in `core/prompts/` as `.md` files, loaded with explicit UTF-8 decoding.
@@ -260,7 +257,7 @@ ThinkVelocity/
 │   ├── enhance.py                   — POST /enhance
 │   ├── refine.py                    — POST /refine
 │   ├── cothinker.py                 — POST /cothinker/* (voice loop + finalize)
-│   ├── intent.py                    — POST /intent
+│   ├── intent.py                    — POST /intent/confirm, POST /intent/update
 │   ├── context.py                   — GET/PATCH /context
 │   ├── diagnostics.py               — GET /diagnostics/*
 │   └── mcp.py                       — MCP HTTP bridge

@@ -1,0 +1,783 @@
+{
+  "info": {
+    "_postman_id": "2f15d0c1-cb9d-4e2a-8bb3-1cb399ce5c8d",
+    "name": "ThinkVelocity API Validation",
+    "description": "Verified Postman collection for ThinkVelocity FastAPI integration testing. The default `base_url` points at the current Lightsail deployment on http://13.234.212.59. Change `base_url` if the static IP or domain changes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.collectionVariables.get('user_id')) {",
+          "  pm.collectionVariables.set('user_id', 'postman-' + Date.now());",
+          "}",
+          "if (!pm.collectionVariables.get('target_ai')) {",
+          "  pm.collectionVariables.set('target_ai', 'chatgpt');",
+          "}",
+          "if (!pm.collectionVariables.get('prompt_mode')) {",
+          "  pm.collectionVariables.set('prompt_mode', 'normal');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://13.234.212.59",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "postman-smoke-user",
+      "type": "string"
+    },
+    {
+      "key": "target_ai",
+      "value": "chatgpt",
+      "type": "string"
+    },
+    {
+      "key": "prompt_mode",
+      "value": "normal",
+      "type": "string"
+    },
+    {
+      "key": "ct_session_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Deployment Status",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Basic service liveness, model metadata, and prompt hash metadata."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.status).to.eql('ok');",
+                  "pm.expect(body.schema_version).to.be.a('string').and.not.empty;",
+                  "pm.expect(body.enhance_prompt_hash).to.be.a('string').and.not.empty;",
+                  "pm.expect(body.refine_prompt_hash).to.be.a('string').and.not.empty;"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /ready",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/ready",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ready"
+              ]
+            },
+            "description": "Deployment readiness check: Groq key configured and JSON storage writable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.status).to.eql('ok');",
+                  "pm.expect(body.checks.groq_api_key).to.eql(true);",
+                  "pm.expect(body.checks.storage.ok).to.eql(true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /config",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/config",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "config"
+              ]
+            },
+            "description": "Server-side UI defaults."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.default_user_id).to.be.a('string');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Context And History",
+      "item": [
+        {
+          "name": "GET /context/{user_id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/context/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "context",
+                "{{user_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.user_id).to.eql(pm.variables.get('user_id'));",
+                  "pm.expect(body.recent_context).to.be.an('array');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /context/{user_id}",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"preferences\": {\n    \"output_style\": \"concise\",\n    \"integration_surface\": \"postman\"\n  },\n  \"personalization_notes\": \"Postman validation context note.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/context/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "context",
+                "{{user_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.preferences.output_style).to.eql('concise');",
+                  "pm.expect(body.personalization_notes).to.include('Postman validation');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /history/{user_id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/history/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "history",
+                "{{user_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "pm.expect(pm.response.json()).to.be.an('array');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Prompt APIs",
+      "item": [
+        {
+          "name": "POST /intent/confirm",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Turn rough customer interview notes into a prioritized product roadmap.\",\n  \"user_id\": \"{{user_id}}\",\n  \"target_ai\": \"{{target_ai}}\",\n  \"prompt_mode\": \"{{prompt_mode}}\",\n  \"incognito\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/intent/confirm",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "intent",
+                "confirm"
+              ]
+            },
+            "description": "Groq-backed intent classifier for confirming the user's task before enhancement."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.schema_version).to.be.a('string').and.not.empty;",
+                  "pm.expect(body.interpreted_need).to.be.a('string').and.not.empty;",
+                  "pm.expect(body.deliverable).to.be.a('string').and.not.empty;",
+                  "pm.expect(body.confidence).to.be.within(0, 1);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /intent/update",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Create a launch email for a new AI writing tool.\",\n  \"target_ai\": \"{{target_ai}}\",\n  \"prompt_mode\": \"{{prompt_mode}}\",\n  \"confirmation\": {\n    \"intent\": \"marketing\",\n    \"domain\": \"marketing_growth\",\n    \"interpreted_need\": \"Create a launch email for a new AI writing tool.\",\n    \"deliverable\": \"A ready-to-send launch email prompt.\",\n    \"confidence\": 0.9,\n    \"confirmation_question\": \"\",\n    \"suggested_prompt_mode\": \"normal\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/intent/update",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "intent",
+                "update"
+              ]
+            },
+            "description": "Deterministic normalization endpoint. Does not call Groq."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body._updated).to.eql(true);",
+                  "pm.expect(body.intent).to.eql('marketing');",
+                  "pm.expect(body.domain).to.eql('marketing_growth');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /enhance",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "text/event-stream"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Improve this prompt: summarize a sales call.\",\n  \"user_id\": \"{{user_id}}\",\n  \"target_ai\": \"{{target_ai}}\",\n  \"prompt_mode\": \"{{prompt_mode}}\",\n  \"incognito\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/enhance",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "enhance"
+              ]
+            },
+            "description": "Streaming SSE enhancement endpoint. Postman displays the SSE response as text."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "pm.expect(pm.response.headers.get('Content-Type')).to.include('text/event-stream');",
+                  "pm.expect(pm.response.text()).to.include('\"type\": \"done\"');",
+                  "pm.expect(pm.response.text()).to.include('enhanced_prompt');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /enhance/compare",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Write a prompt for analyzing churn risk from SaaS customer notes.\",\n  \"user_id\": \"{{user_id}}\",\n  \"target_ai\": \"{{target_ai}}\",\n  \"prompt_mode\": \"{{prompt_mode}}\",\n  \"incognito\": true,\n  \"modes\": [\"normal\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/enhance/compare",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "enhance",
+                "compare"
+              ]
+            },
+            "description": "Non-streaming enhancement comparison response. Use one mode for a fast smoke test; add `caveman` when needed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.results).to.be.an('array').and.not.empty;",
+                  "pm.expect(body.results[0].enhanced_prompt).to.be.a('string').and.not.empty;",
+                  "pm.expect(body.results[0].prompt_quality_score).to.be.within(0, 1);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /refine",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"original_prompt\": \"Summarize customer feedback.\",\n  \"previous_enhanced_prompt\": \"Summarize customer feedback into themes, risks, and next actions.\",\n  \"clarification_qa\": [\n    {\n      \"question\": \"Who is the audience?\",\n      \"answer\": \"Product managers\"\n    }\n  ],\n  \"target_ai\": \"{{target_ai}}\",\n  \"prompt_mode\": \"{{prompt_mode}}\",\n  \"incognito\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/refine",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "refine"
+              ]
+            },
+            "description": "Groq-backed refinement endpoint using clarification Q&A."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.refined_prompt).to.be.a('string').and.not.empty;",
+                  "pm.expect(body.annotated_segments).to.be.an('array');",
+                  "pm.expect(body.prompt_quality_score).to.be.within(0, 1);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CoThinker APIs",
+      "item": [
+        {
+          "name": "POST /cothinker/turn",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_message\": \"I need a prompt that helps me plan a focused product roadmap from messy interview notes.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/cothinker/turn",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "cothinker",
+                "turn"
+              ]
+            },
+            "description": "Starts or continues a CoThinker conversation. The test stores `ct_session_id` for finalize."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.session_id).to.be.a('string').and.not.empty;",
+                  "pm.expect(body.reply).to.be.a('string').and.not.empty;",
+                  "pm.expect(body.confirmed).to.be.an('object');",
+                  "pm.collectionVariables.set('ct_session_id', body.session_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /cothinker/finalize",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": \"{{ct_session_id}}\",\n  \"target_ai\": \"{{target_ai}}\",\n  \"prompt_mode\": \"{{prompt_mode}}\",\n  \"incognito\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/cothinker/finalize",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "cothinker",
+                "finalize"
+              ]
+            },
+            "description": "Finalizes a CoThinker session into the same enhanced prompt contract as `/enhance`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.enhanced_prompt).to.be.a('string').and.not.empty;",
+                  "pm.expect(body.framework_used).to.be.a('string').and.not.empty;",
+                  "pm.expect(body.prompt_quality_score).to.be.within(0, 1);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /cothinker/speak",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"ThinkVelocity Postman smoke test.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/cothinker/speak",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "cothinker",
+                "speak"
+              ]
+            },
+            "description": "Text-to-speech endpoint. Returns audio/mpeg bytes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "pm.expect(pm.response.headers.get('Content-Type')).to.include('audio/mpeg');",
+                  "pm.expect(pm.response.responseSize).to.be.above(0);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Diagnostics",
+      "item": [
+        {
+          "name": "GET /diagnostics/systems",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/diagnostics/systems",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "diagnostics",
+                "systems"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.status).to.eql('ok');",
+                  "pm.expect(body.prompt_modes).to.include('normal');",
+                  "pm.expect(body.target_ai_values).to.include(pm.variables.get('target_ai'));",
+                  "pm.expect(body.mcp_tools).to.be.an('array');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /diagnostics/mcp-tools",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/diagnostics/mcp-tools",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "diagnostics",
+                "mcp-tools"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.tools).to.be.an('array');",
+                  "pm.expect(body.tools.length).to.be.above(0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /diagnostics/sources",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/diagnostics/sources",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "diagnostics",
+                "sources"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "pm.expect(pm.response.json()).to.be.an('array').and.not.empty;"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /diagnostics/context-smoke/{user_id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/diagnostics/context-smoke/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "diagnostics",
+                "context-smoke",
+                "{{user_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.ok).to.eql(true);",
+                  "pm.expect(body.user_id).to.eql(pm.variables.get('user_id'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /diagnostics/tests",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"suite\": \"health_metadata\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/diagnostics/tests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "diagnostics",
+                "tests"
+              ]
+            },
+            "description": "Remote test runner. In production this returns 403 unless ENABLE_REMOTE_TEST_RUNNER=true."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.expect([200, 403]).to.include(pm.response.code);",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.ok).to.eql(true);",
+                  "  pm.expect(body.suite).to.eql('health_metadata');",
+                  "} else {",
+                  "  pm.expect(pm.response.json().detail).to.include('Remote test runner is disabled');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
