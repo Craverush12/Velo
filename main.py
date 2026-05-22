@@ -25,6 +25,7 @@ from api.agentic import router as agentic_router
 from api.connectors import router as connectors_router
 from api.profile import router as profile_router
 from api.uploads import router as uploads_router
+from api.extension_bridge import router as extension_bridge_router
 
 app = FastAPI(title="ThinkVelocity", version="2.0.0")
 
@@ -49,6 +50,7 @@ app.include_router(agentic_router)
 app.include_router(connectors_router)
 app.include_router(profile_router)
 app.include_router(uploads_router)
+app.include_router(extension_bridge_router)
 
 _STATIC = Path(__file__).parent / "static"
 if _STATIC.exists():
