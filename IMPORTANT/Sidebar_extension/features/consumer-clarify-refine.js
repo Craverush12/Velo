@@ -170,36 +170,44 @@
   }
 
   async function refine(original, enhanced, qaArray) {
-    const promptToRefine = enhanced || original;
+    const promptToRefine = String(enhanced || original || "").trim();
     if (!promptToRefine) {
       return { success: false, error: "A prompt is required to refine" };
     }
     try {
       const { userId, accessToken } = await getAuth();
-      const res = await fetch(REFINE_URL, {
+      const body = {
+        original_prompt:          String(original || "").trim() || promptToRefine,
+        previous_enhanced_prompt: String(enhanced || "").trim() || null,
+        clarification_qa:         Array.isArray(qaArray) ? qaArray : [],
+        user_id:                  userId,
+        neuro_state:              _prepareState.neuro_state    || null,
+        context_patterns:         _prepareState.context_patterns || [],
+      };
+
+      const headers = { "Content-Type": "application/json" };
+      if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+      const res = await fetch(FINALIZE_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt:    String(promptToRefine).trim(),
-          qa_pairs:  Array.isArray(qaArray) ? qaArray : [],
-          user_id:   userId,
-          auth_token: accessToken,
-        }),
+        headers,
+        body: JSON.stringify(body),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        return { success: false, error: json.message || json.error || `HTTP ${res.status}` };
+        return { success: false, error: json.message || json.detail || json.error || `HTTP ${res.status}` };
       }
 
-      // /refine returns "enhanced_prompt" as the refined text (confirmed in api.js comments)
+      // New API returns refined_prompt; fall back to enhanced_prompt for safety.
       const refined =
-        json.enhanced_prompt ||
         json.refined_prompt  ||
-        (json.data && (json.data.enhanced_prompt || json.data.refined_prompt)) ||
-        json.result ||
+        (json.data && (json.data.refined_prompt || json.data.enhanced_prompt)) ||
+        json.enhanced_prompt ||
         "";
 
-      const refineTokens = json.tokens || (json.data && json.data.tokens) || {};
+      // Token counts are not returned by the new API; pass nulls so saveRefinedPrompt
+      // still fires (it guards on promptId, not tokens).
+      const refineTokens = {};
 
       // API #3 — persist refined prompt (fire-and-forget; never blocks the UI)
       void saveRefinedPrompt(refined, Array.isArray(qaArray) ? qaArray : [], refineTokens);
