@@ -1,4 +1,19 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-thinkvelocity}
+      POSTGRES_USER: ${POSTGRES_USER:-thinkvelocity}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-thinkvelocity_dev_password}
+    volumes:
+      - thinkvelocity-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   thinkvelocity:
     build: .
     image: thinkvelocity-backend:local
@@ -10,10 +25,16 @@ services:
       APP_ENV: ${APP_ENV:-development}
       PORT: ${PORT:-8000}
       STORAGE_PATH: /data
+      STORAGE_BACKEND: postgresql
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-thinkvelocity}:${POSTGRES_PASSWORD:-thinkvelocity_dev_password}@postgres:5432/${POSTGRES_DB:-thinkvelocity}
       ENABLE_REMOTE_TEST_RUNNER: ${ENABLE_REMOTE_TEST_RUNNER:-false}
     volumes:
       - thinkvelocity-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
   thinkvelocity-data:
+  thinkvelocity-postgres:

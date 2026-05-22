@@ -277,11 +277,93 @@ def _normalize_clarification_questions(result: dict) -> None:
 
 
 _AI_ORDER = ["claude", "chatgpt", "gpt-5", "gemini", "groq", "compound_mini", "cursor", "bolt", "replit", "gamma", "midjourney"]
+_GENERIC_AI_SET = {"claude", "chatgpt", "gemini"}
+_AI_REASON_LIBRARY = {
+    "midjourney": "Best fit for image-generation prompts, visual style control, composition, aspect ratio, and negative prompt details.",
+    "gamma": "Best fit for turning the prompt into a structured presentation or slide deck.",
+    "cursor": "Best fit for repo-aware coding, implementation, debugging, and file-level edits.",
+    "bolt": "Best fit for fast full-stack web app scaffolding and runnable prototypes.",
+    "replit": "Best fit for clean-slate runnable projects with setup and hosting instructions.",
+    "claude": "Strong fit for complex reasoning, code review, long context, and careful structured writing.",
+    "chatgpt": "Strong fit for general prompt execution, drafting, structured markdown, and broad task coverage.",
+    "gpt-5": "Strong fit for high-reasoning tasks that need planning, synthesis, and robust instruction following.",
+    "gemini": "Strong fit for research, comparison, multimodal context, and source-oriented synthesis.",
+    "groq": "Strong fit when speed, low-latency iteration, or concise execution matters.",
+}
+
+
+def _result_text(result: dict) -> str:
+    fields = [
+        result.get("enhanced_prompt"),
+        result.get("summary"),
+        result.get("intent"),
+        result.get("domain"),
+        result.get("prompt_mode"),
+        result.get("framework_used"),
+    ]
+    return " ".join(str(field or "") for field in fields).lower()
+
+
+def _recommendation_profile(result: dict) -> list[str]:
+    text = _result_text(result)
+    is_deck = any(token in text for token in ("presentation", "slide", "slides", "deck", "pitch deck", "gamma"))
+    is_image = any(token in text for token in (
+        "image", "images", "visual", "logo", "illustration", "midjourney", "aspect ratio",
+        "negative prompt", "photorealistic", "composition", "lighting", "style reference",
+    ))
+    is_code = any(token in text for token in (
+        "code", "repo", "implementation", "debug", "bug", "api", "frontend", "backend",
+        "full-stack", "component", "database", "test", "runnable", "cursor", "bolt",
+    ))
+    is_research = any(token in text for token in (
+        "research", "sources", "citation", "cite", "compare", "latest", "evidence",
+        "literature", "analysis", "synthesis",
+    ))
+    is_data = any(token in text for token in ("data analysis", "spreadsheet", "csv", "dataset", "sql", "chart"))
+
+    if is_deck:
+        return ["gamma", "claude", "chatgpt"]
+    if is_image:
+        return ["midjourney", "gpt-5", "chatgpt"]
+    if is_code:
+        return ["cursor", "claude", "bolt"]
+    if is_data:
+        return ["chatgpt", "gemini", "groq"]
+    if is_research:
+        return ["gemini", "gpt-5", "chatgpt"]
+    return []
+
+
+def _build_ai_recommendations(ai_values: list[str]) -> list[dict]:
+    return [
+        AIRecommendation(ai=ai, rank=index + 1, reason=_AI_REASON_LIBRARY[ai]).model_dump(mode="json")
+        for index, ai in enumerate(ai_values[:3])
+    ]
+
+
+def _should_override_ai_recommendations(result: dict, normalized: list[dict], profile: list[str]) -> bool:
+    if not profile:
+        return False
+    current = [item["ai"] for item in normalized[:3]]
+    if not current:
+        return True
+    if set(current) == _GENERIC_AI_SET:
+        return True
+    if profile[0] == "midjourney" and ("gamma" in current or current[0] != "midjourney"):
+        return True
+    if profile[0] == "gamma" and current[0] != "gamma":
+        return True
+    if profile[0] in {"cursor", "gemini"} and current[0] != profile[0] and set(current).issubset(_GENERIC_AI_SET):
+        return True
+    return False
 
 
 def _normalize_ai_recommendations(result: dict) -> None:
     recs = result.get("target_ai_recommendations")
+    profile = _recommendation_profile(result)
     if not recs or not isinstance(recs, list):
+        if profile:
+            result["target_ai_recommendations"] = _build_ai_recommendations(profile)
         return
     normalized = []
     for item in recs:
@@ -300,13 +382,18 @@ def _normalize_ai_recommendations(result: dict) -> None:
             rank = len(normalized) + 1
         normalized.append(AIRecommendation(ai=ai, rank=rank, reason=reason).model_dump(mode="json"))
     if not normalized:
+        if profile:
+            result["target_ai_recommendations"] = _build_ai_recommendations(profile)
         return
     # Sort by rank, then by AI order
     normalized.sort(key=lambda r: (r["rank"], _AI_ORDER.index(r["ai"]) if r["ai"] in _AI_ORDER else 99))
     # Re-assign ranks 1-3
     for i, rec in enumerate(normalized[:3]):
         rec["rank"] = i + 1
-    result["target_ai_recommendations"] = normalized[:3]
+    normalized = normalized[:3]
+    if _should_override_ai_recommendations(result, normalized, profile):
+        normalized = _build_ai_recommendations(profile)
+    result["target_ai_recommendations"] = normalized
 
 
 def _normalize_connector_recommendations(result: dict) -> None:

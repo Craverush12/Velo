@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from core.prompt_metadata import prompt_metadata
+from core.scheduler import create_scheduler
 from storage import store
 
 load_dotenv()
@@ -23,6 +24,7 @@ from api.neuro import router as neuro_router
 from api.agentic import router as agentic_router
 from api.connectors import router as connectors_router
 from api.profile import router as profile_router
+from api.uploads import router as uploads_router
 
 app = FastAPI(title="ThinkVelocity", version="2.0.0")
 
@@ -46,6 +48,7 @@ app.include_router(neuro_router)
 app.include_router(agentic_router)
 app.include_router(connectors_router)
 app.include_router(profile_router)
+app.include_router(uploads_router)
 
 _STATIC = Path(__file__).parent / "static"
 if _STATIC.exists():
@@ -82,5 +85,14 @@ def ready():
 
 
 @app.on_event("startup")
-def startup():
+async def startup():
     store.storage_path()
+    app.state.velocity_scheduler = create_scheduler()
+    app.state.velocity_scheduler.start()
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    scheduler = getattr(app.state, "velocity_scheduler", None)
+    if scheduler is not None:
+        await scheduler.shutdown()

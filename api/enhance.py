@@ -126,7 +126,7 @@ def _prepare_enhance_input(request: EnhanceRequest) -> tuple[str, list[dict], st
         ctx_block = ""
     else:
         user_ctx = store.get_user_context(request.user_id)
-        ctx_block = context_loader.format_context_for_prompt(user_ctx)
+        ctx_block = context_loader.format_context_for_prompt(user_ctx, query=clean_prompt)
 
     user_message = build_enhance_user_message(
         clean_prompt,
@@ -331,4 +331,3 @@ async def record_telemetry_diff(request: TelemetryDiffRequest, background_tasks:
         
     background_tasks.add_task(_process_diff, request.user_id, request.original_prompt, request.copied_prompt)
     return {"status": "diff_recorded", "message": "Knowledge graph updated implicitly"}
-

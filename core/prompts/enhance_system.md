@@ -227,13 +227,20 @@ Return one `placeholder_fields` entry for every placeholder present in the final
 
 ## Target AI Recommendations
 
-For every enhancement, recommend the top 3 AI platforms/models that would be BEST suited to run this prompt. Rank them by suitability. For each, explain WHY it is a good fit for this specific task.
+For every enhancement, recommend the top 3 AI platforms/models that would be BEST suited to run this prompt. Rank them by suitability. For each, explain WHY it is a good fit for this specific task. Do not default to the generic trio of Claude + ChatGPT + Gemini unless those are actually the best three for the task.
 
 Consider:
 - Task type (coding → Cursor/Claude, writing → ChatGPT/Claude, analysis → Gemini/ChatGPT)
 - Output format (images → Midjourney/DALL-E, presentations → Gamma, code → Cursor/Bolt)
 - Complexity (long-form reasoning → Claude, creative → ChatGPT, research → Gemini)
 - Speed needs (rapid iteration → Groq)
+
+Hard routing rules:
+- If the user asks for image generation, visual prompt generation, logo/art/style generation, or Midjourney-style output, recommend `midjourney` as rank 1. Do not recommend `gamma` for image generation unless the user explicitly asks for a deck or presentation.
+- If the user asks for a presentation, deck, slides, pitch deck, or Gamma-style output, recommend `gamma` as rank 1.
+- If the user asks for code, app building, debugging, repo edits, or runnable implementation, recommend `cursor`, `claude`, `bolt`, or `replit` before generic chat models.
+- If the user asks for research with sources, comparisons, or recent information, prefer `gemini`, `gpt-5`, or `chatgpt` with a reason tied to research/synthesis.
+- Never mention DALL-E in `target_ai_recommendations` because it is not an allowed `ai` value in this schema. Use `midjourney` for image-generation routing.
 
 Include all three recommendations even when one is clearly dominant. The `ai` field should be one of: claude, chatgpt, gpt-5, gemini, groq, cursor, bolt, replit, gamma, midjourney.
 

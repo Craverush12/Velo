@@ -68,7 +68,7 @@ window.__visFailed = false;
 html, body { height: 100%; overflow: hidden; }
 body { font-family: var(--body); background: var(--bg); color: var(--text); font-size: 14px; }
 
-/* ─── App shell ─────────────────────────────────────────────────── */
+/*  App shell  */
 .app {
   display: grid;
   grid-template-areas:
@@ -84,20 +84,9 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 .app.page-memory .details {
   display: none;
 }
-.app.page-diagnostics {
-  grid-template-columns: 220px 1fr 0;
-}
-.app.page-diagnostics .details {
-  display: none;
-}
-.app.page-version {
-  grid-template-columns: 220px 1fr 0;
-}
-.app.page-version .details {
-  display: none;
-}
+/* Settings surfaces live in the modal so the core workspace stays persistent. */
 
-/* ─── Topbar ─────────────────────────────────────────────────────── */
+/*  Topbar  */
 .topbar {
   grid-area: topbar;
   display: flex;
@@ -151,6 +140,22 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   border-color: rgba(242,99,123,0.55);
   background: rgba(242,99,123,0.10);
 }
+.settings-btn {
+  min-width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 10px;
+}
+.settings-btn:hover { background: var(--panel-2); }
 .status-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
@@ -161,7 +166,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 .status-dot.busy { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
 .status-dot.error { background: var(--bad); box-shadow: 0 0 6px var(--bad); }
 
-/* ─── Sidebar ────────────────────────────────────────────────────── */
+/*  Sidebar  */
 .sidebar {
   grid-area: sidebar;
   display: flex;
@@ -225,16 +230,17 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 }
 .sidebar-footer input:focus { border-color: var(--accent); }
 
-/* ─── Workspace (main area) ──────────────────────────────────────── */
+/*  Workspace (main area)  */
 .workspace {
   grid-area: workspace;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: var(--bg);
+  min-width: 0;
 }
 
-/* ── Enhance page ─ */
+/*  Enhance page  */
 .page-enhance {
   display: flex;
   flex-direction: column;
@@ -490,7 +496,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 .result-card-title { font-size: 11px; font-weight: 600; color: var(--faint); letter-spacing: 0.07em; text-transform: uppercase; flex: 1; }
 .result-card-body { padding: 20px 20px 16px; }
 .streaming-cursor::after {
-  content: "▋";
+  content: "";
   animation: blink 0.7s step-end infinite;
   color: var(--accent);
 }
@@ -517,7 +523,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 }
 .fallback-notice.visible { display: block; }
 
-/* Annotated segments — underline-only by default, subtle fill on hover */
+/* Annotated segments  underline-only by default, subtle fill on hover */
 .seg {
   border-radius: 2px;
   cursor: pointer;
@@ -640,7 +646,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 }
 .refine-panel.visible { display: block; }
 
-/* ─── Details panel ──────────────────────────────────────────────── */
+/*  Details panel  */
 .details {
   grid-area: details;
   border-left: 3px solid var(--line);
@@ -648,7 +654,75 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding: 14px;
+  gap: 12px;
 }
+.neuro-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.neuro-panel-kicker {
+  font-size: 11px;
+  color: var(--faint);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.neuro-panel-title { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+.neuro-status-pill {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent);
+  border: 1px solid rgba(59,130,246,0.35);
+  border-radius: 999px;
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+.neuro-card-sm {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  border-radius: 8px;
+  padding: 10px;
+}
+.neuro-card-sm h4 {
+  font-size: 11px;
+  color: var(--faint);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.neuro-card-sm p,
+.neuro-card-sm li {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.neuro-card-sm ul { margin-left: 16px; display: flex; flex-direction: column; gap: 4px; }
+.neuro-action-card {
+  border: 1px solid rgba(59,130,246,0.35);
+  border-radius: 8px;
+  background: rgba(59,130,246,0.08);
+  padding: 10px;
+}
+.neuro-action-title { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+.neuro-action-meta { font-size: 11px; color: var(--muted); line-height: 1.45; }
+.neuro-inspect-toggle {
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.neuro-inspect {
+  flex: 1;
+  overflow-y: auto;
+  display: none;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.neuro-inspect.visible { display: block; }
 .details-tabs {
   display: flex;
   border-bottom: 1px solid var(--line);
@@ -672,9 +746,8 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 .details-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 .details-tab:hover:not(.active) { color: var(--muted); }
 .details-pane {
-  flex: 1;
   overflow-y: auto;
-  padding: 14px;
+  padding: 12px 0;
   display: none;
 }
 .details-pane.active { display: block; }
@@ -716,7 +789,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 .seg-reason { font-size: 12px; color: var(--muted); line-height: 1.5; }
 .seg-original { font-size: 11px; color: var(--faint); margin-top: 4px; font-style: italic; }
 
-/* ─── Brain / Memory page ────────────────────────────────────────── */
+/*  Brain / Memory page  */
 .page-brain {
   display: flex;
   flex-direction: column;
@@ -938,7 +1011,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   flex-shrink: 0;
 }
 
-/* ─── Diagnostics page ───────────────────────────────────────────── */
+/*  Diagnostics page  */
 .page-diagnostics {
   display: flex;
   flex-direction: column;
@@ -1007,13 +1080,13 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 .diag-spinner.visible { display: inline-block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ─── Scrollbars ─────────────────────────────────────────────────── */
+/*  Scrollbars  */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--faint); }
 
-/* ─── Tooltip ────────────────────────────────────────────────────── */
+/*  Tooltip  */
 .tooltip {
   position: fixed;
   z-index: 9999;
@@ -1033,7 +1106,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 .tooltip-technique { font-size: 11px; font-weight: 600; margin-bottom: 3px; color: var(--accent); }
 .tooltip-reason { font-size: 12px; color: var(--muted); }
 
-/* ─── Empty state ─────────────────────────────────────────────────── */
+/*  Empty state  */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -1048,7 +1121,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 .empty-state-icon { font-size: 36px; opacity: 0.4; }
 .empty-state-text { font-size: 14px; line-height: 1.6; max-width: 300px; }
 
-/* ─── Compare page ─────────────────────────────────────────────────── */
+/*  Compare page  */
 .compare-results {
   display: flex;
   gap: 16px;
@@ -1071,14 +1144,15 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   margin-bottom: 10px;
 }
 
-/* ─── Version page ───────────────────────────────────────────────── */
+/*  Version page  */
 .page-version {
   height: 100%;
   overflow-y: auto;
-  padding: 36px 48px;
+  padding: clamp(20px, 3vw, 36px) clamp(18px, 4vw, 48px);
   flex-direction: column;
   gap: 32px;
-  max-width: 860px;
+  width: 100%;
+  max-width: none;
 }
 .version-hero {
   display: flex;
@@ -1108,7 +1182,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 .version-hero p {
   font-size: 14px;
   color: var(--muted);
-  max-width: 560px;
+  max-width: 920px;
   line-height: 1.6;
 }
 .version-section-title {
@@ -1121,7 +1195,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 }
 .version-features {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   gap: 12px;
 }
 .version-card {
@@ -1151,6 +1225,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   font-size: 10px;
   color: var(--faint);
   margin-top: 4px;
+  overflow-wrap: anywhere;
 }
 .version-pipeline {
   background: var(--panel);
@@ -1189,6 +1264,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   color: var(--muted);
   line-height: 1.5;
   margin-top: 2px;
+  overflow-wrap: anywhere;
 }
 .version-stack {
   display: flex;
@@ -1218,7 +1294,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   flex-shrink: 0;
 }
 
-/* ─── CoThinker page ─────────────────────────────────────────────── */
+/*  CoThinker page  */
 .app.page-cothinker {
   grid-template-columns: 220px 1fr 0;
 }
@@ -1495,7 +1571,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   text-align: right;
 }
 
-/* ─── Agentic page ────────────────────────────────────────────────── */
+/*  Agentic page  */
 .app.page-agentic {
   grid-template-columns: 220px 1fr 0;
 }
@@ -1879,7 +1955,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   padding: 2px 0;
 }
 
-/* ─── Chat thinking / tool-use states ───────────────────────────── */
+/*  Chat thinking / tool-use states  */
 .ag-thinking-bar {
   display: flex;
   align-items: center;
@@ -1911,7 +1987,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   max-width: 200px;
 }
 
-/* ─── Intent confirmation card in chat ───────────────────────────── */
+/*  Intent confirmation card in chat  */
 .ag-intent-card {
   padding: 10px 13px;
   background: rgba(25,216,230,0.05);
@@ -1950,7 +2026,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   color: var(--ok);
 }
 
-/* ─── Enhance mode tabs ──────────────────────────────────────────── */
+/*  Enhance mode tabs  */
 .enh-mode-strip {
   display: flex;
   align-items: center;
@@ -1977,7 +2053,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 .enh-mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 .enh-pane { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; position: relative; }
 
-/* ─── Prompt mode tabs (Research / Fast Build / Media) ──────────── */
+/*  Prompt mode tabs (Research / Fast Build / Media)  */
 .prompt-mode-tabs {
   display: flex;
   align-items: center;
@@ -2003,7 +2079,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 .pm-tab:hover { color: var(--text); background: rgba(255,255,255,0.5); }
 .pm-tab.active { background: var(--panel); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
 
-/* ─── Compare model picker ────────────────────────────────────────── */
+/*  Compare model picker  */
 .control-select-sm {
   font-size: 11px !important;
   padding: 4px 6px !important;
@@ -2014,8 +2090,81 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   color: var(--faint);
   flex-shrink: 0;
 }
+.compare-drawer {
+  display: none;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+.compare-drawer.visible { display: flex; }
 
-/* ─── Workspace context toggle ───────────────────────────────────── */
+/* Settings modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0,0,0,0.35);
+}
+.modal-backdrop.visible { display: flex; }
+.settings-modal {
+  width: min(1080px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  background: var(--bg);
+  border: 3px solid var(--line);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.settings-title { font-size: 16px; font-weight: 700; }
+.settings-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  overflow-x: auto;
+}
+.settings-tab {
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+  border-radius: 7px;
+  color: var(--muted);
+  padding: 7px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.settings-tab.active { color: var(--accent); background: var(--panel-2); }
+.settings-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.settings-content > .page-connectors,
+.settings-content > .page-diagnostics,
+.settings-content > .page-version {
+  height: 100%;
+}
+
+/*  Workspace context toggle  */
 .ws-context-row {
   display: flex;
   align-items: center;
@@ -2036,8 +2185,38 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   font-size: 11px;
   color: var(--faint);
 }
+.upload-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.upload-btn {
+  border: 1px dashed var(--line-2);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.upload-btn:hover { color: var(--text); background: var(--panel-2); }
+.upload-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 220px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--muted);
+  padding: 4px 9px;
+  font-size: 11px;
+}
+.upload-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-chip.error { color: var(--bad); border-color: rgba(242,99,123,0.5); }
 
-/* ─── Connectors page ────────────────────────────────────────────── */
+/*  Connectors page  */
 .app.page-connectors { grid-template-columns: 220px 1fr 0; }
 .app.page-connectors .details { display: none; }
 
@@ -2198,7 +2377,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   overflow-y: auto;
 }
 
-/* ─── Intent Q&A panel ──────────────────────────────────────────── */
+/*  Intent Q&A panel  */
 .intent-qa-panel {
   background: var(--panel);
   border: 1px solid var(--line-2);
@@ -2279,8 +2458,22 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   border-left: 3px solid var(--accent);
   border-radius: 0 5px 5px 0;
 }
+.intent-edit-box {
+  width: 100%;
+  min-height: 86px;
+  resize: vertical;
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px;
+}
+.intent-edit-box:focus { outline: none; border-color: var(--accent); }
 
-/* ─── AI Recommendations ────────────────────────────────────────── */
+/*  AI Recommendations  */
 .ai-recs {
   display: flex;
   flex-direction: column;
@@ -2334,7 +2527,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   margin-top: 1px;
 }
 
-/* ─── Profile page ───────────────────────────────────────────────── */
+/*  Profile page  */
 .app.page-profile { grid-template-columns: 220px 1fr 0; }
 .app.page-profile .details { display: none; }
 .page-profile {
@@ -2576,7 +2769,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 .neuro-bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent) 0%, #19d8e6 100%); }
 .neuro-note { margin-top: 10px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 
-/* ─── Mobile sidebar ─────────────────────────────────────────────── */
+/*  Mobile sidebar  */
 .sidebar-overlay {
   display: none;
   position: fixed;
@@ -2599,7 +2792,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   flex-shrink: 0;
 }
 
-/* ─── Responsive breakpoints ─────────────────────────────────────── */
+/*  Responsive breakpoints  */
 @media (max-width: 1024px) {
   .app {
     grid-template-columns: 200px 1fr 280px;
@@ -2608,8 +2801,8 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 @media (max-width: 860px) {
   .app {
     grid-template-areas:
-      "topbar topbar"
-      "workspace workspace";
+      "topbar"
+      "workspace";
     grid-template-columns: 1fr;
     grid-template-rows: 46px 1fr;
   }
@@ -2635,12 +2828,104 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   .mobile-menu-btn { display: flex; }
   .details { display: none !important; }
   .app { grid-template-columns: 1fr; }
+  .workspace { min-width: 0; }
   .neuro-grid { grid-template-columns: 1fr; }
+  .enh-mode-strip {
+    padding: 0 8px;
+    overflow-x: auto;
+  }
+  .enh-mode-tab {
+    flex: 1 0 auto;
+    padding: 10px 12px;
+  }
+  .enhance-input-zone,
+  .enhance-output-zone {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .enhance-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 8px;
+  }
+  .enhance-controls > .topbar-spacer {
+    display: none;
+  }
+  .control-select,
+  .control-select-sm,
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+    max-width: none;
+    justify-content: center;
+  }
+  .prompt-mode-tabs {
+    grid-column: 1 / -1;
+    width: 100%;
+    overflow-x: auto;
+  }
+  .prompt-mode-tabs .pm-tab {
+    flex: 1 0 auto;
+  }
+  .compare-vs-label {
+    display: none;
+  }
+  .brain-header {
+    align-items: flex-start;
+  }
+  .brain-stats-row {
+    width: 100%;
+    margin-left: 0;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .brain-header-actions {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .brain-body {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .brain-sidebar {
+    width: 100%;
+    max-height: none;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+  #brainCanvas {
+    min-height: 420px;
+    flex: 0 0 420px;
+  }
   .profile-body { grid-template-columns: 1fr; }
+  .profile-body {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .profile-left {
+    border-right: none;
+    overflow: visible;
+  }
   .profile-right {
     border-right: none;
     border-top: 1px solid var(--line);
-    max-height: 360px;
+    max-height: none;
+    overflow: visible;
+  }
+  .conn-service-row {
+    flex-wrap: wrap;
+  }
+  .conn-service-btn {
+    flex: 1 1 160px;
+    width: auto;
+  }
+  .conn-form,
+  .conn-result-wrap {
+    max-width: none;
+    width: 100%;
   }
   .version-features { grid-template-columns: 1fr; }
   .page-version { padding: 24px; }
@@ -2648,18 +2933,86 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 @media (max-width: 600px) {
   .topbar { padding: 0 10px; gap: 8px; }
   .topbar-brand { font-size: 13px; }
+  .topbar-view-title {
+    display: none;
+  }
+  .incognito-btn {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
   .page-version { padding: 16px; }
+  .version-hero h1 { font-size: 24px; }
+  .version-badge {
+    width: 100%;
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
+  }
+  .version-pipeline {
+    padding: 16px;
+  }
+  .pipeline-step {
+    gap: 10px;
+  }
+  .agentic-chat {
+    padding: 14px 12px;
+  }
+  .agentic-bubble {
+    max-width: 92%;
+  }
+  .ag-input-wrap {
+    padding: 12px;
+  }
+  .ag-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .ag-toolbar-l,
+  .ag-toolbar-r {
+    flex-wrap: wrap;
+  }
+  .ag-token-row {
+    flex-wrap: wrap;
+  }
+  .ag-token-link {
+    white-space: normal;
+  }
+  .conn-actions,
+  .profile-preview-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .profile-kv {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
   .profile-tab-content { padding: 16px; }
   .profile-header { padding: 14px 16px 12px; }
+}
+@media (max-width: 430px) {
+  .enhance-controls {
+    grid-template-columns: 1fr;
+  }
+  .enhance-input-zone,
+  .enhance-output-zone,
+  .page-connectors {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .btn-primary,
+  .btn-secondary {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
 }
 </style>
 </head>
 <body>
 
 <div class="app" id="appShell">
-  <!-- ── Topbar ── -->
+  <!--  Topbar  -->
   <header class="topbar">
-    <button class="mobile-menu-btn" onclick="toggleSidebar()" title="Menu">☰</button>
+    <button class="mobile-menu-btn" onclick="toggleSidebar()" title="Menu">Menu</button>
     <div class="topbar-brand">
       <span class="logo-mark">TV</span>
       ThinkVelocity
@@ -2667,39 +3020,31 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
     <span class="topbar-view-title" id="topbarViewTitle">Enhance</span>
     <div class="topbar-spacer"></div>
     <button class="incognito-btn" id="incognitoBtn" onclick="toggleIncognito()" title="When active, memory is not read or saved">
-      <span>⊘</span> Incognito
+      Incognito
     </button>
+    <button class="settings-btn" onclick="openSettings()" title="Settings">Settings</button>
     <div class="status-dot" id="statusDot" title="Ready"></div>
   </header>
 
-  <!-- ── Mobile sidebar overlay ── -->
+  <!--  Mobile sidebar overlay  -->
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-  <!-- ── Sidebar ── -->
+  <!--  Sidebar  -->
   <nav class="sidebar" id="sidebar">
     <div class="sidebar-nav">
       <span class="nav-section-label">Tools</span>
       <button class="nav-btn active" id="nav-enhance" onclick="showView('enhance')">
-        <span class="nav-icon">✦</span> Enhance
+        <span class="nav-icon">E</span> Enhance
       </button>
       <button class="nav-btn" id="nav-brain" onclick="showView('brain')">
-        <span class="nav-icon">◈</span> Memory
+        <span class="nav-icon">M</span> Memory
       </button>
       <button class="nav-btn" id="nav-profile" onclick="showView('profile')">
-        <span class="nav-icon">◎</span> Profile
-      </button>
-      <button class="nav-btn" id="nav-connectors" onclick="showView('connectors')">
-        <span class="nav-icon">⬡</span> Connectors
-      </button>
-      <button class="nav-btn" id="nav-diagnostics" onclick="showView('diagnostics')">
-        <span class="nav-icon">⚙</span> Diagnostics
-      </button>
-      <button class="nav-btn" id="nav-version" onclick="showView('version')">
-        <span class="nav-icon">◑</span> Version
+        <span class="nav-icon">P</span> Profile
       </button>
       <div class="nav-divider"></div>
       <button class="nav-btn" onclick="clearWorkspace()">
-        <span class="nav-icon">↺</span> Clear workspace
+        <span class="nav-icon">R</span> Clear workspace
       </button>
     </div>
     <div class="sidebar-footer">
@@ -2708,25 +3053,30 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
     </div>
   </nav>
 
-  <!-- ── Workspace ── -->
+  <!--  Workspace  -->
   <main class="workspace" id="workspace">
 
     <!-- ========= ENHANCE PAGE ========= -->
     <div class="page-enhance" id="pageEnhance">
       <div class="enh-mode-strip">
-        <button class="enh-mode-tab active" id="enhTab-enhance" onclick="setEnhMode('enhance')">✦ Enhance</button>
-        <button class="enh-mode-tab" id="enhTab-cothinker" onclick="setEnhMode('cothinker')">🎙 CoThinker</button>
-        <button class="enh-mode-tab" id="enhTab-chat" onclick="setEnhMode('chat')">⚡ Chat</button>
+        <button class="enh-mode-tab active" id="enhTab-enhance" onclick="setEnhMode('enhance')">Enhance</button>
+        <button class="enh-mode-tab" id="enhTab-cothinker" onclick="setEnhMode('cothinker')">CoThinker</button>
+        <button class="enh-mode-tab" id="enhTab-chat" onclick="setEnhMode('chat')">Agentic Work</button>
       </div>
       <div id="enhPaneEnhance" class="enh-pane">
       <div class="enhance-input-zone">
-        <textarea class="prompt-textarea" id="promptInput" placeholder="Enter your raw prompt…" rows="4"></textarea>
+        <textarea class="prompt-textarea" id="promptInput" placeholder="Enter your raw prompt" rows="4"></textarea>
+        <div class="upload-row">
+          <input id="uploadInput" type="file" multiple style="display:none" onchange="handleUploads(this.files)" />
+          <button class="upload-btn" onclick="document.getElementById('uploadInput').click()">+ Add context</button>
+          <div class="upload-row" id="uploadChips"></div>
+        </div>
         <!-- Workspace context toggle (visible only when WS token is saved) -->
         <div id="wsContextRow" class="ws-context-row" style="display:none">
           <label class="ws-context-label">
             <input type="checkbox" id="wsContextToggle"> Workspace context
           </label>
-          <span class="ws-context-hint">Gmail · Calendar · Drive</span>
+          <span class="ws-context-hint">Gmail - Calendar - Drive</span>
         </div>
         <div class="enhance-controls">
           <select class="control-select" id="targetAiSelect">
@@ -2739,33 +3089,36 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
           </select>
           <div class="prompt-mode-tabs" id="promptModeTabs">
             <button class="pm-tab active" id="pmTab-research" onclick="setPromptMode('research')">Research</button>
-            <button class="pm-tab" id="pmTab-fast_build" onclick="setPromptMode('fast_build')">Fast Build</button>
+            <button class="pm-tab" id="pmTab-fast_build" onclick="setPromptMode('fast_build')">Build</button>
             <button class="pm-tab" id="pmTab-media" onclick="setPromptMode('media')">Media</button>
           </div>
           <div class="topbar-spacer"></div>
-          <select class="control-select control-select-sm" id="compareModelA" title="Model A for compare">
-            <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
-            <option value="llama-3.1-8b-instant">Llama 3.1 8B (fast)</option>
-            <option value="llama3-70b-8192">Llama 3 70B</option>
-            <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
-            <option value="gemma2-9b-it">Gemma 2 9B</option>
-            <option value="qwen-qwq-32b">Qwen QwQ 32B</option>
-            <option value="deepseek-r1-distill-llama-70b">DeepSeek R1 70B</option>
-            <option value="compound-beta">Compound β</option>
-          </select>
-          <span class="compare-vs-label">vs</span>
-          <select class="control-select control-select-sm" id="compareModelB" title="Model B for compare">
-            <option value="llama-3.1-8b-instant">Llama 3.1 8B (fast)</option>
-            <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
-            <option value="llama3-70b-8192">Llama 3 70B</option>
-            <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
-            <option value="gemma2-9b-it">Gemma 2 9B</option>
-            <option value="qwen-qwq-32b">Qwen QwQ 32B</option>
-            <option value="deepseek-r1-distill-llama-70b">DeepSeek R1 70B</option>
-            <option value="compound-beta">Compound β</option>
-          </select>
-          <button class="btn-secondary" id="btnCompare" onclick="runCompare()" title="Compare two models">Compare</button>
-          <button class="btn-primary" id="btnEnhance" onclick="runEnhance()">✦ Enhance</button>
+          <button class="btn-secondary" id="btnCompare" onclick="toggleCompareDrawer()" title="Compare two models">Compare</button>
+          <button class="btn-primary" id="btnEnhance" onclick="runEnhance()">Enhance</button>
+          <div class="compare-drawer" id="compareDrawer">
+            <select class="control-select control-select-sm" id="compareModelA" title="Model A for compare">
+              <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+              <option value="llama-3.1-8b-instant">Llama 3.1 8B (fast)</option>
+              <option value="llama3-70b-8192">Llama 3 70B</option>
+              <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+              <option value="gemma2-9b-it">Gemma 2 9B</option>
+              <option value="qwen-qwq-32b">Qwen QwQ 32B</option>
+              <option value="deepseek-r1-distill-llama-70b">DeepSeek R1 70B</option>
+              <option value="compound-beta">Compound beta</option>
+            </select>
+            <span class="compare-vs-label">vs</span>
+            <select class="control-select control-select-sm" id="compareModelB" title="Model B for compare">
+              <option value="llama-3.1-8b-instant">Llama 3.1 8B (fast)</option>
+              <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+              <option value="llama3-70b-8192">Llama 3 70B</option>
+              <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+              <option value="gemma2-9b-it">Gemma 2 9B</option>
+              <option value="qwen-qwq-32b">Qwen QwQ 32B</option>
+              <option value="deepseek-r1-distill-llama-70b">DeepSeek R1 70B</option>
+              <option value="compound-beta">Compound beta</option>
+            </select>
+            <button class="btn-secondary" onclick="runCompare()" title="Run model comparison">Run Compare</button>
+          </div>
         </div>
       </div>
 
@@ -2782,7 +3135,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
           <div id="intentQAQuestions"></div>
           <div class="intent-qa-summary" id="intentQASummary" style="display:none"></div>
           <div class="intent-qa-actions">
-            <button class="btn-primary" id="btnIntentSubmit" onclick="submitIntentQA()">→ Submit Answers</button>
+            <button class="btn-primary" id="btnIntentSubmit" onclick="submitIntentQA()">Submit Answers</button>
             <button class="btn-secondary" onclick="skipIntentQA()">Skip Q&A</button>
           </div>
         </div>
@@ -2792,7 +3145,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
           <div class="intent-label">Clarification</div>
           <div id="clarificationQList"></div>
           <div class="intent-actions" style="margin-top:6px">
-            <button class="btn-primary" onclick="submitClarification()">→ Submit Answers</button>
+            <button class="btn-primary" onclick="submitClarification()"> Submit Answers</button>
             <button class="btn-secondary" onclick="skipClarification()">Skip</button>
           </div>
         </div>
@@ -2802,16 +3155,16 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
           <div class="result-card-header">
             <span class="result-card-title">Enhanced Prompt</span>
             <div class="diag-spinner" id="streamSpinner"></div>
-            <button class="btn-ghost" onclick="copyEnhanced()" title="Copy enhanced prompt">⎘ Copy</button>
-            <button class="btn-ghost" onclick="openRefinePanel()" title="Refine with follow-up answers">↻ Refine</button>
+            <button class="btn-ghost" onclick="copyEnhanced()" title="Copy enhanced prompt"> Copy</button>
+            <button class="btn-ghost" onclick="openRefinePanel()" title="Refine with follow-up answers"> Refine</button>
           </div>
           <div class="result-card-body">
             <div class="enhanced-text" id="enhancedText"></div>
-            <div class="fallback-notice" id="fallbackNotice">⚠ Rendered as single segment (annotation parse fallback)</div>
+            <div class="fallback-notice" id="fallbackNotice"> Rendered as single segment (annotation parse fallback)</div>
             <div class="score-row" id="scoreRow" style="display:none">
               <span class="score-label">Quality</span>
               <div class="score-bar"><div class="score-fill" id="scoreFill" style="width:0%"></div></div>
-              <span class="score-value" id="scoreValue">—</span>
+              <span class="score-value" id="scoreValue"></span>
             </div>
             <div class="neuro-card" id="neuroSignalCard">
               <div class="neuro-head">
@@ -2846,7 +3199,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
           <div class="intent-label">Refine</div>
           <div id="refineQList"></div>
           <div class="intent-actions" style="margin-top:8px">
-            <button class="btn-primary" onclick="submitRefine()">↻ Refine Prompt</button>
+            <button class="btn-primary" onclick="submitRefine()"> Refine Prompt</button>
             <button class="btn-secondary" onclick="closeRefinePanel()">Cancel</button>
           </div>
         </div>
@@ -2862,13 +3215,13 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         </div>
 
         <div class="empty-state" id="emptyState">
-          <div class="empty-state-icon">✦</div>
+          <div class="empty-state-icon">TV</div>
           <div class="empty-state-text">Enter a prompt above and hit Enhance to see the magic.</div>
         </div>
       </div>
       </div><!-- /enhPaneEnhance -->
 
-      <!-- ── CoThinker pane ── -->
+      <!--  CoThinker pane  -->
       <div id="enhPaneCothinker" class="enh-pane" style="display:none">
         <!-- Chat view -->
         <div id="ctChatView" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
@@ -2882,27 +3235,27 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
             </div>
             <div class="ct-live-transcript" id="ctLiveTranscript"></div>
             <div class="ct-buttons">
-              <button class="ct-mic-btn" id="ctMicBtn" onclick="ctToggleMic()">🎤 Start Speaking</button>
-              <button class="btn-secondary" id="ctFinalizeBtn" onclick="ctFinalize()" style="opacity:0.4;pointer-events:none">✓ Generate Prompt</button>
+              <button class="ct-mic-btn" id="ctMicBtn" onclick="ctToggleMic()"> Start Speaking</button>
+              <button class="btn-secondary" id="ctFinalizeBtn" onclick="ctFinalize()" style="opacity:0.4;pointer-events:none"> Generate Prompt</button>
             </div>
             <div class="ct-text-row">
-              <input class="ct-text-input" id="ctTextInput" placeholder="Or type here…" onkeydown="if(event.key==='Enter')ctSendText()" />
+              <input class="ct-text-input" id="ctTextInput" placeholder="Or type here" onkeydown="if(event.key==='Enter')ctSendText()" />
               <button class="btn-secondary" onclick="ctSendText()">Send</button>
             </div>
-            <div class="ct-no-voice" id="ctNoVoice" style="display:none">⚠ Voice not supported in this browser — use the text input above.</div>
+            <div class="ct-no-voice" id="ctNoVoice" style="display:none"> Voice not supported in this browser  use the text input above.</div>
           </div>
           <div class="ct-checklist" id="ctChecklist">
             <div class="ct-checklist-label">Confirmed <span id="ctConfirmCount">0</span>/10</div>
-            <div class="ct-check-item" id="ctck-target_llm"><span class="ct-check-icon">○</span>Target AI</div>
-            <div class="ct-check-item" id="ctck-core_goal"><span class="ct-check-icon">○</span>Core Goal</div>
-            <div class="ct-check-item" id="ctck-task_type"><span class="ct-check-icon">○</span>Task Type</div>
-            <div class="ct-check-item" id="ctck-domain"><span class="ct-check-icon">○</span>Domain</div>
-            <div class="ct-check-item" id="ctck-audience"><span class="ct-check-icon">○</span>Audience</div>
-            <div class="ct-check-item" id="ctck-output_format"><span class="ct-check-icon">○</span>Output Format</div>
-            <div class="ct-check-item" id="ctck-constraints"><span class="ct-check-icon">○</span>Constraints</div>
-            <div class="ct-check-item" id="ctck-background_context"><span class="ct-check-icon">○</span>Context</div>
-            <div class="ct-check-item" id="ctck-tone"><span class="ct-check-icon">○</span>Tone</div>
-            <div class="ct-check-item" id="ctck-success_criteria"><span class="ct-check-icon">○</span>Success</div>
+            <div class="ct-check-item" id="ctck-target_llm"><span class="ct-check-icon">-</span>Target AI</div>
+            <div class="ct-check-item" id="ctck-core_goal"><span class="ct-check-icon">-</span>Core Goal</div>
+            <div class="ct-check-item" id="ctck-task_type"><span class="ct-check-icon">-</span>Task Type</div>
+            <div class="ct-check-item" id="ctck-domain"><span class="ct-check-icon">-</span>Domain</div>
+            <div class="ct-check-item" id="ctck-audience"><span class="ct-check-icon">-</span>Audience</div>
+            <div class="ct-check-item" id="ctck-output_format"><span class="ct-check-icon">-</span>Output Format</div>
+            <div class="ct-check-item" id="ctck-constraints"><span class="ct-check-icon">-</span>Constraints</div>
+            <div class="ct-check-item" id="ctck-background_context"><span class="ct-check-icon">-</span>Context</div>
+            <div class="ct-check-item" id="ctck-tone"><span class="ct-check-icon">-</span>Tone</div>
+            <div class="ct-check-item" id="ctck-success_criteria"><span class="ct-check-icon">-</span>Success</div>
           </div>
         </div>
         <!-- Result view (shown after finalize) -->
@@ -2916,19 +3269,19 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
             <div class="ct-prompt-box" id="ctResultPrompt"></div>
             <div class="ct-techniques" id="ctResultTechniques"></div>
             <div class="ct-result-actions">
-              <button class="btn-primary" onclick="ctCopyPrompt()">⎘ Copy Prompt</button>
-              <button class="btn-secondary" onclick="ctSendToEnhance()">↗ Open in Enhance</button>
-              <button class="btn-secondary" onclick="ctReset()">↺ New Conversation</button>
+              <button class="btn-primary" onclick="ctCopyPrompt()"> Copy Prompt</button>
+              <button class="btn-secondary" onclick="ctSendToEnhance()">- Open in Enhance</button>
+              <button class="btn-secondary" onclick="ctReset()"> New Conversation</button>
             </div>
           </div>
         </div>
       </div><!-- /enhPaneCothinker -->
 
-      <!-- ── Chat pane ── -->
+      <!--  Chat pane  -->
       <div id="enhPaneChat" class="enh-pane" style="display:none">
         <!-- Idle state: hidden once conversation starts -->
         <div class="ag-welcome" id="agWelcome">
-          <div class="ag-idle-glyph">⚡</div>
+          <div class="ag-idle-glyph">AI</div>
           <div class="ag-idle-title">Agentic Prompt Enhancement</div>
           <div class="ag-idle-sub">Improve your prompts using web search, code execution, and live data</div>
         </div>
@@ -2944,34 +3297,34 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
                 <!-- Connector / data source selector -->
                 <div class="ag-mode-wrap" id="agModeWrap">
                   <button class="ag-std-btn" id="agModeBtn" onclick="agToggleModeMenu(event)">
-                    <span id="agModeLabel">⚡ Standard</span> ▾
+                    <span id="agModeLabel"> Standard</span> 
                   </button>
                   <div class="ag-mode-menu" id="agModeMenu">
                     <button class="ag-mode-opt" id="agOpt-standard" onclick="agSetMode('standard')">
-                      <span class="ag-mode-opt-icon">⚡</span>
+                      <span class="ag-mode-opt-icon">AI</span>
                       <span class="ag-mode-opt-info">
                         <span class="ag-mode-opt-name">Standard</span>
-                        <span class="ag-mode-opt-desc">Agentic — web search &amp; code</span>
+                        <span class="ag-mode-opt-desc">Agentic  web search &amp; code</span>
                       </span>
                     </button>
                     <div class="ag-mode-divider"></div>
                     <div class="ag-mode-section-label">Google Workspace</div>
                     <button class="ag-mode-opt" id="agOpt-connector_googledrive" onclick="agSetMode('connector_googledrive')">
-                      <span class="ag-mode-opt-icon">📁</span>
+                      <span class="ag-mode-opt-icon">Dr</span>
                       <span class="ag-mode-opt-info">
                         <span class="ag-mode-opt-name">Google Drive</span>
                         <span class="ag-mode-opt-desc">Search &amp; read your files</span>
                       </span>
                     </button>
                     <button class="ag-mode-opt" id="agOpt-connector_gmail" onclick="agSetMode('connector_gmail')">
-                      <span class="ag-mode-opt-icon">✉️</span>
+                      <span class="ag-mode-opt-icon">Gm</span>
                       <span class="ag-mode-opt-info">
                         <span class="ag-mode-opt-name">Gmail</span>
                         <span class="ag-mode-opt-desc">Search &amp; read emails</span>
                       </span>
                     </button>
                     <button class="ag-mode-opt" id="agOpt-connector_googlecalendar" onclick="agSetMode('connector_googlecalendar')">
-                      <span class="ag-mode-opt-icon">📅</span>
+                      <span class="ag-mode-opt-icon">...</span>
                       <span class="ag-mode-opt-info">
                         <span class="ag-mode-opt-name">Calendar</span>
                         <span class="ag-mode-opt-desc">View events &amp; meetings</span>
@@ -2983,16 +3336,16 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
               </div>
             </div>
           </div>
-          <!-- OAuth token row — shown only for connector modes -->
+          <!-- OAuth token row  shown only for connector modes -->
           <div class="ag-token-row" id="agTokenRow" style="display:none">
-            <span class="ag-token-icon">🔑</span>
+            <span class="ag-token-icon">Key</span>
             <input class="ag-token-input" id="agOAuthToken" type="password"
-              placeholder="Paste Google OAuth access token (ya29.A0…)" />
-            <a class="ag-token-link" href="https://developers.google.com/oauthplayground/" target="_blank">Get token ↗</a>
+              placeholder="Paste Google OAuth access token (ya29.A0)" />
+            <a class="ag-token-link" href="https://developers.google.com/oauthplayground/" target="_blank">Get token -</a>
           </div>
           <!-- Suggestion chips -->
           <div class="ag-suggestions" id="agSuggestions"></div>
-          <p class="ag-footer-note" id="agFooterNote">Powered by Groq Compound — web search &amp; code execution</p>
+          <p class="ag-footer-note" id="agFooterNote">Powered by Groq Compound  web search &amp; code execution</p>
         </div>
       </div><!-- /enhPaneChat -->
     </div><!-- /pageEnhance -->
@@ -3004,17 +3357,17 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         <div class="persona-avatar" id="personaAvatar">TV</div>
         <div class="brain-persona-info">
           <div class="persona-name" id="personaName">Your Persona</div>
-          <div class="persona-sub" id="personaSub">Loading…</div>
+          <div class="persona-sub" id="personaSub">Loading</div>
         </div>
         <div class="brain-stats-row">
-          <div class="p-stat"><span class="p-stat-val" id="pEnhancements">—</span><span class="p-stat-lbl">enhancements</span></div>
-          <div class="p-stat"><span class="p-stat-val" id="pDomains">—</span><span class="p-stat-lbl">domains</span></div>
-          <div class="p-stat"><span class="p-stat-val" id="pIntents">—</span><span class="p-stat-lbl">intents</span></div>
+          <div class="p-stat"><span class="p-stat-val" id="pEnhancements"></span><span class="p-stat-lbl">enhancements</span></div>
+          <div class="p-stat"><span class="p-stat-val" id="pDomains"></span><span class="p-stat-lbl">domains</span></div>
+          <div class="p-stat"><span class="p-stat-val" id="pIntents"></span><span class="p-stat-lbl">intents</span></div>
         </div>
         <div class="persona-chips" id="personaChips" style="flex:1;min-width:0"></div>
         <div class="brain-header-actions">
-          <button class="btn-ghost" onclick="loadBrainData()" title="Refresh">⟳</button>
-          <button class="btn-ghost" onclick="resetMemory()" title="Reset memory" style="color:var(--bad)">⏾</button>
+          <button class="btn-ghost" onclick="loadBrainData()" title="Refresh">Refresh</button>
+          <button class="btn-ghost" onclick="resetMemory()" title="Reset memory" style="color:var(--bad)">Reset</button>
         </div>
       </div>
       <!-- Body: sidebar + graph -->
@@ -3051,17 +3404,17 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
     <div class="page-profile" id="pageProfile" style="display:none">
       <div class="profile-header">
         <h2>Profile</h2>
-        <p>Describe how you work once — Velocity extracts a reusable preference profile and applies it to every enhancement.</p>
+        <p>Describe how you work once  Velocity extracts a reusable preference profile and applies it to every enhancement.</p>
       </div>
       <div class="profile-body">
         <!-- Left: input methods -->
         <div class="profile-left">
           <div class="profile-tabs">
             <button class="profile-tab active" id="profTab-questionnaire" onclick="switchProfileTab('questionnaire')">
-              ◎ Questionnaire
+              - Questionnaire
             </button>
             <button class="profile-tab" id="profTab-import" onclick="switchProfileTab('import')">
-              ↓ Import Data
+               Import Data
             </button>
           </div>
 
@@ -3099,11 +3452,11 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
           <!-- Import tab -->
           <div class="profile-tab-content" id="profContent-import">
             <div class="profile-ingest-hint">
-              <strong>Paste anything.</strong> Export from ChatGPT, Claude, Notion, a plain-text bio, or raw JSON from a previous Velocity export. The LLM will extract domains, frameworks, tone preferences and populate your profile automatically.
+              <strong>Paste anything.</strong> Export from ChatGPT, Claude, Gemini, Cursor, Midjourney, Gamma, Notion, a plain-text bio, or raw JSON from a previous Velocity export. The LLM extracts reusable platform memories, style, tools, tone, formats, and things to avoid.
             </div>
             <div class="profile-field">
               <label>Raw data</label>
-              <textarea class="profile-textarea" id="profIngestData" placeholder="Paste your ChatGPT memory export, bio, previous AI conversation, or any structured/unstructured text about how you work…"></textarea>
+              <textarea class="profile-textarea" id="profIngestData" placeholder="Paste a ChatGPT memory export, Claude/Gemini conversation, Cursor session, Midjourney prompt history, Gamma deck prompt, bio, or any structured/unstructured text about how you work"></textarea>
             </div>
             <div class="profile-actions">
               <button class="btn-primary" onclick="autoIngestProfile()">Import &amp; extract</button>
@@ -3116,11 +3469,11 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         <div class="profile-right">
           <div class="profile-preview-header">
             <span class="profile-preview-title">Current profile</span>
-            <span class="profile-status-badge" id="profileStatusBadge">—</span>
+            <span class="profile-status-badge" id="profileStatusBadge"></span>
           </div>
           <div class="profile-review" id="profileReview">
             <div class="profile-empty">
-              <div class="profile-empty-icon">◎</div>
+              <div class="profile-empty-icon">-</div>
               <div class="profile-empty-text">Fill the questionnaire or import data<br>to see your extracted profile here.</div>
             </div>
           </div>
@@ -3145,7 +3498,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
           <div class="diag-panel-title">Health Check</div>
           <div class="diag-desc">Verify the backend is online and responding.</div>
           <div class="diag-actions">
-            <button class="btn-secondary" title="GET /health — checks server liveness" onclick="diagRun('health')">Run</button>
+            <button class="btn-secondary" title="GET /health  checks server liveness" onclick="diagRun('health')">Run</button>
             <div class="diag-spinner" id="spin-health"></div>
           </div>
           <pre class="diag-result" id="res-health"></pre>
@@ -3156,8 +3509,8 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
           <div class="diag-panel-title">Enhance Pipeline</div>
           <div class="diag-desc">POST /enhance with a short test prompt. Checks LLM round-trip, JSON parsing, and output validation.</div>
           <div class="diag-actions">
-            <button class="btn-secondary" title="POST /enhance — normal mode" onclick="diagRun('enhance')">Normal</button>
-            <button class="btn-secondary" title="POST /enhance — caveman mode" onclick="diagRun('enhance-caveman')">Caveman</button>
+            <button class="btn-secondary" title="POST /enhance  normal mode" onclick="diagRun('enhance')">Normal</button>
+            <button class="btn-secondary" title="POST /enhance  caveman mode" onclick="diagRun('enhance-caveman')">Caveman</button>
             <div class="diag-spinner" id="spin-enhance"></div>
           </div>
           <pre class="diag-result" id="res-enhance"></pre>
@@ -3166,9 +3519,9 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         <!-- Intent -->
         <div class="diag-panel">
           <div class="diag-panel-title">Intent Detection</div>
-          <div class="diag-desc">POST /intent/confirm — detects intent and returns structured interpretation before enhancement.</div>
+          <div class="diag-desc">POST /intent/confirm  detects intent and returns structured interpretation before enhancement.</div>
           <div class="diag-actions">
-            <button class="btn-secondary" title="POST /intent/confirm — returns intent + interpretation" onclick="diagRun('intent')">Run</button>
+            <button class="btn-secondary" title="POST /intent/confirm  returns intent + interpretation" onclick="diagRun('intent')">Run</button>
             <div class="diag-spinner" id="spin-intent"></div>
           </div>
           <pre class="diag-result" id="res-intent"></pre>
@@ -3177,9 +3530,9 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         <!-- Refine -->
         <div class="diag-panel">
           <div class="diag-panel-title">Refine Pipeline</div>
-          <div class="diag-desc">POST /refine — takes an enhanced prompt and clarification Q&amp;A, returns refined output.</div>
+          <div class="diag-desc">POST /refine  takes an enhanced prompt and clarification Q&amp;A, returns refined output.</div>
           <div class="diag-actions">
-            <button class="btn-secondary" title="POST /refine — uses stub enhanced prompt + Q&A" onclick="diagRun('refine')">Run</button>
+            <button class="btn-secondary" title="POST /refine  uses stub enhanced prompt + Q&A" onclick="diagRun('refine')">Run</button>
             <div class="diag-spinner" id="spin-refine"></div>
           </div>
           <pre class="diag-result" id="res-refine"></pre>
@@ -3188,9 +3541,9 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         <!-- Compare -->
         <div class="diag-panel">
           <div class="diag-panel-title">Compare Modes</div>
-          <div class="diag-desc">POST /enhance/compare — runs Normal and Caveman modes side-by-side and returns both results.</div>
+          <div class="diag-desc">POST /enhance/compare  runs Normal and Caveman modes side-by-side and returns both results.</div>
           <div class="diag-actions">
-            <button class="btn-secondary" title="POST /enhance/compare — normal + caveman" onclick="diagRun('compare')">Run</button>
+            <button class="btn-secondary" title="POST /enhance/compare  normal + caveman" onclick="diagRun('compare')">Run</button>
             <div class="diag-spinner" id="spin-compare"></div>
           </div>
           <pre class="diag-result" id="res-compare"></pre>
@@ -3199,9 +3552,9 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         <!-- Memory read -->
         <div class="diag-panel">
           <div class="diag-panel-title">Memory Read</div>
-          <div class="diag-desc">GET /context/:userId — fetches the stored user context object for the current User ID.</div>
+          <div class="diag-desc">GET /context/:userId  fetches the stored user context object for the current User ID.</div>
           <div class="diag-actions">
-            <button class="btn-secondary" title="GET /context/:userId — returns raw stored context" onclick="diagRun('memory-read')">Run</button>
+            <button class="btn-secondary" title="GET /context/:userId  returns raw stored context" onclick="diagRun('memory-read')">Run</button>
             <div class="diag-spinner" id="spin-memory-read"></div>
           </div>
           <pre class="diag-result" id="res-memory-read"></pre>
@@ -3210,9 +3563,9 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         <!-- Incognito -->
         <div class="diag-panel">
           <div class="diag-panel-title">Incognito Mode</div>
-          <div class="diag-desc">Enhance with incognito:true — verifies memory is not read or written during this call.</div>
+          <div class="diag-desc">Enhance with incognito:true  verifies memory is not read or written during this call.</div>
           <div class="diag-actions">
-            <button class="btn-secondary" title="POST /enhance with incognito:true — no memory read/write" onclick="diagRun('incognito')">Run</button>
+            <button class="btn-secondary" title="POST /enhance with incognito:true  no memory read/write" onclick="diagRun('incognito')">Run</button>
             <div class="diag-spinner" id="spin-incognito"></div>
           </div>
           <pre class="diag-result" id="res-incognito"></pre>
@@ -3221,7 +3574,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         <!-- Personalization -->
         <div class="diag-panel">
           <div class="diag-panel-title">Personalization Extractor</div>
-          <div class="diag-desc">POST /personalization/:userId/extract — extracts reusable profile preferences without saving by default.</div>
+          <div class="diag-desc">POST /personalization/:userId/extract  extracts reusable profile preferences without saving by default.</div>
           <div class="diag-actions">
             <button class="btn-secondary" title="POST /personalization/:userId/extract" onclick="diagRun('personalization')">Run</button>
             <div class="diag-spinner" id="spin-personalization"></div>
@@ -3232,7 +3585,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         <!-- NeuroPrompt -->
         <div class="diag-panel">
           <div class="diag-panel-title">NeuroPrompt Signal</div>
-          <div class="diag-desc">POST /neuro/score — verifies heuristic signal scoring and JSON contract.</div>
+          <div class="diag-desc">POST /neuro/score  verifies heuristic signal scoring and JSON contract.</div>
           <div class="diag-actions">
             <button class="btn-secondary" title="POST /neuro/score" onclick="diagRun('neuro')">Run</button>
             <div class="diag-spinner" id="spin-neuro"></div>
@@ -3254,9 +3607,9 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         <!-- Source catalog -->
         <div class="diag-panel">
           <div class="diag-panel-title">Source Catalog</div>
-          <div class="diag-desc">GET /sources — returns the loaded source catalog from Scraping Sources.md.</div>
+          <div class="diag-desc">GET /sources  returns the loaded source catalog from Scraping Sources.md.</div>
           <div class="diag-actions">
-            <button class="btn-secondary" title="GET /sources — lists scraped source catalog" onclick="diagRun('sources')">Run</button>
+            <button class="btn-secondary" title="GET /sources  lists scraped source catalog" onclick="diagRun('sources')">Run</button>
             <div class="diag-spinner" id="spin-sources"></div>
           </div>
           <pre class="diag-result" id="res-sources"></pre>
@@ -3269,29 +3622,29 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
     <div class="page-cothinker" id="pageCothinker" style="display:none"></div>
     <div class="page-agentic" id="pageAgentic" style="display:none"></div>
 
-    <!-- ── Connectors page ── -->
+    <!--  Connectors page  -->
     <div class="page-connectors" id="pageConnectors" style="display:none">
       <div class="conn-header">
         <div>
           <h2 class="conn-title">Google Workspace Connectors</h2>
-          <p class="conn-sub">Connect to Gmail, Calendar, and Drive via Groq MCP Connectors (beta). Paste a Google OAuth access token below — get one from the <a class="conn-link" href="https://developers.google.com/oauthplayground/" target="_blank">OAuth Playground</a>.</p>
+          <p class="conn-sub">Connect to Gmail, Calendar, and Drive via Groq MCP Connectors (beta). Paste a Google OAuth access token below  get one from the <a class="conn-link" href="https://developers.google.com/oauthplayground/" target="_blank">OAuth Playground</a>.</p>
         </div>
       </div>
 
       <!-- Service selector -->
       <div class="conn-service-row">
         <button class="conn-service-btn active" id="connSvc-drive"     onclick="connSelectService('connector_googledrive')">
-          <span class="conn-svc-icon">📁</span>
+          <span class="conn-svc-icon">Dr</span>
           <span class="conn-svc-name">Google Drive</span>
           <span class="conn-svc-scope">drive.readonly</span>
         </button>
         <button class="conn-service-btn" id="connSvc-gmail"    onclick="connSelectService('connector_gmail')">
-          <span class="conn-svc-icon">✉️</span>
+          <span class="conn-svc-icon">Gm</span>
           <span class="conn-svc-name">Gmail</span>
           <span class="conn-svc-scope">gmail.readonly</span>
         </button>
         <button class="conn-service-btn" id="connSvc-calendar" onclick="connSelectService('connector_googlecalendar')">
-          <span class="conn-svc-icon">📅</span>
+          <span class="conn-svc-icon">...</span>
           <span class="conn-svc-name">Calendar</span>
           <span class="conn-svc-scope">calendar.events</span>
         </button>
@@ -3302,7 +3655,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         <div class="conn-field">
           <label class="conn-label">OAuth Access Token</label>
           <input class="conn-token-input" id="connToken" type="password"
-            placeholder="ya29.A0AR3da… (paste your Google OAuth token)" />
+            placeholder="ya29.A0AR3da (paste your Google OAuth token)" />
         </div>
         <div class="conn-field">
           <label class="conn-label">Prompt</label>
@@ -3314,9 +3667,9 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         </div>
         <div class="conn-actions">
           <button class="btn-primary" onclick="connRun()" id="connRunBtn">Run Query</button>
-          <button class="btn-secondary" onclick="connDriveTest()" id="connTestBtn">▶ Drive Workflow Test</button>
-          <button class="btn-secondary" onclick="connSaveToken()" id="connSaveBtn" title="Save token for use in Enhance workspace context">⬡ Save for Workspace</button>
-          <div class="conn-spinner" id="connSpinner" style="display:none">⏳</div>
+          <button class="btn-secondary" onclick="connDriveTest()" id="connTestBtn"> Drive Workflow Test</button>
+          <button class="btn-secondary" onclick="connSaveToken()" id="connSaveBtn" title="Save token for use in Enhance workspace context"> Save for Workspace</button>
+          <div class="conn-spinner" id="connSpinner" style="display:none"></div>
         </div>
       </div>
 
@@ -3326,22 +3679,22 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
           <span class="conn-result-label">Response</span>
           <span class="conn-result-model" id="connResultModel"></span>
           <span class="conn-result-usage" id="connResultUsage"></span>
-          <button class="btn-ghost" onclick="connClearResult()">✕ Clear</button>
+          <button class="btn-ghost" onclick="connClearResult()"> Clear</button>
         </div>
         <pre class="conn-result-body" id="connResultBody"></pre>
       </div>
     </div>
 
-    <!-- ── Version page ── -->
+    <!--  Version page  -->
     <div class="page-version" id="pageVersion">
       <div class="version-hero">
-        <div class="version-badge">◑ ThinkVelocity &nbsp;·&nbsp; v2.0.0 &nbsp;·&nbsp; Production</div>
+        <div class="version-badge">- ThinkVelocity &nbsp;-&nbsp; v2.0.0 &nbsp;-&nbsp; Production</div>
         <h1>What's in this build</h1>
-        <p>A lean, self-hosted prompt engineering assistant. Single FastAPI service — no database, no heavy infrastructure. Every feature listed below is live and callable from this UI or via the API.</p>
+        <p>A lean, self-hosted prompt engineering assistant. Single FastAPI service  no database, no heavy infrastructure. Every feature listed below is live and callable from this UI or via the API.</p>
       </div>
 
       <div>
-        <div class="version-section-title">Core pipeline — how Enhance works end to end</div>
+        <div class="version-section-title">Core pipeline  how Enhance works end to end</div>
         <div class="version-pipeline">
           <div class="pipeline-step">
             <div class="pipeline-step-num">1</div>
@@ -3361,7 +3714,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
             <div class="pipeline-step-num">3</div>
             <div class="pipeline-step-body">
               <strong>Technique-driven enhancement</strong>
-              <p><code>POST /enhance</code> receives your prompt, the intent signal, and your memory context. The system prompt in <code>core/prompts/enhance_system.md</code> instructs the LLM to apply 1–4 of 16 named techniques (chain-of-thought, persona injection, structured output, etc.) and return a fully annotated JSON result.</p>
+              <p><code>POST /enhance</code> receives your prompt, the intent signal, and your memory context. The system prompt in <code>core/prompts/enhance_system.md</code> instructs the LLM to apply 14 of 16 named techniques (chain-of-thought, persona injection, structured output, etc.) and return a fully annotated JSON result.</p>
             </div>
           </div>
           <div class="pipeline-step">
@@ -3375,7 +3728,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
             <div class="pipeline-step-num">5</div>
             <div class="pipeline-step-body">
               <strong>Refine loop</strong>
-              <p><code>POST /refine</code> takes the previous enhanced prompt and a follow-up instruction. The LLM re-applies the same contract and returns a diff-able updated version — iterate until it's right.</p>
+              <p><code>POST /refine</code> takes the previous enhanced prompt and a follow-up instruction. The LLM re-applies the same contract and returns a diff-able updated version  iterate until it's right.</p>
             </div>
           </div>
           <div class="pipeline-step">
@@ -3392,64 +3745,94 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         <div class="version-section-title">Features in this release</div>
         <div class="version-features">
           <div class="version-card">
-            <div class="version-card-icon">✦</div>
+            <div class="version-card-icon">B</div>
+            <h3>Phase B live</h3>
+            <p>Expected changes now live: PostgreSQL-backed memory, semantic retrieval during Enhance, scheduler-ready background jobs, JSON context migration, and end-to-end Docker deployment on Lightsail.</p>
+            <div class="vc-endpoint">v2.1.0 - deployed 2026-05-22</div>
+          </div>
+          <div class="version-card">
+            <div class="version-card-icon">DB</div>
+            <h3>PostgreSQL storage</h3>
+            <p>Docker Compose now runs a private Postgres container beside the app. <code>/ready</code> verifies the DB backend, and legacy JSON contexts were copied into <code>user_contexts</code>.</p>
+            <div class="vc-endpoint">postgres:16-alpine - storage/db.py</div>
+          </div>
+          <div class="version-card">
+            <div class="version-card-icon">SR</div>
+            <h3>Semantic retrieval</h3>
+            <p>Enhance ranks previous context against the current prompt and injects the most relevant 3-5 memories instead of blindly using the newest entries.</p>
+            <div class="vc-endpoint">core/embeddings.py - core/context_loader.py</div>
+          </div>
+          <div class="version-card">
+            <div class="version-card-icon">CR</div>
+            <h3>Scheduler foundation</h3>
+            <p>A disabled-by-default scheduler can synthesize memory, generate proactive suggestions, and prune stale context when recurring jobs are enabled.</p>
+            <div class="vc-endpoint">VELOCITY_SCHEDULER_ENABLED</div>
+          </div>
+          <div class="version-card">
+            <div class="version-card-icon">OK</div>
+            <h3>Live verification</h3>
+            <p>Production was rebuilt on Lightsail. Postgres is healthy, public <code>/ready</code> reports PostgreSQL, context write/read persisted, and public Enhance SSE returned a done event.</p>
+            <div class="vc-endpoint">https://api.thinkvelocity.in/ready</div>
+          </div>
+          <div class="version-card">
+            <div class="version-card-icon"></div>
             <h3>Enhance</h3>
             <p>Technique-annotated prompt enhancement with intent-aware technique selection and segment-level explanations.</p>
             <div class="vc-endpoint">POST /enhance</div>
           </div>
           <div class="version-card">
-            <div class="version-card-icon">↺</div>
+            <div class="version-card-icon"></div>
             <h3>Refine</h3>
             <p>Iterative prompt refinement. Feed a follow-up instruction and get an updated enhanced prompt that preserves prior improvements.</p>
             <div class="vc-endpoint">POST /refine</div>
           </div>
           <div class="version-card">
-            <div class="version-card-icon">◈</div>
+            <div class="version-card-icon">-</div>
             <h3>Memory / Brain</h3>
             <p>Persistent user context stored as JSON. Visualised as a live knowledge graph. Supports incognito mode to skip read/write entirely.</p>
-            <div class="vc-endpoint">GET /context/:userId · POST /context/:userId</div>
+            <div class="vc-endpoint">GET /context/:userId - POST /context/:userId</div>
           </div>
           <div class="version-card">
-            <div class="version-card-icon">◎</div>
+            <div class="version-card-icon">-</div>
             <h3>Profile</h3>
             <p>Auto-ingest unstructured text or JSON from other AI tools to populate your persona and preferences into the knowledge graph.</p>
             <div class="vc-endpoint">POST /profile/auto-ingest</div>
           </div>
           <div class="version-card">
-            <div class="version-card-icon">🎙</div>
+            <div class="version-card-icon"></div>
             <h3>CoThinker (voice)</h3>
             <p>Conversational voice loop. Speak your prompt idea; CoThinker transcribes via Groq Whisper, asks clarifying questions, and finalises an enhanced prompt when 8+ of 10 fields are confirmed.</p>
-            <div class="vc-endpoint">POST /cothinker/transcribe · /turn · /finalize</div>
+            <div class="vc-endpoint">POST /cothinker/transcribe - /turn - /finalize</div>
           </div>
           <div class="version-card">
-            <div class="version-card-icon">⚡</div>
-            <h3>Agentic Chat</h3>
+            <div class="version-card-icon"></div>
+            <h3>Agentic Work</h3>
             <p>Streaming chat endpoint with a configurable system prompt. Tokens stream over SSE so responses feel instant. Designed for web search and browsing agentic workflows.</p>
             <div class="vc-endpoint">POST /agentic/chat (SSE stream)</div>
           </div>
           <div class="version-card">
-            <div class="version-card-icon">⚙</div>
+            <div class="version-card-icon"></div>
             <h3>Neuro Mode</h3>
             <p>Scores your prompt across cognitive clarity, specificity, reasoning depth, and output alignment. Returns a rubric-based JSON report with an overall neuro score.</p>
             <div class="vc-endpoint">POST /neuro/score</div>
           </div>
           <div class="version-card">
-            <div class="version-card-icon">⊞</div>
+            <div class="version-card-icon"></div>
             <h3>Connectors</h3>
-            <p>Natural-language queries over your Google Workspace — Gmail, Google Calendar, and Google Drive — via the Groq Responses API.</p>
+            <p>Natural-language queries over your Google Workspace  Gmail, Google Calendar, and Google Drive  via the Groq Responses API.</p>
             <div class="vc-endpoint">POST /connectors/query</div>
           </div>
           <div class="version-card">
-            <div class="version-card-icon">◫</div>
+            <div class="version-card-icon">-</div>
             <h3>MCP Server</h3>
             <p>Exposes Enhance and Refine as Model Context Protocol tools. Connect Claude Desktop, Cursor, or any MCP client directly to this instance.</p>
-            <div class="vc-endpoint">mcp/stdio.py · GET /mcp/schema</div>
+            <div class="vc-endpoint">mcp/stdio.py - GET /mcp/schema</div>
           </div>
           <div class="version-card">
-            <div class="version-card-icon">⊙</div>
+            <div class="version-card-icon"></div>
             <h3>Diagnostics</h3>
             <p>One-click health checks for every subsystem: intent, enhance, memory read/write, incognito, refine, and storage. Live status badges.</p>
-            <div class="vc-endpoint">GET /health · GET /ready · POST /diagnostics/*</div>
+            <div class="vc-endpoint">GET /health - GET /ready - POST /diagnostics/*</div>
           </div>
         </div>
       </div>
@@ -3475,46 +3858,71 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
         <div class="version-section-title">Live instance</div>
         <div class="version-health">
           <div class="dot" id="versionHealthDot"></div>
-          <span id="versionHealthText">Checking health…</span>
+          <span id="versionHealthText">Checking health</span>
         </div>
       </div>
     </div>
 
   </main>
 
-  <!-- ── Details panel ── -->
+  <!--  Neuro panel  -->
   <aside class="details" id="detailsPanel">
-    <div class="details-tabs">
-      <button class="details-tab active" onclick="switchTab('annotations')">Annotations</button>
-      <button class="details-tab" onclick="switchTab('signal')">Signal</button>
-      <button class="details-tab" onclick="switchTab('metadata')">Metadata</button>
-      <button class="details-tab" onclick="switchTab('raw')">Raw</button>
-    </div>
-    <div class="details-pane active" id="tab-annotations">
-      <div class="empty-state" style="height:auto;padding:24px 0">
-        <div class="empty-state-icon" style="font-size:24px">◫</div>
-        <div class="empty-state-text" style="font-size:12px">Annotations appear after enhancement.</div>
+    <div class="neuro-panel-head">
+      <div>
+        <div class="neuro-panel-kicker">Neuro Orchestrator</div>
+        <div class="neuro-panel-title" id="neuroGoalTitle">Waiting for goal</div>
       </div>
+      <div class="neuro-status-pill" id="neuroStatePill">idle</div>
     </div>
-    <div class="details-pane" id="tab-signal">
-      <div class="empty-state" style="height:auto;padding:24px 0">
-        <div class="empty-state-icon" style="font-size:24px">◎</div>
-        <div class="empty-state-text" style="font-size:12px">Signal scoring appears after enhancement.</div>
+    <div class="neuro-card-sm">
+      <h4>Goal</h4>
+      <p id="neuroGoalText">Start with a prompt. Neuro will infer the goal, missing context, and the smallest useful next action.</p>
+    </div>
+    <div class="neuro-card-sm">
+      <h4>Context Needed</h4>
+      <ul id="neuroContextNeeds"><li>None yet.</li></ul>
+    </div>
+    <div class="neuro-action-card" id="neuroNextAction">
+      <div class="neuro-action-title">Next action</div>
+      <div class="neuro-action-meta">Enhance, refine, compare, or ask only when the goal needs it.</div>
+    </div>
+    <button class="neuro-inspect-toggle" onclick="toggleNeuroInspect()">Inspect details</button>
+    <div class="neuro-inspect" id="neuroInspect">
+      <div class="details-tabs">
+        <button class="details-tab active" onclick="switchTab('annotations')">Annotations</button>
+        <button class="details-tab" onclick="switchTab('signal')">Signal</button>
+        <button class="details-tab" onclick="switchTab('metadata')">Metadata</button>
+        <button class="details-tab" onclick="switchTab('raw')">Raw</button>
       </div>
-    </div>
-    <div class="details-pane" id="tab-metadata">
-      <div class="empty-state" style="height:auto;padding:24px 0">
-        <div class="empty-state-icon" style="font-size:24px">◫</div>
-        <div class="empty-state-text" style="font-size:12px">Metadata appears after enhancement.</div>
+      <div class="details-pane active" id="tab-annotations">
+        <div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-text" style="font-size:12px">Annotations appear after enhancement.</div></div>
       </div>
-    </div>
-    <div class="details-pane" id="tab-raw">
-      <div class="empty-state" style="height:auto;padding:24px 0">
-        <div class="empty-state-icon" style="font-size:24px">◫</div>
-        <div class="empty-state-text" style="font-size:12px">Raw JSON appears after enhancement.</div>
+      <div class="details-pane" id="tab-signal">
+        <div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-text" style="font-size:12px">Signal scoring appears after enhancement.</div></div>
+      </div>
+      <div class="details-pane" id="tab-metadata">
+        <div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-text" style="font-size:12px">Metadata appears after enhancement.</div></div>
+      </div>
+      <div class="details-pane" id="tab-raw">
+        <div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-text" style="font-size:12px">Raw JSON appears after enhancement.</div></div>
       </div>
     </div>
   </aside>
+</div>
+
+<div class="modal-backdrop" id="settingsModal" onclick="settingsBackdropClose(event)">
+  <div class="settings-modal" role="dialog" aria-modal="true" aria-label="Settings">
+    <div class="settings-header">
+      <div class="settings-title">Settings</div>
+      <button class="settings-btn" onclick="closeSettings()" title="Close">Close</button>
+    </div>
+    <div class="settings-tabs">
+      <button class="settings-tab active" id="settingsTab-connectors" onclick="showSettingsTab('connectors')">Connectors</button>
+      <button class="settings-tab" id="settingsTab-diagnostics" onclick="showSettingsTab('diagnostics')">Diagnostics</button>
+      <button class="settings-tab" id="settingsTab-version" onclick="showSettingsTab('version')">Version</button>
+    </div>
+    <div class="settings-content" id="settingsContent"></div>
+  </div>
 </div>
 
 <!-- Segment tooltip -->
@@ -3531,9 +3939,12 @@ const state = {
   lastResult: null,
   lastIntent: null,
   lastNeuroSignal: null,
+  uploads: [],
   profileDraft: null,
   clarificationAnswers: [],
   refineAnswers: [],
+  refinePrepare: null,
+  intentManualDraft: "",
   brainNetwork: null,
   _brainCtx: null,
   intentQAAnswers: [],
@@ -3542,12 +3953,13 @@ const state = {
   pendingAction: null,
 };
 
-// ── View switching ────────────────────────────────────────────────
+//  View switching 
 function showView(view) {
+  closeSettings();
   document.getElementById("sidebar")?.classList.remove("open");
   document.getElementById("sidebarOverlay")?.classList.remove("open");
   const shell = document.getElementById("appShell");
-  shell.classList.remove("page-memory", "page-diagnostics", "page-profile", "page-connectors", "page-version");
+  shell.classList.remove("page-memory", "page-profile");
   document.getElementById("pageEnhance").style.display = "none";
   document.getElementById("pageBrain").style.display = "none";
   document.getElementById("pageProfile").style.display = "none";
@@ -3555,10 +3967,10 @@ function showView(view) {
   document.getElementById("pageConnectors").style.display = "none";
   document.getElementById("pageVersion").style.display = "none";
 
-  const titles = { enhance: "Enhance", brain: "Memory", profile: "Profile", diagnostics: "Diagnostics", connectors: "Connectors", version: "Version" };
+  const titles = { enhance: "Enhance", brain: "Memory", profile: "Profile" };
   document.getElementById("topbarViewTitle").textContent = titles[view] || view;
 
-  ["enhance","brain","profile","diagnostics","connectors","version"].forEach(v => {
+  ["enhance","brain","profile"].forEach(v => {
     document.getElementById("nav-" + v)?.classList.remove("active");
   });
   document.getElementById("nav-" + view)?.classList.add("active");
@@ -3577,19 +3989,49 @@ function showView(view) {
     shell.classList.add("page-profile");
     document.getElementById("pageProfile").style.display = "block";
     loadProfile();
-  } else if (view === "diagnostics") {
-    shell.classList.add("page-diagnostics");
-    document.getElementById("pageDiagnostics").style.display = "flex";
-  } else if (view === "connectors") {
-    shell.classList.add("page-connectors");
-    document.getElementById("pageConnectors").style.display = "flex";
-  } else if (view === "version") {
-    shell.classList.add("page-version");
-    document.getElementById("pageVersion").style.display = "flex";
-    loadVersionHealth();
   } else {
     document.getElementById("pageEnhance").style.display = "flex";
   }
+}
+
+function refreshVersionCopy() {
+  const versionPage = document.getElementById("pageVersion");
+  if (!versionPage) return;
+
+  const badge = versionPage.querySelector(".version-badge");
+  if (badge) badge.textContent = "ThinkVelocity - v2.2.0 - Neuro Orchestrator live";
+
+  const heroCopy = versionPage.querySelector(".version-hero p");
+  if (heroCopy) {
+    heroCopy.textContent = "A lean prompt engineering workspace with a Neuro Orchestrator, guided Refine flow, context uploads, Research / Build / Media workflows, and persistent settings. The UI now asks only for information that materially improves the outcome.";
+  }
+
+  versionPage.querySelectorAll(".pipeline-step-body strong").forEach((title) => {
+    const paragraph = title.nextElementSibling;
+    if (!paragraph) return;
+    if (title.textContent.includes("Memory read")) {
+      title.textContent = "Semantic memory read (unless incognito)";
+      paragraph.innerHTML = "The active memory layer reads your stored context from PostgreSQL through <code>GET /context/:userId</code>. It ranks prior work against the current prompt and injects the 3-5 most relevant memories instead of blindly sending the newest items.";
+    }
+    if (title.textContent.includes("Memory write")) {
+      title.textContent = "PostgreSQL memory write (unless incognito)";
+      paragraph.innerHTML = "After a successful enhance, the app persists durable context into the <code>user_contexts</code> table. Existing JSON contexts were migrated into Postgres, and the Brain/Profile views keep using the same API contract.";
+    }
+  });
+
+  versionPage.querySelectorAll(".version-card h3").forEach((title) => {
+    if (title.textContent.trim() !== "Memory / Brain") return;
+    const paragraph = title.nextElementSibling;
+    if (paragraph) {
+      paragraph.textContent = "Persistent user context now runs on PostgreSQL. Visualised as a live knowledge graph. Supports incognito mode to skip read/write entirely.";
+    }
+  });
+
+  versionPage.querySelectorAll(".stack-pill").forEach((pill) => {
+    if (pill.textContent.includes("JSON flat-file storage")) {
+      pill.textContent = "Postgres-backed memory";
+    }
+  });
 }
 
 function loadVersionHealth() {
@@ -3597,14 +4039,46 @@ function loadVersionHealth() {
   const txt = document.getElementById("versionHealthText");
   fetch(BASE + "/health").then(r => r.json()).then(d => {
     dot.style.background = "var(--ok)";
-    txt.textContent = "API live · model: " + (d.model || "–") + " · env: " + (d.env || "–");
+    txt.textContent = "API live - model: " + (d.model || "") + " - env: " + (d.env || "");
   }).catch(() => {
     dot.style.background = "var(--bad)";
     txt.textContent = "Cannot reach API";
   });
 }
 
-// ── Enhance mode tabs ─────────────────────────────────────────────
+function openSettings(tab = "connectors") {
+  document.getElementById("settingsModal")?.classList.add("visible");
+  showSettingsTab(tab);
+}
+
+function closeSettings() {
+  document.getElementById("settingsModal")?.classList.remove("visible");
+}
+
+function settingsBackdropClose(event) {
+  if (event.target?.id === "settingsModal") closeSettings();
+}
+
+function showSettingsTab(tab) {
+  const map = { connectors: "pageConnectors", diagnostics: "pageDiagnostics", version: "pageVersion" };
+  const target = document.getElementById(map[tab]);
+  const content = document.getElementById("settingsContent");
+  if (!target || !content) return;
+  Object.values(map).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
+  document.querySelectorAll(".settings-tab").forEach(btn => btn.classList.remove("active"));
+  document.getElementById("settingsTab-" + tab)?.classList.add("active");
+  content.appendChild(target);
+  target.style.display = "flex";
+  if (tab === "version") {
+    refreshVersionCopy();
+    loadVersionHealth();
+  }
+}
+
+//  Enhance mode tabs 
 function setEnhMode(mode) {
   ['enhance','cothinker','chat'].forEach(m => {
     const key = m.charAt(0).toUpperCase() + m.slice(1);
@@ -3620,21 +4094,56 @@ function setEnhMode(mode) {
   if (mode === 'chat') agRenderSuggestions(agChatMode);
 }
 
-// ── Prompt mode (Research / Fast Build / Media) ───────────────────
+//  Prompt mode (Research / Fast Build / Media) 
 function setPromptMode(mode) {
   state.promptMode = mode;
   document.querySelectorAll('.pm-tab').forEach(btn => btn.classList.remove('active'));
   document.getElementById('pmTab-' + mode)?.classList.add('active');
+  updateNeuroPanel({
+    status: "mode",
+    title: mode === "fast_build" ? "Build workflow" : `${mode.charAt(0).toUpperCase()}${mode.slice(1)} workflow`,
+    goal: getModeDescription(mode),
+    contextNeeds: getModeNeeds(mode),
+    action: `Use ${mode === "fast_build" ? "Build" : mode} routing for the next enhancement.`
+  });
 }
 
-// ── Workspace context token ───────────────────────────────────────
+function getModeDescription(mode) {
+  if (mode === "fast_build") return "Turn the user's request into an executable build plan, implementation prompt, or working artifact with minimal back-and-forth.";
+  if (mode === "media") return "Shape the request for image, audio, video-adjacent, or content-production output while preserving visual and format constraints.";
+  return "Gather evidence, constraints, and source context before producing a high-confidence research prompt.";
+}
+
+function getModeNeeds(mode) {
+  if (mode === "fast_build") return ["Target stack or tool", "Definition of done", "Constraints and existing assets"];
+  if (mode === "media") return ["Medium and dimensions", "Style references", "Audience or platform"];
+  return ["Research question", "Freshness requirement", "Preferred output format"];
+}
+
+function updateNeuroPanel({ status, title, goal, contextNeeds, action } = {}) {
+  if (status) document.getElementById("neuroStatePill").textContent = status;
+  if (title) document.getElementById("neuroGoalTitle").textContent = title;
+  if (goal) document.getElementById("neuroGoalText").textContent = goal;
+  if (Array.isArray(contextNeeds)) {
+    document.getElementById("neuroContextNeeds").innerHTML = contextNeeds.map(item => `<li>${escapeHtml(String(item))}</li>`).join("") || "<li>None.</li>";
+  }
+  if (action) {
+    document.getElementById("neuroNextAction").innerHTML = `<div class="neuro-action-title">Next action</div><div class="neuro-action-meta">${escapeHtml(action)}</div>`;
+  }
+}
+
+function toggleNeuroInspect() {
+  document.getElementById("neuroInspect")?.classList.toggle("visible");
+}
+
+//  Workspace context token 
 function connSaveToken() {
   const token = document.getElementById("connToken")?.value.trim();
   if (!token) { alert("Paste an OAuth access token first."); return; }
   localStorage.setItem("ws_access_token", token);
   document.getElementById("wsContextRow").style.display = "flex";
   const btn = document.getElementById("connSaveBtn");
-  if (btn) { btn.textContent = "✓ Saved"; setTimeout(() => { btn.textContent = "⬡ Save for Workspace"; }, 2000); }
+  if (btn) { btn.textContent = " Saved"; setTimeout(() => { btn.textContent = " Save for Workspace"; }, 2000); }
 }
 
 function wsInitToggle() {
@@ -3642,6 +4151,46 @@ function wsInitToggle() {
     const row = document.getElementById("wsContextRow");
     if (row) row.style.display = "flex";
   }
+}
+
+function renderUploadChip(label, isError = false) {
+  const wrap = document.getElementById("uploadChips");
+  if (!wrap) return;
+  const chip = document.createElement("div");
+  chip.className = "upload-chip" + (isError ? " error" : "");
+  chip.innerHTML = `<span>${escapeHtml(label)}</span>`;
+  wrap.appendChild(chip);
+}
+
+async function handleUploads(files) {
+  if (!files || !files.length) return;
+  for (const file of files) {
+    const lower = file.name.toLowerCase();
+    if (file.type.startsWith("video/") || file.type.startsWith("model/") || /\.(mp4|mov|avi|mkv|webm|glb|gltf|obj|fbx|stl|usdz)$/.test(lower)) {
+      renderUploadChip(`${file.name} blocked`, true);
+      continue;
+    }
+    const form = new FormData();
+    form.append("file", file);
+    form.append("user_id", userId());
+    try {
+      const res = await fetch(`${BASE}/uploads`, { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail?.message || data.detail?.reason || "Upload failed");
+      state.uploads.push(data);
+      renderUploadChip(data.filename || file.name);
+      updateNeuroPanel({
+        status: "context-added",
+        title: "Context uploaded",
+        goal: "Uploaded context is available for this session and future prompt work where useful.",
+        contextNeeds: state.uploads.slice(-3).map(u => `${u.category || u.kind || "file"}: ${u.filename}`),
+        action: "Enhance or refine with the uploaded context attached to the user's current goal."
+      });
+    } catch (e) {
+      renderUploadChip(`${file.name}: ${e.message}`, true);
+    }
+  }
+  document.getElementById("uploadInput").value = "";
 }
 
 async function wsGatherContext(prompt) {
@@ -3665,7 +4214,7 @@ async function wsGatherContext(prompt) {
   }
 }
 
-// ── Incognito ─────────────────────────────────────────────────────
+//  Incognito 
 function toggleIncognito() {
   state.incognito = !state.incognito;
   const btn = document.getElementById("incognitoBtn");
@@ -3676,7 +4225,7 @@ function toggleIncognito() {
   }
 }
 
-// ── Clear workspace ───────────────────────────────────────────────
+//  Clear workspace 
 function clearWorkspace() {
   document.getElementById("promptInput").value = "";
   document.getElementById("intentQAPanel").classList.remove("visible");
@@ -3702,20 +4251,20 @@ function clearWorkspace() {
 }
 
 function clearDetails() {
-  document.getElementById("tab-annotations").innerHTML = `<div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-icon" style="font-size:24px">◫</div><div class="empty-state-text" style="font-size:12px">Annotations appear after enhancement.</div></div>`;
-  document.getElementById("tab-signal").innerHTML = `<div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-icon" style="font-size:24px">◎</div><div class="empty-state-text" style="font-size:12px">Signal scoring appears after enhancement.</div></div>`;
-  document.getElementById("tab-metadata").innerHTML = `<div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-icon" style="font-size:24px">◫</div><div class="empty-state-text" style="font-size:12px">Metadata appears after enhancement.</div></div>`;
-  document.getElementById("tab-raw").innerHTML = `<div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-icon" style="font-size:24px">◫</div><div class="empty-state-text" style="font-size:12px">Raw JSON appears after enhancement.</div></div>`;
+  document.getElementById("tab-annotations").innerHTML = `<div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-icon" style="font-size:24px">-</div><div class="empty-state-text" style="font-size:12px">Annotations appear after enhancement.</div></div>`;
+  document.getElementById("tab-signal").innerHTML = `<div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-icon" style="font-size:24px">-</div><div class="empty-state-text" style="font-size:12px">Signal scoring appears after enhancement.</div></div>`;
+  document.getElementById("tab-metadata").innerHTML = `<div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-icon" style="font-size:24px">-</div><div class="empty-state-text" style="font-size:12px">Metadata appears after enhancement.</div></div>`;
+  document.getElementById("tab-raw").innerHTML = `<div class="empty-state" style="height:auto;padding:24px 0"><div class="empty-state-icon" style="font-size:24px">-</div><div class="empty-state-text" style="font-size:12px">Raw JSON appears after enhancement.</div></div>`;
 }
 
-// ── Status dot ────────────────────────────────────────────────────
+//  Status dot 
 function setStatus(s) {
   const dot = document.getElementById("statusDot");
   dot.className = "status-dot" + (s === "busy" ? " busy" : s === "error" ? " error" : "");
-  dot.title = s === "busy" ? "Processing…" : s === "error" ? "Error" : "Ready";
+  dot.title = s === "busy" ? "Processing" : s === "error" ? "Error" : "Ready";
 }
 
-// ── User ID ───────────────────────────────────────────────────────
+//  User ID 
 function userId() {
   return document.getElementById("userIdInput").value.trim() || "sandbox-user";
 }
@@ -3729,7 +4278,7 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-// ── Intent classification flow (single-shot) ─────────────────────
+//  Intent classification flow (single-shot) 
 async function runEnhance() {
   const prompt = document.getElementById("promptInput").value.trim();
   if (!prompt) return;
@@ -3764,12 +4313,19 @@ async function runEnhance() {
     if (!res.ok) throw new Error("intent failed");
 
     state.lastIntent = data;
+    updateNeuroPanel({
+      status: data.is_finalized ? "intent-ready" : "clarify",
+      title: data.intent ? String(data.intent).replace(/_/g, " ") : "Intent check",
+      goal: data.interpreted_need || "Neuro is checking whether the prompt has enough context to proceed.",
+      contextNeeds: (data.questions || []).map(q => q.question).slice(0, 3),
+      action: data.is_finalized ? "Proceed with enhancement." : "Ask only these missing-context questions before enhancement."
+    });
 
     if (data.is_finalized || !data.questions.length) {
-      // No gaps — go straight to enhance
+      // No gaps  go straight to enhance
       showIntentFinalized(data);
     } else {
-      // Gaps found — show all questions at once (single shot)
+      // Gaps found  show all questions at once (single shot)
       showIntentQAQuestions(data);
     }
   } catch {
@@ -3807,7 +4363,7 @@ function showIntentQAQuestions(data) {
           `<span class="intent-qa-opt" data-qi="${i}" data-field="${q.id}" data-val="${opt}" onclick="selectQAOpt(this)">${opt}</span>`
         ).join("")}
       </div>
-      <input class="intent-qa-custom" data-qi="${i}" data-field="${q.id}" placeholder="Or type your own answer…" oninput="onQACustomInput(${i}, this.value)" />
+      <input class="intent-qa-custom" data-qi="${i}" data-field="${q.id}" placeholder="Or type your own answer" oninput="onQACustomInput(${i}, this.value)" />
     `;
     container.appendChild(card);
     state.intentQAAnswers.push({ field: q.id, value: "" });
@@ -3816,8 +4372,10 @@ function showIntentQAQuestions(data) {
   document.getElementById("intentQASummary").style.display = "none";
   document.getElementById("btnIntentSubmit").disabled = false;
   document.querySelector(".intent-qa-actions").innerHTML = `
-    <button class="btn-primary" id="btnIntentSubmit" onclick="submitIntentQA()">→ Looks good — Enhance</button>
-    <button class="btn-secondary" onclick="skipIntentQA()">Skip Q&A</button>
+    <button class="btn-primary" id="btnIntentSubmit" onclick="submitIntentQA()">Confirm & Enhance</button>
+    <button class="btn-secondary" onclick="editIntentManually()">Edit intent</button>
+    <button class="btn-secondary" onclick="refineCurrentIntent()">Refine intent</button>
+    <button class="btn-secondary" onclick="skipIntentQA()">Skip</button>
   `;
   panel.classList.add("visible");
   document.getElementById("btnEnhance").disabled = false;
@@ -3831,7 +4389,7 @@ function showIntentFinalized(data) {
 
   document.getElementById("intentConfidence").textContent = conf + "% confident";
   document.getElementById("intentQAStatus").innerHTML = `
-    <span class="finalized">✓ Intent confirmed</span>
+    <span class="finalized">Intent ready</span>
     <span style="margin-left:auto">
       <span class="intent-tag">${data.intent.replace(/_/g, " ")}</span>
       <span class="intent-tag">${data.domain.replace(/_/g, " ")}</span>
@@ -3845,7 +4403,9 @@ function showIntentFinalized(data) {
   summary.textContent = data.interpreted_need || "Intent confirmed.";
 
   document.querySelector(".intent-qa-actions").innerHTML = `
-    <button class="btn-primary" onclick="proceedWithIntent()">✓ Looks right — Enhance</button>
+    <button class="btn-primary" onclick="proceedWithIntent()">Confirm & Enhance</button>
+    <button class="btn-secondary" onclick="editIntentManually()">Edit intent</button>
+    <button class="btn-secondary" onclick="refineCurrentIntent()">Refine intent</button>
     <button class="btn-secondary" onclick="skipIntentQA()">Skip</button>
   `;
 
@@ -3869,6 +4429,65 @@ function onQACustomInput(qi, value) {
   const opts = document.getElementById(`qaOpts-${qi}`);
   if (opts) opts.querySelectorAll(".intent-qa-opt").forEach(o => o.classList.remove("selected"));
   state.intentQAAnswers[qi].value = value;
+}
+
+function editIntentManually() {
+  const summary = document.getElementById("intentQASummary");
+  const current = state.lastIntent?.interpreted_need || document.getElementById("promptInput").value.trim();
+  state.intentManualDraft = current;
+  document.getElementById("intentQAQuestions").innerHTML = "";
+  summary.style.display = "";
+  summary.innerHTML = `
+    <label class="detail-section-label" for="intentManualEdit">Edit interpreted intent</label>
+    <textarea class="intent-edit-box" id="intentManualEdit">${escapeHtml(current)}</textarea>
+  `;
+  document.querySelector(".intent-qa-actions").innerHTML = `
+    <button class="btn-primary" onclick="saveManualIntent()">Save intent</button>
+    <button class="btn-secondary" onclick="proceedWithIntent()">Confirm & Enhance</button>
+    <button class="btn-secondary" onclick="refineCurrentIntent()">Refine intent</button>
+  `;
+}
+
+function saveManualIntent() {
+  const value = document.getElementById("intentManualEdit")?.value.trim();
+  if (!value) return;
+  state.lastIntent = {
+    ...(state.lastIntent || {}),
+    interpreted_need: value,
+    deliverable: value,
+    is_finalized: true,
+    confidence: 1.0,
+  };
+  const summary = document.getElementById("intentQASummary");
+  summary.textContent = value;
+  document.querySelector(".intent-qa-actions").innerHTML = `
+    <button class="btn-primary" onclick="proceedWithIntent()">Confirm & Enhance</button>
+    <button class="btn-secondary" onclick="editIntentManually()">Edit intent</button>
+    <button class="btn-secondary" onclick="refineCurrentIntent()">Refine intent</button>
+  `;
+  updateNeuroPanel({
+    status: "intent-edited",
+    title: "Intent manually edited",
+    goal: value,
+    contextNeeds: [],
+    action: "Confirm and enhance, or refine the edited intent first."
+  });
+}
+
+function refineCurrentIntent() {
+  const edited = document.getElementById("intentManualEdit")?.value.trim();
+  if (edited) {
+    state.lastIntent = {
+      ...(state.lastIntent || {}),
+      interpreted_need: edited,
+      deliverable: edited,
+      is_finalized: true,
+      confidence: 1.0,
+    };
+    document.getElementById("promptInput").value = edited;
+  }
+  document.getElementById("intentQAPanel").classList.remove("visible");
+  openRefinePanel();
 }
 
 async function submitIntentQA() {
@@ -3919,7 +4538,7 @@ function proceedWithIntent() {
   }
 }
 
-// ── Enhance (actual SSE streaming) ────────────────────────────────
+//  Enhance (actual SSE streaming) 
 function enhancementPayload(intentConfirmation, promptOverride) {
   return {
     prompt: promptOverride || document.getElementById("promptInput").value.trim(),
@@ -3928,6 +4547,7 @@ function enhancementPayload(intentConfirmation, promptOverride) {
     prompt_mode: state.promptMode || "research",
     incognito: state.incognito,
     intent_confirmation: intentConfirmation || null,
+    uploads: state.uploads.map(u => ({ upload_id: u.upload_id, filename: u.filename, category: u.category || u.kind, text_preview: u.text_preview || u.preview || "" })).slice(-5),
   };
 }
 
@@ -4041,6 +4661,13 @@ function handleEnhanceResult(result) {
   renderDetailsAnnotations(segments);
   renderDetailsMetadata(result);
   renderDetailsRaw(result);
+  updateNeuroPanel({
+    status: "enhanced",
+    title: result.intent ? String(result.intent).replace(/_/g, " ") : "Prompt improved",
+    goal: result.summary || result.interpreted_need || "Enhanced prompt is ready. Neuro has updated the actionable inspector and quality signal.",
+    contextNeeds: (result.clarification_questions || []).map(q => q.question || q).slice(0, 3),
+    action: (result.clarification_questions || []).length ? "Answer the highest-impact refine questions before regenerating." : "Use, copy, compare, or refine only if the current output misses the target."
+  });
   scoreNeuroPrompt(result);
 
   // Clarification questions
@@ -4068,7 +4695,7 @@ function renderAIRecommendations(recs) {
     row.innerHTML = `
       <div class="ai-rec-rank r${rec.rank}">${rec.rank}</div>
       <div class="ai-rec-body">
-        <div class="ai-rec-name">${rec.ai} <span style="font-size:10px;color:var(--faint);font-weight:400">— ${rankLabels[rec.rank] || ""}</span></div>
+        <div class="ai-rec-name">${rec.ai} <span style="font-size:10px;color:var(--faint);font-weight:400"> ${rankLabels[rec.rank] || ""}</span></div>
         <div class="ai-rec-reason">${rec.reason}</div>
       </div>
     `;
@@ -4113,7 +4740,7 @@ async function scoreNeuroPrompt(result) {
 
 function renderNeuroSignal(data) {
   document.getElementById("neuroSignalScore").textContent = data.overall_score || 0;
-  document.getElementById("neuroSignalLabel").textContent = `${data.label || "Signal"} · Delta ${(data.score_delta || 0) >= 0 ? "+" : ""}${data.score_delta || 0}`;
+  document.getElementById("neuroSignalLabel").textContent = `${data.label || "Signal"} - Delta ${(data.score_delta || 0) >= 0 ? "+" : ""}${data.score_delta || 0}`;
   const bars = document.getElementById("neuroSignalBars");
   bars.innerHTML = "";
   Object.entries(data.dimensions || {}).forEach(([key, value]) => {
@@ -4203,7 +4830,7 @@ function renderPlaceholders(fields) {
     row.innerHTML = `
       <span class="placeholder-tag">${f.placeholder}</span>
       <span class="placeholder-desc">${f.description || f.label || ""}</span>
-      <input class="placeholder-input" data-key="${f.key}" data-placeholder="${f.placeholder}" placeholder="Enter value…" />
+      <input class="placeholder-input" data-key="${f.key}" data-placeholder="${f.placeholder}" placeholder="Enter value" />
     `;
     container.appendChild(row);
   }
@@ -4236,7 +4863,7 @@ function renderClarificationQuestions(questions) {
       });
       html += `</div>`;
     }
-    html += `<input class="clarification-input" data-qi="${i}" placeholder="Your answer…" oninput="state.clarificationAnswers[${i}].answer=this.value" />`;
+    html += `<input class="clarification-input" data-qi="${i}" placeholder="Your answer" oninput="state.clarificationAnswers[${i}].answer=this.value" />`;
     div.innerHTML = html;
     qList.appendChild(div);
   });
@@ -4261,21 +4888,53 @@ function skipClarification() {
   document.getElementById("clarificationPanel").classList.remove("visible");
 }
 
-// ── Refine ────────────────────────────────────────────────────────
-function openRefinePanel() {
+//  Refine 
+async function openRefinePanel() {
   const panel = document.getElementById("refinePanel");
   const qList = document.getElementById("refineQList");
-  const questions = state.lastResult?.clarification_questions || [];
+  qList.innerHTML = `<div style="color:var(--muted);font-size:12px">Preparing guided refinement...</div>`;
+  panel.classList.add("visible");
+
+  let prepare = null;
+  try {
+    const res = await fetch(`${BASE}/refine/prepare`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        original_prompt: document.getElementById("promptInput").value.trim(),
+        previous_enhanced_prompt: state.lastResult?.enhanced_prompt || null,
+        user_id: userId(),
+        target_ai: document.getElementById("targetAiSelect").value || null,
+        prompt_mode: state.promptMode || "research",
+        selected_mode: state.promptMode === "fast_build" ? "build" : state.promptMode,
+        attachments: uploadAttachments(),
+        incognito: state.incognito,
+      }),
+    });
+    if (res.ok) prepare = await res.json();
+  } catch {}
+
+  state.refinePrepare = prepare;
+  const questions = prepare?.questions?.length ? prepare.questions : (state.lastResult?.clarification_questions || []);
   qList.innerHTML = "";
 
+  if (prepare?.context_patterns?.length) {
+    const patterns = document.createElement("div");
+    patterns.className = "neuro-card-sm";
+    patterns.style.marginBottom = "10px";
+    patterns.innerHTML = `<h4>Useful history</h4><ul>${prepare.context_patterns.map(p => `<li>${escapeHtml(p)}</li>`).join("")}</ul>`;
+    qList.appendChild(patterns);
+  }
+
   if (questions.length > 0) {
-    // Use backend-provided questions
-    state.refineAnswers = questions.map(q => ({ question: q.question, answer: "" }));
-    questions.forEach((q, i) => {
+    state.refineAnswers = questions.slice(0, 3).map(q => ({ question: q.question || q, answer: "", metadata: q }));
+    questions.slice(0, 3).forEach((q, i) => {
       const div = document.createElement("div");
       div.style.marginBottom = "10px";
-      div.innerHTML = `<div class="clarification-q">${i + 1}. ${q.question}</div>
-        <input class="clarification-input" placeholder="Your answer…" oninput="state.refineAnswers[${i}].answer=this.value" />`;
+      const why = q.why_it_matters ? `<div style="font-size:11px;color:var(--faint);margin-top:2px">${escapeHtml(q.why_it_matters)}</div>` : "";
+      const options = q.options?.length ? `<div class="clarification-options">${q.options.map(opt => `<span class="clarification-opt" data-qi="${i}" data-val="${escapeHtml(opt)}" onclick="selectRefineOpt(this)">${escapeHtml(opt)}</span>`).join("")}</div>` : "";
+      div.innerHTML = `<div class="clarification-q">${i + 1}. ${escapeHtml(q.question || q)}</div>${why}${options}
+        <input class="clarification-input" placeholder="Your answer" oninput="state.refineAnswers[${i}].answer=this.value" />`;
       qList.appendChild(div);
     });
   } else {
@@ -4288,7 +4947,7 @@ function openRefinePanel() {
       const div = document.createElement("div");
       div.style.marginBottom = "10px";
       div.innerHTML = `<div class="clarification-q">${i + 1}. ${q}</div>
-        <input class="clarification-input" placeholder="Your answer…" oninput="state.refineAnswers[${i}].answer=this.value" />`;
+        <input class="clarification-input" placeholder="Your answer" oninput="state.refineAnswers[${i}].answer=this.value" />`;
       qList.appendChild(div);
     });
   }
@@ -4298,13 +4957,37 @@ function openRefinePanel() {
   state.refineAnswers.push({ question: "Additional instructions", answer: "" });
   const notesDiv = document.createElement("div");
   notesDiv.style.marginTop = "6px";
-  notesDiv.innerHTML = `<div class="clarification-q" style="color:var(--muted)">Anything else? (tone, length, style…)</div>
+  notesDiv.innerHTML = `<div class="clarification-q" style="color:var(--muted)">Anything else? (tone, length, style)</div>
     <textarea class="clarification-input" style="min-height:56px;resize:vertical"
-      placeholder="e.g. Make it shorter, add examples, change tone to informal…"
+      placeholder="e.g. Make it shorter, add examples, change tone to informal"
       oninput="state.refineAnswers[${notesIdx}].answer=this.value"></textarea>`;
   qList.appendChild(notesDiv);
+  updateNeuroPanel({
+    status: "refine",
+    title: "Guided refinement",
+    goal: prepare?.neuro_state?.user_final_goal || "Refine is asking only the highest-impact questions before regenerating.",
+    contextNeeds: questions.map(q => q.question || q).slice(0, 3),
+    action: prepare?.decision?.primary_action?.description || "Answer what matters, then finalize the refined prompt."
+  });
+}
 
-  panel.classList.add("visible");
+function uploadAttachments() {
+  return state.uploads.map(u => ({
+    id: u.upload_id,
+    name: u.filename || u.name || "upload",
+    media_type: u.content_type || u.media_type || "",
+    extracted_text: u.text_preview || u.extracted_text || "",
+    summary: u.context_summary || u.summary || "",
+  })).slice(-5);
+}
+
+function selectRefineOpt(el) {
+  const qi = parseInt(el.dataset.qi);
+  el.closest(".clarification-options").querySelectorAll(".clarification-opt").forEach(o => o.classList.remove("selected"));
+  el.classList.add("selected");
+  state.refineAnswers[qi].answer = el.dataset.val;
+  const input = el.closest(".clarification-options")?.nextElementSibling;
+  if (input) input.value = el.dataset.val;
 }
 
 function generateRefinementQuestions(intent, domain) {
@@ -4317,7 +5000,7 @@ function generateRefinementQuestions(intent, domain) {
     data_analysis:        ["What output format do you need (table, code, chart)?", "Any specific time range or data filters to apply?"],
     learning_explanation: ["What is your current experience level with this topic?", "Should analogies or step-by-step examples be included?"],
     architecture_design:  ["What are the key scale or reliability requirements?", "Are there existing systems or constraints to respect?"],
-    copywriting:          ["What is the desired tone — formal, casual, persuasive?", "What action should the reader take after reading?"],
+    copywriting:          ["What is the desired tone  formal, casual, persuasive?", "What action should the reader take after reading?"],
     general_qa:           ["How detailed should the response be?", "Should it be structured (sections/bullets) or conversational?"],
   };
   const domainQs = {
@@ -4337,28 +5020,37 @@ function closeRefinePanel() {
 }
 
 async function submitRefine() {
-  if (!state.lastResult) return;
+  const originalPrompt = document.getElementById("promptInput").value.trim();
+  if (!originalPrompt) return;
   const panel = document.getElementById("refinePanel");
   panel.classList.remove("visible");
 
   setStatus("busy");
   document.getElementById("streamSpinner").classList.add("visible");
   try {
-    const res = await fetch(`${BASE}/refine`, {
+    const res = await fetch(`${BASE}/refine/finalize`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         original_prompt: document.getElementById("promptInput").value.trim(),
         clarification_qa: state.refineAnswers.filter(a => a.answer),
-        previous_enhanced_prompt: state.lastResult.enhanced_prompt,
-        previous_annotated_segments: state.lastResult.annotated_segments || [],
-        previous_framework_used: state.lastResult.framework_used || null,
-        previous_pe_techniques_applied: state.lastResult.pe_techniques_applied || [],
-        previous_placeholder_fields: state.lastResult.placeholder_fields || [],
+        previous_enhanced_prompt: state.lastResult?.enhanced_prompt || null,
+        previous_annotated_segments: state.lastResult?.annotated_segments || [],
+        previous_framework_used: state.lastResult?.framework_used || null,
+        previous_pe_techniques_applied: state.lastResult?.pe_techniques_applied || [],
+        previous_placeholder_fields: state.lastResult?.placeholder_fields || [],
         user_id: userId(),
         target_ai: document.getElementById("targetAiSelect").value || null,
         prompt_mode: state.promptMode || "research",
         incognito: state.incognito,
+        context_patterns: state.refinePrepare?.context_patterns || [],
+        neuro_state: state.refinePrepare?.neuro_state || null,
+        refine_prepare_metadata: {
+          questions: state.refinePrepare?.questions || [],
+          decision: state.refinePrepare?.decision || null,
+          memory_candidates: state.refinePrepare?.memory_candidates || [],
+          profile_update_candidates: state.refinePrepare?.profile_update_candidates || [],
+        },
       }),
     });
     const data = await res.json();
@@ -4374,7 +5066,24 @@ async function submitRefine() {
   }
 }
 
-// ── Compare ───────────────────────────────────────────────────────
+//  Compare 
+function toggleCompareDrawer() {
+  const drawer = document.getElementById("compareDrawer");
+  if (!drawer) return;
+  if (!drawer.classList.contains("visible")) {
+    drawer.classList.add("visible");
+    updateNeuroPanel({
+      status: "compare-ready",
+      title: "Compare before running",
+      goal: "Pick two models only when comparison is useful. This avoids triggering extra model work until the user explicitly asks.",
+      contextNeeds: ["Model A", "Model B", "Same mode and intent baseline"],
+      action: "Choose the models, then press Run Compare."
+    });
+    return;
+  }
+  runCompare();
+}
+
 async function runCompare() {
   const prompt = document.getElementById("promptInput").value.trim();
   if (!prompt) return;
@@ -4425,7 +5134,7 @@ async function runActualCompare() {
   document.getElementById("btnCompare").disabled = true;
   document.getElementById("emptyState").style.display = "none";
   document.getElementById("compareCard").classList.add("visible");
-  document.getElementById("compareResults").innerHTML = `<div style="color:var(--muted);font-size:13px">Running comparison…</div>`;
+  document.getElementById("compareResults").innerHTML = `<div style="color:var(--muted);font-size:13px">Running comparison</div>`;
   try {
     const modelA = document.getElementById("compareModelA").value;
     const modelB = document.getElementById("compareModelB").value;
@@ -4474,7 +5183,7 @@ function renderCompareResults(data, modelA, modelB) {
   });
 }
 
-// ── Copy ──────────────────────────────────────────────────────────
+//  Copy 
 async function copyEnhanced() {
   const text = state.lastResult?.enhanced_prompt || document.getElementById("enhancedText").textContent;
   try {
@@ -4482,7 +5191,7 @@ async function copyEnhanced() {
   } catch {}
 }
 
-// ── Details tabs ──────────────────────────────────────────────────
+//  Details tabs 
 function switchTab(name) {
   document.querySelectorAll(".details-tab").forEach((t, i) => {
     const names = ["annotations","signal","metadata","raw"];
@@ -4533,7 +5242,7 @@ function renderDetailsMetadata(result) {
     ["Prompt version", result.prompt_version?.slice(0, 12)],
     ["Prompt mode", result.prompt_mode],
     ["Quality score", result.prompt_quality_score],
-    ["Repair status", result._repair_status || "—"],
+    ["Repair status", result._repair_status || ""],
     ["Tokens used", result._usage?.total_tokens],
     ["Prompt tokens", result._usage?.prompt_tokens],
     ["Completion tokens", result._usage?.completion_tokens],
@@ -4565,12 +5274,12 @@ function renderDetailsRaw(result) {
   pane.innerHTML = `<pre style="font-family:var(--mono);font-size:11px;color:var(--muted);white-space:pre-wrap;word-break:break-all">${JSON.stringify(result, null, 2)}</pre>`;
 }
 
-// ── Profile / Personalization ─────────────────────────────────────
+//  Profile / Personalization 
 async function loadProfile() {
   const review = document.getElementById("profileReview");
   if (!review) return;
-  review.innerHTML = `<div style="color:var(--muted);font-size:12px;padding:16px">Loading…</div>`;
-  setBadge("…", "");
+  review.innerHTML = `<div style="color:var(--muted);font-size:12px;padding:16px">Loading</div>`;
+  setBadge("", "");
   try {
     const r = await fetch(`${BASE}/context/${userId()}`);
     const ctx = await r.json();
@@ -4637,8 +5346,8 @@ async function saveExtractedProfile() {
 
 function clearProfileDraft() {
   state.profileDraft = null;
-  setBadge("—", "");
-  document.getElementById("profileReview").innerHTML = `<div class="profile-empty"><div class="profile-empty-icon">◎</div><div class="profile-empty-text">Draft discarded.</div></div>`;
+  setBadge("", "");
+  document.getElementById("profileReview").innerHTML = `<div class="profile-empty"><div class="profile-empty-icon">-</div><div class="profile-empty-text">Draft discarded.</div></div>`;
 }
 
 function setBadge(text, cls) {
@@ -4679,7 +5388,7 @@ function renderProfileReview(data, saved) {
     review.appendChild(row);
   });
   if (review.children.length === 0) {
-    review.innerHTML = `<div class="profile-empty"><div class="profile-empty-icon">◎</div><div class="profile-empty-text">No preferences extracted yet.</div></div>`;
+    review.innerHTML = `<div class="profile-empty"><div class="profile-empty-icon">-</div><div class="profile-empty-text">No preferences extracted yet.</div></div>`;
   }
 }
 
@@ -4694,8 +5403,8 @@ async function autoIngestProfile() {
   const raw = document.getElementById("profIngestData")?.value.trim();
   if (!raw) return;
   const review = document.getElementById("profileReview");
-  review.innerHTML = `<div style="color:var(--muted);font-size:12px;padding:16px">Parsing and extracting…</div>`;
-  setBadge("…", "");
+  review.innerHTML = `<div style="color:var(--muted);font-size:12px;padding:16px">Parsing and extracting</div>`;
+  setBadge("", "");
   try {
     const r = await fetch(`${BASE}/profile/auto-ingest`, {
       method: "POST",
@@ -4719,7 +5428,7 @@ function toggleSidebar() {
   overlay.classList.toggle("open", open);
 }
 
-// ── Segment tooltip ───────────────────────────────────────────────
+//  Segment tooltip 
 function showSegTooltip(e) {
   const tip = document.getElementById("segTooltip");
   document.getElementById("tooltipTechnique").textContent = e.currentTarget.dataset.label || e.currentTarget.dataset.technique;
@@ -4736,19 +5445,19 @@ function hideTooltip() {
   document.getElementById("segTooltip").classList.remove("visible");
 }
 
-// ── Brain / Memory ────────────────────────────────────────────────
+//  Brain / Memory 
 async function loadBrainData() {
   const uid = userId();
   const container = document.getElementById("brainCanvas");
-  container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>Loading memory graph…</div></div>`;
+  container.innerHTML = `<div class="brain-empty"><div class="icon">-</div><div>Loading memory graph</div></div>`;
 
   const insightsPanel = document.getElementById("brainInsights");
   // Show panel immediately with loading states
   if (insightsPanel) {
     insightsPanel.style.display = "flex";
-    document.getElementById("insightClassification").textContent = "Loading…";
-    document.getElementById("insightClusters").innerHTML = `<div style="font-size:12px;color:var(--faint)">Loading…</div>`;
-    document.getElementById("insightMarketBasket").innerHTML = `<div style="font-size:12px;color:var(--faint)">Loading…</div>`;
+    document.getElementById("insightClassification").textContent = "Loading";
+    document.getElementById("insightClusters").innerHTML = `<div style="font-size:12px;color:var(--faint)">Loading</div>`;
+    document.getElementById("insightMarketBasket").innerHTML = `<div style="font-size:12px;color:var(--faint)">Loading</div>`;
   }
 
   try {
@@ -4813,7 +5522,7 @@ function renderBrainGraph(ctx, uid) {
         renderBrainGraphCanvas(ctx, uid);
       }
     }, 2000);
-    container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>Loading graph library…</div></div>`;
+    container.innerHTML = `<div class="brain-empty"><div class="icon">-</div><div>Loading graph library</div></div>`;
     return;
   }
 
@@ -4825,8 +5534,8 @@ function renderBrainGraph(ctx, uid) {
   // Measure container dimensions
   const rect = container.getBoundingClientRect();
   if (rect.width < 50 || rect.height < 50) {
-    // Container not visible yet — show message
-    container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>Resize or refresh to load graph.</div></div>`;
+    // Container not visible yet  show message
+    container.innerHTML = `<div class="brain-empty"><div class="icon">-</div><div>Resize or refresh to load graph.</div></div>`;
     return;
   }
 
@@ -4854,7 +5563,7 @@ function renderBrainGraph(ctx, uid) {
     const recentPrompts = recentCtx.map(r => r.original_prompt || r.summary || "").filter(Boolean);
 
     if (domains.length === 0 && intents.length === 0 && strategies.length === 0 && recentPrompts.length === 0) {
-      container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>No memory data yet — run some enhancements first.</div></div>`;
+      container.innerHTML = `<div class="brain-empty"><div class="icon">-</div><div>No memory data yet  run some enhancements first.</div></div>`;
       return;
     }
 
@@ -4877,13 +5586,13 @@ function renderBrainGraph(ctx, uid) {
     });
 
     recentPrompts.slice(0, 5).forEach((p, i) => {
-      const label = p.slice(0, 30) + (p.length > 30 ? "…" : "");
+      const label = p.slice(0, 30) + (p.length > 30 ? "" : "");
       const nid = "ctx-" + i;
       nodes.add({ id: nid, label: label, title: p, ...nodeStyles.context });
       edges.add({ from: "user", to: nid, title: "recent prompt" });
     });
   } else {
-    container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>No memory data yet — run some enhancements first.</div></div>`;
+    container.innerHTML = `<div class="brain-empty"><div class="icon">-</div><div>No memory data yet  run some enhancements first.</div></div>`;
     return;
   }
 
@@ -4931,7 +5640,7 @@ function renderBrainGraphCanvas(ctx, uid) {
   container.innerHTML = "";
 
   if (!ctx) {
-    container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>No memory data yet.</div></div>`;
+    container.innerHTML = `<div class="brain-empty"><div class="icon">-</div><div>No memory data yet.</div></div>`;
     return;
   }
 
@@ -4942,7 +5651,7 @@ function renderBrainGraphCanvas(ctx, uid) {
   const recentPrompts = recentCtx.map(r => r.original_prompt || r.summary || "").filter(Boolean);
 
   if (domains.length === 0 && rawIntents.length === 0 && strategies.length === 0) {
-    container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>No memory data yet — run some enhancements first.</div></div>`;
+    container.innerHTML = `<div class="brain-empty"><div class="icon">-</div><div>No memory data yet  run some enhancements first.</div></div>`;
     return;
   }
 
@@ -4976,7 +5685,7 @@ function renderBrainGraphCanvas(ctx, uid) {
   rawIntents.slice(0, 8).forEach((it, i) => addNode("int-" + i, it.replace(/_/g, " "), "intent", "Intent: " + it));
   strategies.slice(0, 6).forEach((s, i) => addNode("str-" + i, s, "strategy", "Framework: " + s));
   recentPrompts.slice(0, 5).forEach((p, i) => {
-    const label = p.slice(0, 28) + (p.length > 28 ? "…" : "");
+    const label = p.slice(0, 28) + (p.length > 28 ? "" : "");
     addNode("ctx-" + i, label, "context", p);
   });
 
@@ -5171,7 +5880,7 @@ function renderBrainGraphCanvas(ctx, uid) {
     ctx2.font = "10px Inter, system-ui, sans-serif";
     ctx2.textAlign = "left";
     ctx2.textBaseline = "bottom";
-    ctx2.fillText(graphNodes.length + " nodes · " + graphEdges.length + " connections · click a node for details", 8, H - 4);
+    ctx2.fillText(graphNodes.length + " nodes - " + graphEdges.length + " connections - click a node for details", 8, H - 4);
   };
 
   const loop = () => {
@@ -5197,7 +5906,7 @@ function renderBrainGraphCanvas(ctx, uid) {
         <strong>${n.title || n.label}</strong>
       </div>
       <div style="color:#8a92a6;font-size:11px">
-        ${n.type === "user" ? "User profile — the central identity for this memory graph." :
+        ${n.type === "user" ? "User profile  the central identity for this memory graph." :
           n.type === "domain" ? "Domain worked in across enhancements." :
           n.type === "intent" ? "Intent type detected in past prompts." :
           n.type === "strategy" ? "Prompt engineering framework used." :
@@ -5357,7 +6066,7 @@ function derivePersona(ctx) {
     title = "New Explorer";
   } else if (intentShort.length > 0) {
     title = intentShort[0];
-    if (domainShort.length > 0) title += " · " + domainShort[0];
+    if (domainShort.length > 0) title += " - " + domainShort[0];
   } else {
     title = "ThinkVelocity User";
   }
@@ -5367,10 +6076,10 @@ function derivePersona(ctx) {
   const expLabel = levelLabel[level] || "Intermediate";
   const industry = prefs.industry || "";
 
-  let sub = `${expLabel} · ${count} enhancement${count !== 1 ? "s" : ""}`;
-  if (industry) sub += ` · ${industry}`;
-  if (domains.length > 0) sub += ` · ${domainShort.join(", ")}`;
-  if (strategies.length > 0) sub += ` · prefers ${strategies[0]}`;
+  let sub = `${expLabel} - ${count} enhancement${count !== 1 ? "s" : ""}`;
+  if (industry) sub += ` - ${industry}`;
+  if (domains.length > 0) sub += ` - ${domainShort.join(", ")}`;
+  if (strategies.length > 0) sub += ` - prefers ${strategies[0]}`;
 
   return { label: title, sub, chips: [...domainShort, ...intentShort].slice(0, 6) };
 }
@@ -5415,7 +6124,7 @@ function renderBrainStats(ctx) {
     suggestions.forEach(s => {
       const btn = document.createElement("button");
       btn.className = "brain-suggest-btn";
-      btn.innerHTML = `<span class="brain-suggest-label">✦ Try this</span>${escapeHtml(s)}`;
+      btn.innerHTML = `<span class="brain-suggest-label"> Try this</span>${escapeHtml(s)}`;
       btn.onclick = () => {
         document.getElementById("promptInput").value = s;
         showView("enhance");
@@ -5470,11 +6179,11 @@ function generateProactiveSuggestions(ctx) {
     suggestions.push(`${t} ${ctx_}`);
   });
 
-  // Recent prompt recycling — take the most recent non-trivial prompt
+  // Recent prompt recycling  take the most recent non-trivial prompt
   recentCtx.slice(0, 3).forEach(r => {
     const text = r.original_prompt || r.summary || "";
     if (text.length > 15 && text.length < 200) {
-      suggestions.push(text.slice(0, 120) + (text.length > 120 ? "…" : ""));
+      suggestions.push(text.slice(0, 120) + (text.length > 120 ? "" : ""));
     }
   });
 
@@ -5506,7 +6215,7 @@ async function resetMemory() {
   }
 }
 
-// ── Diagnostics ───────────────────────────────────────────────────
+//  Diagnostics 
 const DIAG_TESTS = {
   health: async () => {
     const r = await fetch(`${BASE}/health`);
@@ -5519,7 +6228,7 @@ const DIAG_TESTS = {
       body: JSON.stringify({ prompt: "Explain neural networks simply", user_id: userId(), prompt_mode: "research", incognito: true }),
     });
     const result = await readSSE(r);
-    return { status: "ok", enhanced_prompt: result?.enhanced_prompt?.slice(0, 100) + "…", score: result?.prompt_quality_score };
+    return { status: "ok", enhanced_prompt: result?.enhanced_prompt?.slice(0, 100) + "", score: result?.prompt_quality_score };
   },
   "enhance-caveman": async () => {
     const r = await fetch(`${BASE}/enhance`, {
@@ -5528,7 +6237,7 @@ const DIAG_TESTS = {
       body: JSON.stringify({ prompt: "Write a for loop in Python", user_id: userId(), prompt_mode: "caveman", incognito: true }),
     });
     const result = await readSSE(r);
-    return { status: "ok", mode: "caveman", enhanced_prompt: result?.enhanced_prompt?.slice(0, 100) + "…", score: result?.prompt_quality_score };
+    return { status: "ok", mode: "caveman", enhanced_prompt: result?.enhanced_prompt?.slice(0, 100) + "", score: result?.prompt_quality_score };
   },
   intent: async () => {
     const r = await fetch(`${BASE}/intent/confirm`, {
@@ -5553,7 +6262,7 @@ const DIAG_TESTS = {
     });
     const d = await r.json();
     if (!r.ok) return { status: "error", detail: d.detail || d };
-    return { status: "ok", refined_prompt: (d.refined_prompt || "").slice(0, 120) + "…" };
+    return { status: "ok", refined_prompt: (d.refined_prompt || "").slice(0, 120) + "" };
   },
   compare: async () => {
     const ctrl = new AbortController();
@@ -5568,7 +6277,7 @@ const DIAG_TESTS = {
       clearTimeout(timer);
       if (!r.ok) { const e = await r.json(); return { status: "error", detail: e.detail?.message || JSON.stringify(e.detail) }; }
       const d = await r.json();
-      return { status: "ok", modes: d.mode_order, results: (d.results || []).map(res => (res.enhanced_prompt || "").slice(0, 60) + "…") };
+      return { status: "ok", modes: d.mode_order, results: (d.results || []).map(res => (res.enhanced_prompt || "").slice(0, 60) + "") };
     } finally {
       clearTimeout(timer);
     }
@@ -5585,7 +6294,7 @@ const DIAG_TESTS = {
       body: JSON.stringify({ prompt: "Test incognito mode", user_id: userId(), incognito: true }),
     });
     const result = await readSSE(r);
-    return { status: "ok", incognito: true, enhanced_prompt: result?.enhanced_prompt?.slice(0, 80) + "…" };
+    return { status: "ok", incognito: true, enhanced_prompt: result?.enhanced_prompt?.slice(0, 80) + "" };
   },
   personalization: async () => {
     const r = await fetch(`${BASE}/personalization/${userId()}/extract`, {
@@ -5621,7 +6330,7 @@ const DIAG_TESTS = {
     const segs = result?.annotated_segments || [];
     const joined = segs.map(s => s.text).join("");
     const match = joined === result?.enhanced_prompt;
-    return { status: match ? "ok" : "mismatch", segment_count: segs.length, concatenation_matches: match, note: match ? "✓ Segments concatenate correctly" : "✗ Mismatch detected" };
+    return { status: match ? "ok" : "mismatch", segment_count: segs.length, concatenation_matches: match, note: match ? " Segments concatenate correctly" : "- Mismatch detected" };
   },
   sources: async () => {
     const r = await fetch(`${BASE}/diagnostics/sources`);
@@ -5673,7 +6382,7 @@ async function diagRun(key) {
   }
 }
 
-// ── CoThinker ─────────────────────────────────────────────────────
+//  CoThinker 
 const ct = {
   messages: [],
   sessionId: null,
@@ -5708,7 +6417,7 @@ async function ctStartRecording() {
   try {
     ct.stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
   } catch (e) {
-    ctSetStatus("Microphone blocked — check browser permissions and try again");
+    ctSetStatus("Microphone blocked  check browser permissions and try again");
     return;
   }
   ct.audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -5789,16 +6498,16 @@ function ctToggleMic() {
 }
 
 async function ctProcessAudio(blob) {
-  if (blob.size < 500) { ctSetStatus("Didn't catch that — pause, then speak clearly"); return; }
+  if (blob.size < 500) { ctSetStatus("Didn't catch that  pause, then speak clearly"); return; }
   ctSetBusy(true);
-  ctSetStatus("Transcribing…");
+  ctSetStatus("Transcribing");
   try {
     const formData = new FormData();
     formData.append("audio", blob, "audio.webm");
     const tRes = await fetch(`${BASE}/cothinker/transcribe`, { method: "POST", body: formData });
     if (!tRes.ok) throw new Error("Transcription failed (" + tRes.status + ")");
     const { transcript } = await tRes.json();
-    if (!transcript.trim()) { ctSetStatus("Didn't catch that — try again"); ctSetBusy(false); return; }
+    if (!transcript.trim()) { ctSetStatus("Didn't catch that  try again"); ctSetBusy(false); return; }
     document.getElementById("ctLiveTranscript").textContent = "";
     await ctSendTurn(transcript);
   } catch (e) {
@@ -5809,7 +6518,7 @@ async function ctProcessAudio(blob) {
 
 async function ctSendTurn(userText) {
   ctSetBusy(true);
-  if (userText) { ctAddBubble("user", userText); ctSetStatus("CoThinker is thinking…"); }
+  if (userText) { ctAddBubble("user", userText); ctSetStatus("CoThinker is thinking"); }
   try {
     const res = await fetch(`${BASE}/cothinker/turn`, {
       method: "POST",
@@ -5826,17 +6535,17 @@ async function ctSendTurn(userText) {
     ct.messages.push({ role: "assistant", content: reply });
     ctAddBubble("ai", reply);
     ctUnlockFinalize();
-    ctSetStatus("CoThinker is speaking…");
+    ctSetStatus("CoThinker is speaking");
     ctSetAISpeakingUI(true);
     await ctPlaySpeech(reply);
     ctSetAISpeakingUI(false);
     if (isDone) {
-      ctSetStatus("Generating your enhanced prompt…");
+      ctSetStatus("Generating your enhanced prompt");
       document.getElementById("ctMicBtn").disabled = true;
       setTimeout(ctFinalize, 600);
     } else {
       ctSetBusy(false);
-      ctSetStatus("Your turn — click mic or type below");
+      ctSetStatus("Your turn  click mic or type below");
     }
   } catch (e) {
     ctSetBusy(false);
@@ -5852,11 +6561,11 @@ function ctUpdateChecklist() {
     const icon = el.querySelector(".ct-check-icon");
     if (val) {
       el.classList.add("done");
-      if (icon) icon.textContent = "●";
+      if (icon) icon.textContent = "-";
       el.title = val;
     } else {
       el.classList.remove("done");
-      if (icon) icon.textContent = "○";
+      if (icon) icon.textContent = "-";
       el.title = "";
     }
   });
@@ -5904,11 +6613,11 @@ function ctSetListeningUI(val) {
   const btn = document.getElementById("ctMicBtn");
   const wave = document.getElementById("ctWave");
   if (val) {
-    btn.textContent = "⏹ Stop"; btn.classList.add("listening"); wave.classList.add("active");
+    btn.textContent = " Stop"; btn.classList.add("listening"); wave.classList.add("active");
     wave.querySelectorAll("span").forEach(b => { b.style.background = "var(--bad)"; });
-    document.getElementById("ctLiveTranscript").textContent = "Listening… (pause to send)";
+    document.getElementById("ctLiveTranscript").textContent = "Listening (pause to send)";
   } else {
-    btn.textContent = "🎙 Speak"; btn.classList.remove("listening"); wave.classList.remove("active");
+    btn.textContent = " Speak"; btn.classList.remove("listening"); wave.classList.remove("active");
     document.getElementById("ctLiveTranscript").textContent = "";
   }
 }
@@ -5953,7 +6662,7 @@ function ctAddBubble(role, text) {
 }
 
 async function ctFinalize() {
-  ctSetStatus("Generating your enhanced prompt…");
+  ctSetStatus("Generating your enhanced prompt");
   document.getElementById("ctFinalizeBtn").disabled = true;
   document.getElementById("ctMicBtn").disabled = true;
   ct.currentAudio?.pause(); ct.currentAudio = null;
@@ -6004,7 +6713,7 @@ function ctCopyPrompt() {
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.querySelector(".ct-result-actions .btn-primary");
     if (!btn) return;
-    const orig = btn.textContent; btn.textContent = "✓ Copied";
+    const orig = btn.textContent; btn.textContent = " Copied";
     setTimeout(() => { btn.textContent = orig; }, 1500);
   });
 }
@@ -6024,7 +6733,7 @@ function ctReset() {
   document.getElementById("ctConfirmCount").textContent = "0";
   document.querySelectorAll(".ct-check-item").forEach(el => {
     el.classList.remove("done"); el.title = "";
-    const icon = el.querySelector(".ct-check-icon"); if (icon) icon.textContent = "○";
+    const icon = el.querySelector(".ct-check-icon"); if (icon) icon.textContent = "-";
   });
   document.getElementById("ctChat").innerHTML = "";
   document.getElementById("ctLiveTranscript").textContent = "";
@@ -6038,15 +6747,15 @@ function ctReset() {
 }
 
 
-// ── Main Chat (Agentic + Google Connectors) ───────────────────────
+//  Main Chat (Agentic + Google Connectors) 
 let agenticAbortController = null;
 let agChatMode = "standard"; // 'standard' | 'connector_googledrive' | 'connector_gmail' | 'connector_googlecalendar'
 
 const AG_MODE_LABELS = {
-  standard:                  "⚡ Standard",
-  connector_googledrive:     "📁 Drive",
-  connector_gmail:           "✉️ Gmail",
-  connector_googlecalendar:  "📅 Calendar",
+  standard:                  " Standard",
+  connector_googledrive:     " Drive",
+  connector_gmail:           " Gmail",
+  connector_googlecalendar:  "... Calendar",
 };
 
 const AG_MODE_SUGGESTIONS = {
@@ -6080,7 +6789,7 @@ const AG_MODE_SUGGESTIONS = {
   ],
 };
 
-// ── Thinking mode ─────────────────────────────────────────────────
+//  Thinking mode 
 let agThinkMode = 'auto';
 function agSetThink(mode) {
   agThinkMode = mode;
@@ -6088,7 +6797,7 @@ function agSetThink(mode) {
   document.getElementById('agThink-' + mode)?.classList.add('active');
 }
 
-// ── Mode dropdown ─────────────────────────────────────────────────
+//  Mode dropdown 
 function agToggleModeMenu(e) {
   e.stopPropagation();
   document.getElementById("agModeMenu").classList.toggle("open");
@@ -6116,18 +6825,18 @@ function agSetMode(mode) {
   // Update textarea placeholder
   const placeholders = {
     standard:                 "Write your prompt",
-    connector_googledrive:    "Ask about your Drive files…",
-    connector_gmail:          "Ask about your emails…",
-    connector_googlecalendar: "Ask about your calendar…",
+    connector_googledrive:    "Ask about your Drive files",
+    connector_gmail:          "Ask about your emails",
+    connector_googlecalendar: "Ask about your calendar",
   };
   document.getElementById("agenticInput").placeholder = placeholders[mode] || "Write your prompt";
 
   // Update footer note
   const notes = {
-    standard:                 "Powered by Groq Compound — can search the web & run code",
-    connector_googledrive:    "Google Drive connector · drive.readonly scope required",
-    connector_gmail:          "Gmail connector · gmail.readonly scope required",
-    connector_googlecalendar: "Google Calendar connector · calendar.events scope required",
+    standard:                 "Powered by Groq Compound  can search the web & run code",
+    connector_googledrive:    "Google Drive connector - drive.readonly scope required",
+    connector_gmail:          "Gmail connector - gmail.readonly scope required",
+    connector_googlecalendar: "Google Calendar connector - calendar.events scope required",
   };
   const noteEl = document.querySelector(".ag-footer-note");
   if (noteEl) noteEl.textContent = notes[mode] || "";
@@ -6158,7 +6867,7 @@ function agRenderSuggestions(mode) {
   });
 }
 
-// ── Welcome / chat state ──────────────────────────────────────────
+//  Welcome / chat state 
 function agenticShowChat() {
   const welcome = document.getElementById("agWelcome");
   if (welcome) welcome.style.display = "none";
@@ -6175,7 +6884,7 @@ function agenticSuggest(text) {
   document.getElementById("agenticInput").focus();
 }
 
-// ── Send — routes to agentic or connector based on mode ───────────
+//  Send  routes to agentic or connector based on mode 
 async function agenticSend() {
   const input  = document.getElementById("agenticInput");
   const prompt = input.value.trim();
@@ -6199,7 +6908,7 @@ async function agenticSend() {
 
   const msgDiv = document.createElement("div");
   msgDiv.className = "agentic-msg assistant";
-  msgDiv.innerHTML = '<div class="agentic-bubble"><span class="agentic-typing">⏳ Thinking…</span></div>';
+  msgDiv.innerHTML = '<div class="agentic-bubble"><span class="agentic-typing"> Thinking</span></div>';
   chat.appendChild(msgDiv);
   chat.scrollTop = chat.scrollHeight;
 
@@ -6209,9 +6918,9 @@ async function agenticSend() {
 
   try {
     if (agChatMode === "standard") {
-      // ── Step 1: Intent confirmation ───────────────────────────
+      //  Step 1: Intent confirmation 
       const bubble = msgDiv.querySelector(".agentic-bubble");
-      bubble.innerHTML = '<div class="ag-thinking-bar"><div class="ag-thinking-spinner"></div><span style="color:var(--faint)">Analysing intent…</span></div>';
+      bubble.innerHTML = '<div class="ag-thinking-bar"><div class="ag-thinking-spinner"></div><span style="color:var(--faint)">Analysing intent</span></div>';
 
       let intentData = null;
       try {
@@ -6237,19 +6946,19 @@ async function agenticSend() {
             <div class="ag-intent-card-header">Intent detected</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
               <span style="font-size:12px;font-weight:600">${escapeHtml(intentLabel)}</span>
-              <span style="font-size:11px;color:var(--faint)">· ${escapeHtml(domainLabel)}</span>
+              <span style="font-size:11px;color:var(--faint)">- ${escapeHtml(domainLabel)}</span>
               <span style="font-size:11px;font-weight:600;color:${confColor};margin-left:auto">${confPct}% confidence</span>
             </div>
             ${intentData.interpreted_need ? `<div style="font-size:11px;color:var(--faint);margin-top:4px">${escapeHtml(intentData.interpreted_need)}</div>` : ""}
           </div>
-          <div class="ag-thinking-bar" id="agThinkingBar"><div class="ag-thinking-spinner"></div><span style="color:var(--faint)">Working…</span></div>
+          <div class="ag-thinking-bar" id="agThinkingBar"><div class="ag-thinking-spinner"></div><span style="color:var(--faint)">Working</span></div>
           <div id="agContentArea" style="white-space:pre-wrap;line-height:1.6"></div>`;
       } else {
-        bubble.innerHTML = '<div class="ag-thinking-bar" id="agThinkingBar"><div class="ag-thinking-spinner"></div><span style="color:var(--faint)">Working…</span></div><div id="agContentArea" style="white-space:pre-wrap;line-height:1.6"></div>';
+        bubble.innerHTML = '<div class="ag-thinking-bar" id="agThinkingBar"><div class="ag-thinking-spinner"></div><span style="color:var(--faint)">Working</span></div><div id="agContentArea" style="white-space:pre-wrap;line-height:1.6"></div>';
       }
       chat.scrollTop = chat.scrollHeight;
 
-      // ── Step 2: Agentic streaming ─────────────────────────────
+      //  Step 2: Agentic streaming 
       const res = await fetch(`${BASE}/agentic/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -6284,7 +6993,7 @@ async function agenticSend() {
           } else if (event.type === "tool_use") {
             const toolName = (event.tool || "tool").replace(/_/g, " ");
             const bar = msgDiv.querySelector("#agThinkingBar");
-            if (bar) bar.innerHTML = `<div class="ag-thinking-spinner"></div><span style="color:var(--accent);font-weight:600">${escapeHtml(toolName)}</span><span style="color:var(--faint)"> running…</span>`;
+            if (bar) bar.innerHTML = `<div class="ag-thinking-spinner"></div><span style="color:var(--accent);font-weight:600">${escapeHtml(toolName)}</span><span style="color:var(--faint)"> running</span>`;
           } else if (event.type === "content") {
             const bar = msgDiv.querySelector("#agThinkingBar");
             if (bar) bar.style.display = "none";
@@ -6306,10 +7015,10 @@ async function agenticSend() {
       }
 
     } else {
-      // ── Google Connector (REST) ───────────────────────────────
+      //  Google Connector (REST) 
       const token = document.getElementById("agOAuthToken").value.trim();
       const bubble = msgDiv.querySelector(".agentic-bubble");
-      bubble.innerHTML = '<span class="agentic-typing">⏳ Calling Google…</span>';
+      bubble.innerHTML = '<span class="agentic-typing"> Calling Google</span>';
 
       const res = await fetch(`${BASE}/connectors/query`, {
         method: "POST",
@@ -6324,12 +7033,12 @@ async function agenticSend() {
       // Append subtle mode badge
       const badge = document.createElement("span");
       badge.style.cssText = "display:block;margin-top:6px;font-size:10px;color:var(--faint);font-family:var(--mono)";
-      badge.textContent = `via ${AG_MODE_LABELS[agChatMode]} · ${data.usage?.total_tokens || "?"} tokens`;
+      badge.textContent = `via ${AG_MODE_LABELS[agChatMode]} - ${data.usage?.total_tokens || "?"} tokens`;
       msgDiv.querySelector(".agentic-bubble").appendChild(badge);
     }
   } catch (err) {
     if (err.name !== "AbortError") {
-      msgDiv.querySelector(".agentic-bubble").textContent = "⚠ " + err.message;
+      msgDiv.querySelector(".agentic-bubble").textContent = " " + err.message;
     }
   } finally {
     if (sendBtn) sendBtn.disabled = false;
@@ -6350,7 +7059,7 @@ function agenticClear() {
   agenticShowWelcome();
 }
 
-// ── Google Workspace Connectors ──────────────────────────────────
+//  Google Workspace Connectors 
 const CONN_QUICK_PROMPTS = {
   connector_googledrive: [
     "Find spreadsheet files I worked on last month",
@@ -6439,7 +7148,7 @@ async function connRun() {
     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
     connShowResult(data.output_text || "(empty response)", data.model, data.usage);
   } catch (err) {
-    connShowResult("⚠ Error: " + err.message, "", null);
+    connShowResult(" Error: " + err.message, "", null);
   } finally {
     connSetBusy(false);
   }
@@ -6468,13 +7177,13 @@ async function connDriveTest() {
     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
     connShowResult(data.output_text || "(empty response)", data.model, data.usage);
   } catch (err) {
-    connShowResult("⚠ Error: " + err.message, "", null);
+    connShowResult(" Error: " + err.message, "", null);
   } finally {
     connSetBusy(false);
   }
 }
 
-// ── Init ──────────────────────────────────────────────────────────
+//  Init 
 // Seed suggestion cards and mark Standard as active on first load
 document.addEventListener("DOMContentLoaded", () => {
   agRenderSuggestions("standard");

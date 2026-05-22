@@ -8,7 +8,7 @@ A lean, self-hosted prompt engineering assistant. Single FastAPI service with a 
 
 **Enhance** — paste a rough prompt, get back a production-grade version. The LLM applies prompt engineering techniques (chain-of-thought, persona injection, constraint definition, few-shot examples, etc.) and returns an annotated result showing exactly what changed and why.
 
-**Refine** — iteratively improve an existing enhanced prompt through a guided Q&A loop. Answer clarifying questions, the prompt tightens each round.
+**Refine** — iteratively improve an existing enhanced prompt through a guided, context-aware Q&A loop. Neuro prepares the most important clarification questions, shows useful memory patterns, then finalizes a stronger prompt from the original prompt, previous draft, answers, and context.
 
 **CoThinker** — voice-first collaborative thinking partner. Speak your idea, CoThinker has a real conversation with you (not a form-fill interrogation), confirms 10 key dimensions of your prompt through natural dialogue, and only generates the final enhanced prompt once it has what it needs. Uses Groq Whisper for speech-to-text and Microsoft edge-tts for high-quality voice output. Optionally queries the web in real-time mid-conversation to ground recommendations in current tools and best practices.
 
@@ -16,9 +16,13 @@ A lean, self-hosted prompt engineering assistant. Single FastAPI service with a 
 
 **Profile (Personalization)** — tell Velocity how you work in natural language. It extracts reusable preferences such as style, tone, tools, formats, and things to avoid, then safely injects that profile into future prompt enhancement.
 
-**NeuroPrompt Signal** — scores prompts with a brain-response-inspired heuristic for clarity, attention, structure, output grounding, multimodal readiness, and personal fit. This is not fMRI prediction.
+**Neuro Orchestrator + NeuroPrompt Signal** — infers the user's goal, context needs, smallest useful next action, workflow hints, memory candidates, and product signals. It also scores prompts with a brain-response-inspired heuristic for clarity, attention, structure, output grounding, multimodal readiness, and personal fit. This is not fMRI prediction.
 
-**Diagnostics** — health dashboard showing model config, storage state, and API connectivity.
+**Research / Build / Media modes** — mode-specific workflows that route the same prompt surface toward evidence-heavy research, implementation-ready build work, or media/design prompt generation.
+
+**Uploads** — attach text, images, and documents as prompt context. Video and 3D uploads are intentionally rejected in this release.
+
+**Settings modal** — Connectors, Diagnostics, and Version now live behind the persistent top-right settings button so the workspace, sidebar, prompt, uploads, and Neuro state remain stable.
 
 **MCP server** — exposes Enhance and Refine as tools over the Model Context Protocol so Claude Desktop, Cursor, and other MCP clients can call ThinkVelocity directly.
 
@@ -151,6 +155,8 @@ You can also type instead of speaking using the text input below the mic button.
 ```
 POST /enhance                          — enhance a prompt
 POST /refine                           — refine with clarification answers
+POST /refine/prepare                   — prepare guided refinement questions and context patterns
+POST /refine/finalize                  — finalize guided refinement and return memory candidates
 POST /intent/confirm                   — classify intent before enhancement
 POST /intent/update                    — normalize a client-edited intent confirmation
 GET  /context/{user_id}               — get stored user context
@@ -158,6 +164,11 @@ PATCH /context/{user_id}              — update stored user context
 GET  /history/{user_id}               — prompt history
 POST /personalization/{user_id}/extract — extract and optionally save profile preferences
 POST /neuro/score                     — NeuroPrompt Signal heuristic scorecard
+POST /neuro/state                     — infer Neuro goal state and context needs
+POST /neuro/decide                    — choose the smallest useful next action
+POST /uploads                         — upload text/images/documents as context
+GET  /uploads/{upload_id}             — read upload metadata
+DELETE /uploads/{upload_id}           — delete uploaded context
 
 POST /cothinker/turn                   — one dialogue turn
 POST /cothinker/transcribe             — audio → transcript (Groq Whisper)

@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from core.contracts import SCHEMA_VERSION
+from core.contracts import PROMPT_MODE_VALUES, SCHEMA_VERSION
 from main import health, ready
 from storage import store
 
@@ -17,7 +17,7 @@ class HealthMetadataTests(unittest.TestCase):
         self.assertIn("refine_prompt_hash", result)
         self.assertIn("intent_prompt_hash", result)
         self.assertIn("prompt_versions", result)
-        self.assertEqual(result["prompt_modes"], ["normal", "caveman"])
+        self.assertEqual(result["prompt_modes"], list(PROMPT_MODE_VALUES))
         self.assertEqual(len(result["enhance_prompt_hash"]), 64)
         self.assertEqual(len(result["refine_prompt_hash"]), 64)
         self.assertEqual(len(result["intent_prompt_hash"]), 64)

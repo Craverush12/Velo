@@ -7,7 +7,7 @@ This runbook deploys the current single FastAPI service to an Ubuntu Amazon Ligh
 - App: one FastAPI process, served by Uvicorn.
 - Public entrypoint: Nginx on ports 80 and 443.
 - Internal app port: `127.0.0.1:8000`.
-- Storage: local JSON files only. Use a persistent Docker volume or `/var/lib/thinkvelocity`.
+- Storage: PostgreSQL in Docker Compose by default, with the legacy JSON volume kept for migration/backups.
 - Required secret: `GROQ_API_KEY`.
 - Recommended process count: one worker. CoThinker sessions are in memory.
 - CORS: all origins are allowed by design for local dev and direct HTML usage.
@@ -74,8 +74,11 @@ Set these values:
 GROQ_API_KEY=your_real_groq_key
 APP_ENV=production
 PORT=8000
-STORAGE_BACKEND=local
+STORAGE_BACKEND=postgresql
 STORAGE_PATH=/data
+POSTGRES_DB=thinkvelocity
+POSTGRES_USER=thinkvelocity
+POSTGRES_PASSWORD=generate-a-long-random-password
 VELOCITY_USER_ID=production
 VELOCITY_API_URL=https://your-domain.example
 ENABLE_REMOTE_TEST_RUNNER=false
@@ -307,7 +310,23 @@ bash scripts/smoke_api.sh https://your-domain.example
 
 ## 9. Backups
 
-Docker Compose stores JSON data in the `thinkvelocity-data` volume.
+Docker Compose stores PostgreSQL data in the `thinkvelocity-postgres` volume. The legacy `thinkvelocity-data` volume is still mounted at `/data` so existing JSON contexts can be migrated with:
+
+```bash
+docker compose exec thinkvelocity python -c "from storage import store; print(store.migrate_local_json_to_database())"
+```
+
+Create a PostgreSQL backup:
+
+```bash
+mkdir -p /opt/thinkvelocity/backups
+docker compose exec -T postgres pg_dump \
+  -U "${POSTGRES_USER:-thinkvelocity}" \
+  -d "${POSTGRES_DB:-thinkvelocity}" \
+  > /opt/thinkvelocity/backups/thinkvelocity-db-$(date +%Y%m%d-%H%M%S).sql
+```
+
+The old JSON volume can still be backed up if needed.
 
 Create a backup:
 

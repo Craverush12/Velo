@@ -1,5 +1,7 @@
 import json
 
+from core.embeddings import retrieve_relevant_context
+
 
 _DEFAULT_PREFS = {
     "output_style": "balanced",
@@ -28,7 +30,7 @@ def _has_profile_signal(context: dict, prefs: dict) -> bool:
     return False
 
 
-def format_context_for_prompt(context: dict) -> str:
+def format_context_for_prompt(context: dict, query: str | None = None) -> str:
     """Return a JSON context block, or empty string for new/empty users."""
     if not context:
         return ""
@@ -36,7 +38,8 @@ def format_context_for_prompt(context: dict) -> str:
     prefs = context.get("preferences", {})
     if not _has_profile_signal(context, prefs):
         return ""
-    recent = context.get("recent_context", [])[:3]
+    history = context.get("recent_context", [])
+    recent = retrieve_relevant_context(query, history, top_k=5) if query else history[:3]
 
     safe_context = {
         "note": (

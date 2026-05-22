@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import re
@@ -5,21 +6,32 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
-# ── Storage backend feature flag ──────────────────────────────────────────────
-# STORAGE_BACKEND controls where user data lives.
-# "local"     — JSON files on disk (default, no extra deps)
-# "s3"        — AWS S3 (requires S3_BUCKET, AWS_* env vars + boto3)
-# "lightsail" — LightSail object storage (requires LIGHTSAIL_* env vars + boto3)
-_BACKEND = os.getenv("STORAGE_BACKEND", "local")
+from storage.db import DatabaseStorage, load_all_json_contexts
 
-if _BACKEND not in ("local",):
+# STORAGE_BACKEND controls where user data lives.
+# "local"      - JSON files on disk (default, no extra deps)
+# "postgresql" - SQLAlchemy-backed PostgreSQL when DATABASE_URL is configured.
+_BACKEND_ENV = os.getenv("STORAGE_BACKEND", "").strip().lower()
+_DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+
+if _BACKEND_ENV in ("", "auto"):
+    _BACKEND = "postgresql" if _DATABASE_URL else "local"
+elif _BACKEND_ENV in ("local", "json"):
+    _BACKEND = "local"
+elif _BACKEND_ENV in ("postgres", "postgresql", "db", "database"):
+    _BACKEND = "postgresql"
+else:
     raise RuntimeError(
-        f"STORAGE_BACKEND={_BACKEND!r} is not yet implemented.\n"
-        "Supported now: 'local'.\n"
-        "To migrate: implement the backend in storage/store.py, then set the env var."
+        f"STORAGE_BACKEND={_BACKEND_ENV!r} is not supported.\n"
+        "Supported: 'local', 'postgresql'."
     )
 
-# ── Path resolution (always absolute — safe regardless of CWD) ───────────────
+if _BACKEND == "postgresql" and not _DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is required when STORAGE_BACKEND=postgresql")
+
+_DB_STORAGE = DatabaseStorage(_DATABASE_URL) if _BACKEND == "postgresql" else None
+
+
 def _resolve_path() -> Path:
     env = os.getenv("STORAGE_PATH", "").strip()
     if env:
@@ -28,6 +40,7 @@ def _resolve_path() -> Path:
             p = Path(__file__).parent.parent / p
         return p.resolve()
     return Path(__file__).parent / "data"
+
 
 _STORAGE_PATH = _resolve_path()
 _USER_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -62,9 +75,13 @@ _DEFAULT_CONTEXT = {
 }
 
 
-def _path(user_id: str) -> Path:
+def _validate_user_id(user_id: str) -> None:
     if not _USER_ID_RE.fullmatch(user_id):
         raise ValueError("user_id must match ^[A-Za-z0-9_-]{1,64}$")
+
+
+def _path(user_id: str) -> Path:
+    _validate_user_id(user_id)
     _STORAGE_PATH.mkdir(parents=True, exist_ok=True)
     path = (_STORAGE_PATH / f"user_{user_id}.json").resolve()
     if not path.is_relative_to(_STORAGE_PATH):
@@ -73,13 +90,18 @@ def _path(user_id: str) -> Path:
 
 
 def storage_path() -> str:
-    """Return the resolved storage directory and create it if needed."""
+    """Return the resolved storage location and create it if needed."""
+    if _BACKEND == "postgresql":
+        return _DB_STORAGE._safe_database_url()
     _STORAGE_PATH.mkdir(parents=True, exist_ok=True)
     return str(_STORAGE_PATH)
 
 
 def storage_healthcheck() -> dict:
-    """Verify that the configured JSON storage directory is writable."""
+    """Verify that the configured storage backend is writable."""
+    if _BACKEND == "postgresql":
+        return _DB_STORAGE.healthcheck()
+
     _STORAGE_PATH.mkdir(parents=True, exist_ok=True)
     marker = _STORAGE_PATH / ".healthcheck"
     try:
@@ -107,9 +129,13 @@ def _lock_for(user_id: str) -> threading.Lock:
 
 
 def get_user_context(user_id: str) -> dict:
+    _validate_user_id(user_id)
+    if _BACKEND == "postgresql":
+        return _DB_STORAGE.get_user_context(user_id, _DEFAULT_CONTEXT)
+
     p = _path(user_id)
     if not p.exists():
-        ctx = json.loads(json.dumps(_DEFAULT_CONTEXT))
+        ctx = copy.deepcopy(_DEFAULT_CONTEXT)
         ctx["user_id"] = user_id
         now = datetime.now(timezone.utc).isoformat()
         ctx["created_at"] = now
@@ -120,6 +146,11 @@ def get_user_context(user_id: str) -> dict:
 
 
 def save_user_context(user_id: str, context: dict) -> None:
+    _validate_user_id(user_id)
+    if _BACKEND == "postgresql":
+        _DB_STORAGE.save_user_context(user_id, context)
+        return
+
     path = _path(user_id)
     tmp = path.with_suffix(".json.tmp")
     with _lock_for(user_id):
@@ -131,12 +162,19 @@ def save_user_context(user_id: str, context: dict) -> None:
 
 def reset_user_context(user_id: str) -> dict:
     now = datetime.now(timezone.utc).isoformat()
-    ctx = json.loads(json.dumps(_DEFAULT_CONTEXT))
+    ctx = copy.deepcopy(_DEFAULT_CONTEXT)
     ctx["user_id"] = user_id
     ctx["created_at"] = now
     ctx["updated_at"] = now
     save_user_context(user_id, ctx)
     return ctx
+
+
+def migrate_local_json_to_database() -> int:
+    """Copy existing user_*.json contexts into the configured database backend."""
+    if _BACKEND != "postgresql":
+        raise RuntimeError("migrate_local_json_to_database requires PostgreSQL storage")
+    return _DB_STORAGE.migrate_json_contexts(load_all_json_contexts(_STORAGE_PATH))
 
 
 def get_history(user_id: str) -> list[dict]:
@@ -188,7 +226,7 @@ def update_after_enhancement(
             }
         ]
         + ctx["recent_context"]
-    )[:20]  # bumped from 7 → 20 so history sidebar has real depth
+    )[:20]
 
     ctx["enhancement_count"] = ctx.get("enhancement_count", 0) + 1
     ctx["placeholder_count"] = ctx.get("placeholder_count", 0) + max(0, int(placeholder_count or 0))

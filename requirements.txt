@@ -9,3 +9,5 @@ aiofiles==23.2.1
 mcp>=1.0.0
 edge-tts>=6.1.9
 requests>=2.31.0
+SQLAlchemy>=2.0.30,<3
+psycopg[binary]>=3.1.18,<4
