@@ -1,8 +1,12 @@
+import json
 import os
+from pathlib import Path
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from core.llm import complete
+from core.output_validator import parse_json_object
 from storage import store
 
 router = APIRouter()
@@ -42,3 +46,43 @@ def get_config():
     return {
         "default_user_id": os.getenv("VELOCITY_USER_ID", "anonymous"),
     }
+
+
+_INSIGHTS_SYSTEM_PROMPT = (
+    Path(__file__).parent.parent / "core" / "prompts" / "memory_insights_system.md"
+).read_text(encoding="utf-8")
+
+
+@router.get("/context/{user_id}/insights")
+async def get_memory_insights(user_id: str):
+    history = store.get_history(user_id)
+    if not history:
+        return {"clusters": [], "market_basket": [], "classification": "No data"}
+    
+    # We only send a simplified slice of history to save tokens
+    simplified = [
+        {
+            "intent": h.get("intent", ""),
+            "domain": h.get("domain", ""),
+            "framework": h.get("framework", ""),
+            "summary": h.get("summary", "")
+        }
+        for h in history[:15]
+    ]
+
+    user_msg = "\n".join([
+        "Analyze this recent activity.",
+        json.dumps(simplified, ensure_ascii=False, indent=2)
+    ])
+
+    try:
+        raw = await complete(
+            _INSIGHTS_SYSTEM_PROMPT,
+            user_msg,
+            temperature=0.2,
+            max_tokens=800,
+        )
+        parsed = parse_json_object(raw)
+        return parsed
+    except Exception as e:
+        return {"clusters": [], "market_basket": [], "classification": f"Error: {str(e)}"}

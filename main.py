@@ -20,6 +20,9 @@ from api.diagnostics import router as diagnostics_router
 from api.cothinker import router as cothinker_router
 from api.personalization import router as personalization_router
 from api.neuro import router as neuro_router
+from api.agentic import router as agentic_router
+from api.connectors import router as connectors_router
+from api.profile import router as profile_router
 
 app = FastAPI(title="ThinkVelocity", version="2.0.0")
 
@@ -40,6 +43,9 @@ app.include_router(diagnostics_router)
 app.include_router(cothinker_router)
 app.include_router(personalization_router)
 app.include_router(neuro_router)
+app.include_router(agentic_router)
+app.include_router(connectors_router)
+app.include_router(profile_router)
 
 _STATIC = Path(__file__).parent / "static"
 if _STATIC.exists():

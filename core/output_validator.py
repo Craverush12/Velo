@@ -276,7 +276,7 @@ def _normalize_clarification_questions(result: dict) -> None:
     ]
 
 
-_AI_ORDER = ["claude", "chatgpt", "gpt-5", "gemini", "groq", "cursor", "bolt", "replit", "gamma", "midjourney"]
+_AI_ORDER = ["claude", "chatgpt", "gpt-5", "gemini", "groq", "compound_mini", "cursor", "bolt", "replit", "gamma", "midjourney"]
 
 
 def _normalize_ai_recommendations(result: dict) -> None:

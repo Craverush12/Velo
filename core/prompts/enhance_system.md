@@ -279,6 +279,12 @@ Do not recommend connectors for every prompt. Only when the connection is specif
       "original_text": null
     }
   ],
+  "personalization_trace": [
+    {
+      "rule": "React Stack",
+      "reason": "Applied because the user frequently asks about React components in recent history."
+    }
+  ],
   "placeholder_fields": [
     {
       "key": "TARGET_AUDIENCE",

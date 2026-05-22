@@ -5,12 +5,12 @@ from unittest.mock import patch
 from pydantic import ValidationError
 
 from api import intent as intent_api
+from core.contracts import GAP_FIELDS, detect_gaps, compute_confidence, build_gap_questions
 from core.source_catalog import load_source_catalog, recommend_sources
 
 
-def valid_intent_payload() -> dict:
+def valid_classification() -> dict:
     return {
-        "schema_version": intent_api.INTENT_CONFIRMATION_VERSION,
         "intent": "design_brief",
         "domain": "design_ux",
         "interpreted_need": "Create a better UI prompt for a SaaS dashboard.",
@@ -19,9 +19,6 @@ def valid_intent_payload() -> dict:
         "output_format": "Annotated enhanced prompt",
         "key_constraints": ["Use accessible component patterns."],
         "assumptions": ["The user wants a browser UI."],
-        "missing_context": ["Dashboard user role"],
-        "confirmation_question": "Should ThinkVelocity optimize this as a SaaS dashboard UI prompt?",
-        "confidence": 0.82,
         "suggested_prompt_mode": "normal",
         "suggested_techniques": ["task_clarification", "structured_output"],
         "enhancement_strategy": ["Add role, constraints, UI sections, and output format."],
@@ -49,7 +46,56 @@ class IntentBackendTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValidationError):
             intent_api.IntentConfirmRequest(prompt="make UI", prompt_mode="wizard")
 
-    async def test_confirm_intent_returns_normalized_confirmation(self):
+    def test_detect_gaps_returns_empty_when_all_filled(self):
+        classification = {
+            "target_audience": "developers",
+            "output_format": "markdown",
+            "key_constraints": ["keep it short"],
+        }
+        gaps = detect_gaps(classification)
+        self.assertEqual(gaps, [])
+
+    def test_detect_gaps_detects_missing_fields(self):
+        classification = {
+            "target_audience": "",
+            "output_format": "markdown",
+            "key_constraints": [],
+        }
+        gaps = detect_gaps(classification)
+        self.assertEqual(gaps, ["target_audience", "key_constraints"])
+
+    def test_detect_gaps_returns_all_when_all_missing(self):
+        gaps = detect_gaps({})
+        self.assertEqual(set(gaps), set(GAP_FIELDS))
+
+    def test_compute_confidence_full(self):
+        classification = {
+            "target_audience": "devs",
+            "output_format": "doc",
+            "key_constraints": ["fast"],
+        }
+        self.assertEqual(compute_confidence(classification), 1.0)
+
+    def test_compute_confidence_partial(self):
+        classification = {
+            "target_audience": "devs",
+            "output_format": "",
+            "key_constraints": [],
+        }
+        self.assertAlmostEqual(compute_confidence(classification), 1.0 / 3.0)
+
+    def test_compute_confidence_zero(self):
+        self.assertEqual(compute_confidence({}), 0.0)
+
+    def test_build_gap_questions_returns_persuasive_questions(self):
+        questions = build_gap_questions(["target_audience", "key_constraints"])
+        self.assertEqual(len(questions), 2)
+        self.assertEqual(questions[0].id, "target_audience")
+        self.assertIn("tailor", questions[0].question.lower())
+        self.assertEqual(questions[1].id, "key_constraints")
+        self.assertIn("guardrails", questions[1].question.lower())
+
+    async def test_confirm_intent_returns_normalized_classification(self):
         calls = []
 
         async def fake_complete(system_prompt, user_message, temperature=0.7, max_tokens=4096):
@@ -59,7 +105,7 @@ class IntentBackendTests(unittest.IsolatedAsyncioTestCase):
                 "temperature": temperature,
                 "max_tokens": max_tokens,
             })
-            return json.dumps(valid_intent_payload())
+            return json.dumps(valid_classification())
 
         request = intent_api.IntentConfirmRequest(
             prompt="Make my dashboard UI prompt better",
@@ -78,37 +124,46 @@ class IntentBackendTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["prompt_mode"], "caveman")
         self.assertEqual(result["suggested_prompt_mode"], "normal")
         self.assertEqual(result["intent"], "design_brief")
+        self.assertEqual(result["target_audience"], "SaaS product teams")
+        self.assertEqual(result["output_format"], "Annotated enhanced prompt")
+        self.assertEqual(result["key_constraints"], ["Use accessible component patterns."])
         self.assertGreaterEqual(len(result["source_inspirations"]), 1)
+        # Computed fields
+        self.assertTrue("is_finalized" in result)
+        self.assertTrue("confidence" in result)
+        self.assertTrue("questions" in result)
+        self.assertTrue("questions_total" in result)
+        # No gaps in our test data → no questions
+        self.assertEqual(result["questions"], [])
+        self.assertEqual(result["questions_total"], 0)
+        self.assertTrue(result["is_finalized"])
+        self.assertEqual(result["confidence"], 1.0)
 
-    async def test_update_intent_normalizes_user_edits_without_llm(self):
-        edited = valid_intent_payload()
-        edited.update({
-            "intent": "marketing",
-            "domain": "marketing_growth",
-            "interpreted_need": "Create a homepage prompt for a CRM launch.",
-            "deliverable": "A launch homepage prompt.",
-            "suggested_prompt_mode": "cave",
-            "suggested_techniques": ["made_up", "contrastive", "structured_output"],
-            "enhancement_strategy": ["Make sections conversion-focused."],
-        })
-        request = intent_api.IntentUpdateRequest(
-            prompt="make landing page",
-            target_ai="chatgpt",
-            prompt_mode="normal",
+    async def test_confirm_intent_detects_gaps_and_creates_questions(self):
+        partial = valid_classification()
+        partial["target_audience"] = ""
+        partial["key_constraints"] = []
+
+        calls = []
+
+        async def fake_complete(system_prompt, user_message, temperature=0.7, max_tokens=4096):
+            calls.append({"user_message": user_message})
+            return json.dumps(partial)
+
+        request = intent_api.IntentConfirmRequest(
+            prompt="Write a post about AI",
             user_id="intent-test",
-            confirmation=edited,
         )
 
-        with patch.object(intent_api, "complete") as complete_mock:
-            result = await intent_api.update_intent(request)
+        with patch.object(intent_api, "complete", fake_complete):
+            result = await intent_api.confirm_intent(request)
 
-        complete_mock.assert_not_called()
-        self.assertTrue(result["_updated"])
-        self.assertEqual(result["intent"], "marketing")
-        self.assertEqual(result["domain"], "marketing_growth")
-        self.assertEqual(result["suggested_prompt_mode"], "caveman")
-        self.assertEqual(result["suggested_techniques"], ["contrastive", "structured_output"])
-        self.assertEqual(result["target_ai"], "chatgpt")
+        self.assertFalse(result["is_finalized"])
+        self.assertAlmostEqual(result["confidence"], 1.0 / 3.0)
+        self.assertEqual(result["questions_total"], 2)
+        self.assertEqual(len(result["questions"]), 2)
+        self.assertEqual(result["questions"][0]["id"], "target_audience")
+        self.assertEqual(result["questions"][1]["id"], "key_constraints")
 
 
 if __name__ == "__main__":
