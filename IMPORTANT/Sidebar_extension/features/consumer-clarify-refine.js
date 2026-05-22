@@ -1,7 +1,7 @@
 /**
  * Clarify and refine flow — matches Extension-new/Button/js/api.js.
  * clarify:  POST /refine/prepare             { original_prompt, user_id, previous_enhanced_prompt? }
- * refine:   POST /refine/finalize            { prompt, qa_pairs, user_id, auth_token }
+ * refine:   POST /refine/finalize             { original_prompt, clarification_qa, neuro_state, context_patterns }
  * API #3:   POST /backend-V1-D/prompt/refine-prompt
  * feedback: POST /backend-V1-D/prompt/insert-feedback
  * @global TV
