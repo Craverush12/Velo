@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ThinkVelocity Sandbox</title>
 <link rel="icon" href="data:,">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/vis-network.min.css" rel="stylesheet" id="visCss" onerror="this.href='https://unpkg.com/vis-network@9.1.9/styles/vis-network.min.css'">
 <script>
 function loadVisFallback() {
@@ -28,23 +28,23 @@ window.__visFailed = false;
 <script id="visScript" src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/vis-network.min.js" onload="window.__visLoaded=true" onerror="loadVisFallback()"></script>
 <style>
 :root {
-  --bg: #07080d;
-  --panel: #0d0f16;
-  --panel-2: #12151f;
-  --panel-3: #171b26;
-  --line: rgba(255,255,255,0.08);
-  --line-2: rgba(255,255,255,0.14);
-  --text: #e6e8ef;
-  --muted: #8a92a6;
-  --faint: #586174;
-  --accent: #8b9cff;
-  --accent-2: #5f7cff;
+  --bg: #f4f9ff;
+  --panel: #ffffff;
+  --panel-2: #e6f0fa;
+  --panel-3: #d1e5f8;
+  --line: #000000;
+  --line-2: #000000;
+  --text: #000000;
+  --muted: #333333;
+  --faint: #555555;
+  --accent: #3b82f6;
+  --accent-2: #2563eb;
   --gold: #f5b84b;
   --ok: #33c481;
   --warn: #e7a643;
   --bad: #f2637b;
   --mono: "DM Mono", ui-monospace, monospace;
-  --body: "Inter", system-ui, sans-serif;
+  --body: "DM Sans", system-ui, sans-serif;
   --c-persona_injection: 99,102,241;
   --c-task_clarification: 14,165,233;
   --c-chain_of_thought: 245,158,11;
@@ -78,16 +78,22 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   grid-template-rows: 46px 1fr;
   height: 100vh;
 }
-.app.page-brain {
+.app.page-memory {
   grid-template-columns: 220px 1fr 0;
 }
-.app.page-brain .details {
+.app.page-memory .details {
   display: none;
 }
 .app.page-diagnostics {
   grid-template-columns: 220px 1fr 0;
 }
 .app.page-diagnostics .details {
+  display: none;
+}
+.app.page-version {
+  grid-template-columns: 220px 1fr 0;
+}
+.app.page-version .details {
   display: none;
 }
 
@@ -98,7 +104,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   align-items: center;
   padding: 0 16px;
   gap: 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 3px solid var(--line);
   background: var(--panel);
   z-index: 10;
 }
@@ -113,10 +119,10 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 }
 .topbar-brand span.logo-mark {
   width: 22px; height: 22px;
-  background: linear-gradient(135deg, #8b9cff 0%, #5f7cff 100%);
+  background: linear-gradient(135deg, #19d8e6 0%, #58f5ff 100%);
   border-radius: 5px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; color: #fff; font-weight: 800;
+  font-size: 12px; color: #111; font-weight: 800;
 }
 .topbar-view-title {
   font-size: 13px;
@@ -160,7 +166,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   grid-area: sidebar;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--line);
+  border-right: 3px solid var(--line);
   background: var(--panel);
   overflow: hidden;
 }
@@ -195,7 +201,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   letter-spacing: -0.1px;
 }
 .nav-btn:hover { background: var(--panel-2); color: var(--text); }
-.nav-btn.active { background: rgba(139,156,255,0.12); color: var(--accent); }
+.nav-btn.active { background: rgba(25,216,230,0.12); color: var(--accent); }
 .nav-btn .nav-icon { font-size: 14px; width: 18px; text-align: center; }
 .nav-divider { height: 1px; background: var(--line); margin: 8px 10px; }
 .sidebar-footer {
@@ -253,17 +259,22 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   max-height: 200px;
   resize: vertical;
   background: var(--panel-2);
-  border: 1px solid var(--line-2);
-  border-radius: 8px;
+  border: 2px solid var(--line);
+  border-radius: 0px;
+  box-shadow: 4px 4px 0px var(--line);
   color: var(--text);
   font-family: var(--body);
   font-size: 14px;
   padding: 12px 14px;
   line-height: 1.55;
   outline: none;
-  transition: border-color 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
-.prompt-textarea:focus { border-color: var(--accent); }
+.prompt-textarea:focus {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px var(--line);
+  border-color: var(--line);
+}
 .prompt-textarea::placeholder { color: var(--faint); }
 .enhance-controls {
   display: flex;
@@ -287,9 +298,10 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   display: flex; align-items: center; gap: 6px;
   padding: 8px 18px;
   background: var(--accent);
-  border: none;
-  border-radius: 7px;
-  color: #07080d;
+  border: 2px solid var(--line);
+  border-radius: 0px;
+  box-shadow: 4px 4px 0px var(--line);
+  color: #ffffff;
   font-family: var(--body);
   font-size: 13px;
   font-weight: 600;
@@ -297,22 +309,33 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   transition: all 0.18s;
   white-space: nowrap;
 }
-.btn-primary:hover { background: #a3b3ff; }
-.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px var(--line);
+  background: var(--accent-2);
+}
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
 .btn-secondary {
   padding: 7px 14px;
-  background: transparent;
-  border: 1px solid var(--line-2);
-  border-radius: 7px;
-  color: var(--muted);
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: 0px;
+  box-shadow: 3px 3px 0px var(--line);
+  color: var(--text);
   font-family: var(--body);
   font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.18s;
   white-space: nowrap;
 }
-.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
-.btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-secondary:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px var(--line);
+  background: var(--panel-2);
+  color: var(--accent-2);
+}
+.btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
 .btn-ghost {
   padding: 6px 10px;
   background: transparent;
@@ -456,17 +479,16 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   background: var(--panel);
   border: 1px solid var(--line-2);
   border-radius: 10px;
-  overflow: hidden;
   display: none;
 }
 .result-card.visible { display: block; }
 .result-card-header {
   display: flex; align-items: center; gap: 10px;
-  padding: 12px 16px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--line);
 }
-.result-card-title { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; flex: 1; }
-.result-card-body { padding: 16px; }
+.result-card-title { font-size: 11px; font-weight: 600; color: var(--faint); letter-spacing: 0.07em; text-transform: uppercase; flex: 1; }
+.result-card-body { padding: 20px 20px 16px; }
 .streaming-cursor::after {
   content: "▋";
   animation: blink 0.7s step-end infinite;
@@ -477,11 +499,12 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 /* Enhanced prompt text */
 .enhanced-text {
   font-family: var(--body);
-  font-size: 14px;
-  line-height: 1.75;
+  font-size: 15px;
+  line-height: 1.8;
   color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
+  letter-spacing: -0.1px;
 }
 .fallback-notice {
   display: none;
@@ -494,32 +517,49 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 }
 .fallback-notice.visible { display: block; }
 
-/* Annotated segments */
+/* Annotated segments — underline-only by default, subtle fill on hover */
 .seg {
-  border-radius: 3px;
+  border-radius: 2px;
   cursor: pointer;
-  padding: 1px 2px;
-  transition: opacity 0.15s;
+  padding: 0 1px;
+  transition: background 0.15s;
   position: relative;
 }
-.seg:hover { opacity: 0.8; }
-.seg[data-technique="persona_injection"] { background: rgba(var(--c-persona_injection),0.22); border-bottom: 2px solid rgba(var(--c-persona_injection),0.7); }
-.seg[data-technique="task_clarification"] { background: rgba(var(--c-task_clarification),0.22); border-bottom: 2px solid rgba(var(--c-task_clarification),0.7); }
-.seg[data-technique="chain_of_thought"] { background: rgba(var(--c-chain_of_thought),0.22); border-bottom: 2px solid rgba(var(--c-chain_of_thought),0.7); }
-.seg[data-technique="tree_of_thought"] { background: rgba(var(--c-tree_of_thought),0.22); border-bottom: 2px solid rgba(var(--c-tree_of_thought),0.7); }
-.seg[data-technique="socratic_prompting"] { background: rgba(var(--c-socratic_prompting),0.22); border-bottom: 2px solid rgba(var(--c-socratic_prompting),0.7); }
-.seg[data-technique="structured_output"] { background: rgba(var(--c-structured_output),0.22); border-bottom: 2px solid rgba(var(--c-structured_output),0.7); }
-.seg[data-technique="output_format_spec"] { background: rgba(var(--c-output_format_spec),0.22); border-bottom: 2px solid rgba(var(--c-output_format_spec),0.7); }
-.seg[data-technique="constraint_definition"] { background: rgba(var(--c-constraint_definition),0.22); border-bottom: 2px solid rgba(var(--c-constraint_definition),0.7); }
-.seg[data-technique="context_framing"] { background: rgba(var(--c-context_framing),0.22); border-bottom: 2px solid rgba(var(--c-context_framing),0.7); }
-.seg[data-technique="few_shot_example"] { background: rgba(var(--c-few_shot_example),0.22); border-bottom: 2px solid rgba(var(--c-few_shot_example),0.7); }
-.seg[data-technique="negative_space"] { background: rgba(var(--c-negative_space),0.22); border-bottom: 2px solid rgba(var(--c-negative_space),0.7); }
-.seg[data-technique="target_ai_optimization"] { background: rgba(var(--c-target_ai_optimization),0.22); border-bottom: 2px solid rgba(var(--c-target_ai_optimization),0.7); }
-.seg[data-technique="step_back_trigger"] { background: rgba(var(--c-step_back_trigger),0.22); border-bottom: 2px solid rgba(var(--c-step_back_trigger),0.7); }
-.seg[data-technique="contrastive"] { background: rgba(var(--c-contrastive),0.22); border-bottom: 2px solid rgba(var(--c-contrastive),0.7); }
-.seg[data-technique="domain_specific_depth"] { background: rgba(var(--c-domain_specific_depth),0.22); border-bottom: 2px solid rgba(var(--c-domain_specific_depth),0.7); }
-.seg[data-technique="user_context_integration"] { background: rgba(var(--c-user_context_integration),0.22); border-bottom: 2px solid rgba(var(--c-user_context_integration),0.7); }
-.seg[data-technique="placeholder_facilitation"] { background: rgba(var(--c-placeholder_facilitation),0.22); border-bottom: 2px solid rgba(var(--c-placeholder_facilitation),0.7); }
+.seg[data-technique="persona_injection"] { border-bottom: 2px solid rgba(var(--c-persona_injection),0.65); }
+.seg[data-technique="task_clarification"] { border-bottom: 2px solid rgba(var(--c-task_clarification),0.65); }
+.seg[data-technique="chain_of_thought"] { border-bottom: 2px solid rgba(var(--c-chain_of_thought),0.65); }
+.seg[data-technique="tree_of_thought"] { border-bottom: 2px solid rgba(var(--c-tree_of_thought),0.65); }
+.seg[data-technique="socratic_prompting"] { border-bottom: 2px solid rgba(var(--c-socratic_prompting),0.65); }
+.seg[data-technique="structured_output"] { border-bottom: 2px solid rgba(var(--c-structured_output),0.65); }
+.seg[data-technique="output_format_spec"] { border-bottom: 2px solid rgba(var(--c-output_format_spec),0.65); }
+.seg[data-technique="constraint_definition"] { border-bottom: 2px solid rgba(var(--c-constraint_definition),0.65); }
+.seg[data-technique="context_framing"] { border-bottom: 2px solid rgba(var(--c-context_framing),0.65); }
+.seg[data-technique="few_shot_example"] { border-bottom: 2px solid rgba(var(--c-few_shot_example),0.65); }
+.seg[data-technique="negative_space"] { border-bottom: 2px solid rgba(var(--c-negative_space),0.65); }
+.seg[data-technique="target_ai_optimization"] { border-bottom: 2px solid rgba(var(--c-target_ai_optimization),0.65); }
+.seg[data-technique="step_back_trigger"] { border-bottom: 2px solid rgba(var(--c-step_back_trigger),0.65); }
+.seg[data-technique="contrastive"] { border-bottom: 2px solid rgba(var(--c-contrastive),0.65); }
+.seg[data-technique="domain_specific_depth"] { border-bottom: 2px solid rgba(var(--c-domain_specific_depth),0.65); }
+.seg[data-technique="user_context_integration"] { border-bottom: 2px solid rgba(var(--c-user_context_integration),0.65); }
+.seg[data-technique="placeholder_facilitation"] { border-bottom: 2px solid rgba(var(--c-placeholder_facilitation),0.65); }
+/* Hover: reveal fill */
+.seg[data-technique="persona_injection"]:hover { background: rgba(var(--c-persona_injection),0.12); }
+.seg[data-technique="task_clarification"]:hover { background: rgba(var(--c-task_clarification),0.12); }
+.seg[data-technique="chain_of_thought"]:hover { background: rgba(var(--c-chain_of_thought),0.12); }
+.seg[data-technique="tree_of_thought"]:hover { background: rgba(var(--c-tree_of_thought),0.12); }
+.seg[data-technique="socratic_prompting"]:hover { background: rgba(var(--c-socratic_prompting),0.12); }
+.seg[data-technique="structured_output"]:hover { background: rgba(var(--c-structured_output),0.12); }
+.seg[data-technique="output_format_spec"]:hover { background: rgba(var(--c-output_format_spec),0.12); }
+.seg[data-technique="constraint_definition"]:hover { background: rgba(var(--c-constraint_definition),0.12); }
+.seg[data-technique="context_framing"]:hover { background: rgba(var(--c-context_framing),0.12); }
+.seg[data-technique="few_shot_example"]:hover { background: rgba(var(--c-few_shot_example),0.12); }
+.seg[data-technique="negative_space"]:hover { background: rgba(var(--c-negative_space),0.12); }
+.seg[data-technique="target_ai_optimization"]:hover { background: rgba(var(--c-target_ai_optimization),0.12); }
+.seg[data-technique="step_back_trigger"]:hover { background: rgba(var(--c-step_back_trigger),0.12); }
+.seg[data-technique="contrastive"]:hover { background: rgba(var(--c-contrastive),0.12); }
+.seg[data-technique="domain_specific_depth"]:hover { background: rgba(var(--c-domain_specific_depth),0.12); }
+.seg[data-technique="user_context_integration"]:hover { background: rgba(var(--c-user_context_integration),0.12); }
+.seg[data-technique="placeholder_facilitation"]:hover { background: rgba(var(--c-placeholder_facilitation),0.12); }
 
 /* Score bar */
 .score-row {
@@ -603,7 +643,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 /* ─── Details panel ──────────────────────────────────────────────── */
 .details {
   grid-area: details;
-  border-left: 1px solid var(--line);
+  border-left: 3px solid var(--line);
   background: var(--panel);
   display: flex;
   flex-direction: column;
@@ -676,17 +716,56 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 .seg-reason { font-size: 12px; color: var(--muted); line-height: 1.5; }
 .seg-original { font-size: 11px; color: var(--faint); margin-top: 4px; font-style: italic; }
 
-/* ─── Brain page (full-size persona) ────────────────────────────── */
+/* ─── Brain / Memory page ────────────────────────────────────────── */
 .page-brain {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
 }
+.brain-header {
+  flex-shrink: 0;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.brain-persona-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.brain-stats-row {
+  display: flex;
+  gap: 18px;
+  margin-left: 8px;
+}
+.brain-header-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
 .brain-body {
   flex: 1;
   display: flex;
   overflow: hidden;
+  min-height: 0;
+}
+.brain-sidebar {
+  width: 276px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 #brainCanvas {
   flex: 1;
@@ -708,21 +787,85 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   font-size: 13px;
 }
 #brainCanvas .brain-empty .icon { font-size: 28px; opacity: 0.4; }
-.brain-node-detail {
-  pointer-events: none;
+.brain-node-detail { pointer-events: none; }
+.brain-insights { display: flex; flex-direction: column; gap: 12px; }
+.insight-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.insight-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 2px;
+}
+.insight-item {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  padding: 9px 11px;
+  border-radius: 7px;
+  font-size: 12px;
+  color: var(--text);
+}
+.insight-item-header { font-weight: 600; margin-bottom: 3px; }
+.insight-item-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+/* Brain proactive suggestions */
+.brain-suggestions { display: flex; flex-direction: column; gap: 6px; }
+.brain-suggest-btn {
+  padding: 9px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.45;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+  width: 100%;
+  font-family: var(--body);
+  letter-spacing: -0.1px;
+}
+.brain-suggest-btn:hover {
+  border-color: var(--accent);
+  background: rgba(25,216,230,0.06);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+.brain-suggest-label {
+  font-size: 10px;
+  color: var(--accent);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  display: block;
+  margin-bottom: 2px;
 }
 
-/* ─── Persona bar ───────────────────────────────────────────────── */
-.persona-bar {
+/* Persona display in brain header */
+.persona-identity {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-  flex-wrap: wrap;
-  min-height: 56px;
+  gap: 10px;
+  flex-shrink: 0;
 }
+.persona-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.persona-actions {
+  display: flex;
+  gap: 6px;
+}
+.profile-questionnaire { display: flex; flex-direction: column; gap: 14px; }
+.profile-q { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.profile-input { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; color: var(--text); font-family: var(--body); font-size: 13px; padding: 8px 12px; outline: none; }
+.profile-input:focus { border-color: var(--accent); }
 .persona-identity {
   display: flex;
   align-items: center;
@@ -926,6 +1069,153 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 10px;
+}
+
+/* ─── Version page ───────────────────────────────────────────────── */
+.page-version {
+  height: 100%;
+  overflow-y: auto;
+  padding: 36px 48px;
+  flex-direction: column;
+  gap: 32px;
+  max-width: 860px;
+}
+.version-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.version-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  background: rgba(59,130,246,0.1);
+  border: 1px solid rgba(59,130,246,0.25);
+  border-radius: 20px;
+  padding: 4px 12px;
+  width: fit-content;
+  margin-bottom: 4px;
+}
+.version-hero h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.version-hero p {
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 560px;
+  line-height: 1.6;
+}
+.version-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+  margin-bottom: 12px;
+}
+.version-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.version-card {
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.version-card-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+.version-card h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+.version-card p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.version-card .vc-endpoint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--faint);
+  margin-top: 4px;
+}
+.version-pipeline {
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pipeline-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.pipeline-step-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.pipeline-step-body strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.pipeline-step-body p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-top: 2px;
+}
+.version-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stack-pill {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: var(--text);
+}
+.version-health {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.version-health .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex-shrink: 0;
 }
 
 /* ─── CoThinker page ─────────────────────────────────────────────── */
@@ -1205,6 +1495,709 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   text-align: right;
 }
 
+/* ─── Agentic page ────────────────────────────────────────────────── */
+.app.page-agentic {
+  grid-template-columns: 220px 1fr 0;
+}
+.app.page-agentic .details { display: none; }
+
+.page-agentic {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* Chat idle / empty state */
+.ag-welcome {
+  position: absolute;
+  inset: 0;
+  bottom: auto;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 24px 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.ag-idle-glyph {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; color: #111; font-weight: 800;
+  box-shadow: 0 0 24px rgba(25,216,230,0.25);
+  margin-bottom: 4px;
+}
+.ag-idle-title {
+  font-family: var(--body);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.6px;
+}
+.ag-idle-sub {
+  font-family: var(--body);
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.4;
+  max-width: 340px;
+}
+
+/* Chat messages */
+.agentic-chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.agentic-msg { display: flex; }
+.agentic-msg.user { justify-content: flex-end; }
+.agentic-msg.assistant { justify-content: flex-start; }
+.agentic-bubble {
+  max-width: 76%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.agentic-msg.user .agentic-bubble {
+  background: var(--accent);
+  color: #111;
+  border-bottom-right-radius: 4px;
+}
+.agentic-msg.assistant .agentic-bubble {
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  border-bottom-left-radius: 4px;
+  color: var(--text);
+}
+.agentic-typing {
+  animation: ag-pulse 1.2s ease-in-out infinite;
+}
+@keyframes ag-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* Input wrap */
+.ag-input-wrap {
+  flex-shrink: 0;
+  padding: 16px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ag-input-box {
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: 0px;
+  box-shadow: 4px 4px 0px var(--line);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ag-textarea {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  min-height: 48px;
+  max-height: 140px;
+  width: 100%;
+  padding: 0 8px;
+  letter-spacing: -0.42px;
+}
+.ag-textarea::placeholder { color: var(--muted); }
+.ag-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+.ag-toolbar-l, .ag-toolbar-r {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ag-tool-btn {
+  background: transparent;
+  border: none;
+  padding: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.ag-tool-btn:hover { color: var(--text); }
+.ag-model-btn, .ag-std-btn {
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: 0px;
+  box-shadow: 3px 3px 0px var(--line);
+  padding: 6px 12px;
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  letter-spacing: -0.36px;
+  transition: all 0.15s;
+}
+.ag-model-btn:hover, .ag-std-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px var(--line);
+  background: var(--panel-2); 
+}
+
+/* Mode dropdown */
+.ag-mode-wrap {
+  position: relative;
+}
+.ag-mode-menu {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: #1a1a1a;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  padding: 4px;
+  min-width: 220px;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.ag-mode-menu.open { display: block; }
+.ag-mode-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+.ag-mode-opt:hover { background: rgba(255,255,255,0.07); }
+.ag-mode-opt.active { background: rgba(25,216,230,0.12); }
+.ag-mode-opt-icon { font-size: 16px; flex-shrink: 0; width: 20px; text-align: center; }
+.ag-mode-opt-info { display: flex; flex-direction: column; gap: 1px; }
+.ag-mode-opt-name {
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+.ag-mode-opt-desc {
+  font-family: var(--body);
+  font-size: 11px;
+  color: var(--faint);
+}
+.ag-mode-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 6px;
+}
+.ag-mode-section-label {
+  font-size: 10px;
+  font-family: var(--body);
+  color: var(--faint);
+  padding: 4px 10px 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* OAuth token row */
+.ag-token-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(25,216,230,0.05);
+  border: 1px solid rgba(25,216,230,0.2);
+  border-radius: 10px;
+}
+.ag-token-icon { font-size: 14px; flex-shrink: 0; }
+.ag-token-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  min-width: 0;
+}
+.ag-token-input::placeholder { color: var(--faint); }
+.ag-token-link {
+  font-size: 11px;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ag-token-link:hover { text-decoration: underline; }
+.ag-send-btn {
+  width: 36px; height: 36px;
+  background: var(--accent);
+  border: 2px solid var(--line);
+  border-radius: 0px;
+  box-shadow: 2px 2px 0px var(--line);
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s;
+  flex-shrink: 0;
+  font-size: 16px;
+}
+.ag-send-btn:hover { 
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px var(--line);
+  background: var(--accent-2); 
+}
+.ag-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Thinking mode bar */
+.ag-think-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 2px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  flex-wrap: wrap;
+}
+.ag-think-label {
+  font-size: 11px;
+  color: var(--faint);
+  font-family: var(--body);
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+.ag-think-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-family: var(--body);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.ag-think-btn:hover { border-color: var(--line-2); color: var(--text); }
+.ag-think-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(25,216,230,0.08);
+}
+
+/* Suggestion chips (dark) */
+.ag-suggestions {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 2px 4px;
+  flex-shrink: 0;
+}
+.ag-suggestions::-webkit-scrollbar { height: 0; }
+.ag-suggest-card {
+  background: var(--panel-3);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 13px;
+  cursor: pointer;
+  font-family: var(--body);
+  font-size: 12px;
+  color: var(--muted);
+  transition: all 0.15s;
+  flex-shrink: 0;
+  min-width: 100px;
+  max-width: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  text-align: left;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: -0.3px;
+}
+.ag-suggest-card:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  transform: translateY(-1px);
+  background: rgba(25,216,230,0.04);
+}
+.ag-suggest-card--featured { min-width: 150px; }
+.ag-suggest-label {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.3;
+  font-weight: 500;
+}
+.ag-suggest-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
+.ag-suggest-chip {
+  border: 0.7px solid var(--line-2);
+  border-radius: 60px;
+  padding: 2px 7px;
+  font-size: 9px;
+  color: var(--faint);
+  letter-spacing: -0.2px;
+}
+.ag-footer-note {
+  font-size: 11px;
+  color: var(--faint);
+  text-align: center;
+  padding: 2px 0;
+}
+
+/* ─── Chat thinking / tool-use states ───────────────────────────── */
+.ag-thinking-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+.ag-thinking-spinner {
+  width: 11px; height: 11px;
+  border: 1.5px solid var(--line-2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+.ag-thinking-tool { color: var(--accent); font-weight: 600; white-space: nowrap; }
+.ag-thinking-query {
+  color: var(--faint);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+/* ─── Intent confirmation card in chat ───────────────────────────── */
+.ag-intent-card {
+  padding: 10px 13px;
+  background: rgba(25,216,230,0.05);
+  border: 1px solid rgba(25,216,230,0.18);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.ag-intent-card-header {
+  font-size: 10px;
+  color: var(--accent);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+.ag-intent-tags {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.ag-intent-tag {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.ag-intent-tag.ok {
+  background: rgba(51,196,129,0.08);
+  border-color: rgba(51,196,129,0.25);
+  color: var(--ok);
+}
+
+/* ─── Enhance mode tabs ──────────────────────────────────────────── */
+.enh-mode-strip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+  background: var(--panel);
+}
+.enh-mode-tab {
+  padding: 10px 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.enh-mode-tab:hover { color: var(--text); }
+.enh-mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.enh-pane { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; position: relative; }
+
+/* ─── Prompt mode tabs (Research / Fast Build / Media) ──────────── */
+.prompt-mode-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  padding: 2px;
+}
+.pm-tab {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.14s;
+  white-space: nowrap;
+}
+.pm-tab:hover { color: var(--text); background: rgba(255,255,255,0.5); }
+.pm-tab.active { background: var(--panel); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+/* ─── Compare model picker ────────────────────────────────────────── */
+.control-select-sm {
+  font-size: 11px !important;
+  padding: 4px 6px !important;
+  max-width: 130px;
+}
+.compare-vs-label {
+  font-size: 11px;
+  color: var(--faint);
+  flex-shrink: 0;
+}
+
+/* ─── Workspace context toggle ───────────────────────────────────── */
+.ws-context-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 2px 0;
+}
+.ws-context-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.ws-context-label input[type="checkbox"] { cursor: pointer; }
+.ws-context-hint {
+  font-size: 11px;
+  color: var(--faint);
+}
+
+/* ─── Connectors page ────────────────────────────────────────────── */
+.app.page-connectors { grid-template-columns: 220px 1fr 0; }
+.app.page-connectors .details { display: none; }
+
+.page-connectors {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg);
+  padding: 28px 32px;
+  gap: 20px;
+}
+.conn-header { display: flex; flex-direction: column; gap: 6px; }
+.conn-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.4px;
+}
+.conn-sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+  max-width: 640px;
+}
+.conn-link { color: var(--accent); text-decoration: none; }
+.conn-link:hover { text-decoration: underline; }
+
+.conn-service-row {
+  display: flex;
+  gap: 10px;
+}
+.conn-service-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px 16px;
+  width: 160px;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.conn-service-btn:hover { border-color: var(--accent); background: var(--panel-2); }
+.conn-service-btn.active { border-color: var(--accent); background: rgba(25,216,230,0.06); }
+.conn-svc-icon { font-size: 20px; }
+.conn-svc-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: var(--body);
+}
+.conn-svc-scope {
+  font-size: 10px;
+  color: var(--faint);
+  font-family: var(--mono);
+}
+
+.conn-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 720px;
+}
+.conn-field { display: flex; flex-direction: column; gap: 5px; }
+.conn-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.conn-token-input, .conn-prompt-input {
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 13px;
+  padding: 9px 12px;
+  outline: none;
+  transition: border-color 0.18s;
+  width: 100%;
+}
+.conn-token-input:focus, .conn-prompt-input:focus { border-color: var(--accent); }
+.conn-token-input::placeholder, .conn-prompt-input::placeholder { color: var(--faint); }
+.conn-prompt-input { resize: vertical; min-height: 72px; line-height: 1.5; }
+
+.conn-quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.conn-quick-btn {
+  padding: 4px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--body);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.conn-quick-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.conn-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.conn-spinner { font-size: 16px; animation: ag-pulse 1s ease-in-out infinite; }
+
+.conn-result-wrap {
+  max-width: 720px;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.conn-result-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.conn-result-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--accent);
+}
+.conn-result-model {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--faint);
+}
+.conn-result-usage {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--faint);
+  margin-left: auto;
+}
+.conn-result-body {
+  padding: 14px 16px;
+  font-size: 13px;
+  font-family: var(--body);
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
 /* ─── Intent Q&A panel ──────────────────────────────────────────── */
 .intent-qa-panel {
   background: var(--panel);
@@ -1341,137 +2334,323 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
   margin-top: 1px;
 }
 
-/* Velocity vNext surfaces: Profile + NeuroPrompt Signal */
-:root {
-  --velocity-bg: #131313;
-  --velocity-panel: #1c1b1b;
-  --velocity-panel-deep: #0e0e0e;
-  --velocity-cyan: #6df3ff;
-  --velocity-text: #e5e2e1;
-  --velocity-muted: #bac9cb;
-  --velocity-border: rgba(59,73,75,0.2);
-}
+/* ─── Profile page ───────────────────────────────────────────────── */
 .app.page-profile { grid-template-columns: 220px 1fr 0; }
 .app.page-profile .details { display: none; }
 .page-profile {
   height: 100%;
-  overflow: auto;
-  padding: 48px;
-  background: var(--velocity-bg);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
-.profile-shell { max-width: 1184px; margin: 0 auto; display: grid; gap: 24px; }
-.velocity-pill {
-  display: inline-flex;
+.profile-header {
+  padding: 20px 28px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  flex-shrink: 0;
+}
+.profile-header h2 { font-size: 15px; font-weight: 700; }
+.profile-header p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.profile-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 0;
+  overflow: hidden;
+  min-height: 0;
+}
+.profile-left {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+.profile-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  flex-shrink: 0;
+}
+.profile-tab {
+  padding: 10px 18px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  border: none;
+  background: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-family: var(--body);
+  transition: all 0.15s;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  width: fit-content;
-  padding: 5px 13px;
-  border-radius: 9999px;
-  border: 1px solid var(--velocity-border);
-  background: #2a2a2a;
-  color: var(--velocity-cyan);
+  gap: 6px;
+}
+.profile-tab:hover { color: var(--text); }
+.profile-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.profile-tab-content {
+  display: none;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px 28px;
+  flex: 1;
+}
+.profile-tab-content.active { display: flex; }
+.profile-section-label {
   font-size: 10px;
-  letter-spacing: 1.4px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  font-family: var(--mono);
+  color: var(--faint);
+  margin-bottom: 10px;
 }
-.velocity-pill::before {
-  content: "";
-  width: 8px;
-  height: 8px;
-  border-radius: 9999px;
-  background: var(--velocity-cyan);
-  box-shadow: 0 0 8px rgba(109,243,255,0.45);
+.profile-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
-.profile-hero {
-  border: 1px solid rgba(59,73,75,0.1);
-  background: var(--velocity-panel);
-  border-radius: 24px;
-  padding: 48px;
+.profile-field { display: flex; flex-direction: column; gap: 5px; }
+.profile-field label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
 }
-.profile-title {
-  margin-top: 20px;
-  color: var(--velocity-text);
-  font-size: 48px;
-  line-height: 1;
-  letter-spacing: -2px;
-  font-weight: 800;
+.profile-field .field-hint {
+  font-size: 11px;
+  color: var(--faint);
+  margin-top: 2px;
 }
-.profile-subtitle {
-  margin-top: 14px;
-  max-width: 660px;
-  color: rgba(186,201,203,0.72);
-  font-size: 15px;
-  line-height: 1.7;
+.profile-input {
+  width: 100%;
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 13px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.15s;
 }
-.profile-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; }
-.profile-card {
-  border: 1px solid rgba(59,73,75,0.1);
-  background: var(--velocity-panel);
-  border-radius: 16px;
-  padding: 28px;
-}
-.profile-label {
-  color: var(--velocity-cyan);
-  font-size: 10px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  font-family: var(--mono);
-  margin-bottom: 12px;
-}
+.profile-input:focus { border-color: var(--accent); }
 .profile-textarea {
   width: 100%;
-  min-height: 180px;
+  min-height: 160px;
   resize: vertical;
-  border-radius: 12px;
-  border: 1px solid rgba(59,73,75,0.2);
-  background: var(--velocity-panel-deep);
-  color: var(--velocity-text);
-  padding: 18px;
-  font-family: var(--body);
-  font-size: 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 12px 14px;
   line-height: 1.65;
   outline: none;
+  transition: border-color 0.15s;
 }
-.profile-actions { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
-.profile-review { display: grid; gap: 10px; color: var(--velocity-muted); font-size: 13px; }
-.profile-kv {
+.profile-textarea:focus { border-color: var(--accent); }
+.profile-ingest-hint {
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.profile-ingest-hint strong { color: var(--text); }
+.profile-actions {
   display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+.profile-right {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: var(--panel);
+}
+.profile-preview-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(59,73,75,0.12);
+  flex-shrink: 0;
 }
-.profile-kv span:first-child {
-  color: rgba(186,201,203,0.55);
+.profile-preview-title {
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.9px;
-  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--faint);
 }
-.profile-kv span:last-child { color: var(--velocity-text); text-align: right; }
+.profile-status-badge {
+  font-size: 10px;
+  font-family: var(--mono);
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--faint);
+  border: 1px solid var(--line-2);
+}
+.profile-status-badge.saved { background: rgba(51,196,129,0.1); color: var(--ok); border-color: rgba(51,196,129,0.3); }
+.profile-status-badge.draft { background: rgba(245,184,75,0.1); color: var(--warn); border-color: rgba(245,184,75,0.3); }
+.profile-review {
+  flex: 1;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+.profile-kv {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: start;
+}
+.profile-kv:last-child { border-bottom: none; }
+.profile-kv-key {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--faint);
+  padding-top: 1px;
+}
+.profile-kv-val {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.profile-summary-note {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  padding: 12px 14px;
+  background: rgba(59,130,246,0.06);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 12px;
+}
+.profile-preview-actions {
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.profile-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--faint);
+  text-align: center;
+}
+.profile-empty-icon { font-size: 28px; opacity: 0.4; }
+.profile-empty-text { font-size: 12px; line-height: 1.5; }
+/* neuro card (used inline in profile) */
 .neuro-card {
-  margin-top: 18px;
-  border: 1px solid rgba(59,73,75,0.14);
-  background: #101111;
-  border-radius: 16px;
-  padding: 22px;
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  padding: 16px 18px;
   display: none;
 }
 .neuro-card.visible { display: block; }
 .neuro-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
-.neuro-score { color: var(--velocity-text); font-size: 44px; line-height: 1; font-weight: 800; letter-spacing: -1.8px; }
-.neuro-label { color: var(--velocity-cyan); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; }
-.neuro-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-top: 18px; }
-.neuro-bar-row { display: grid; gap: 6px; }
-.neuro-bar-meta { display: flex; justify-content: space-between; color: var(--velocity-muted); font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; }
-.neuro-bar-track { height: 4px; border-radius: 999px; overflow: hidden; background: #2a2a2a; }
-.neuro-bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(135deg, #6df3ff 0%, #19d8e6 100%); }
-.neuro-note { margin-top: 14px; color: rgba(186,201,203,0.6); font-size: 11px; line-height: 1.55; }
-@media (max-width: 900px) {
-  .profile-grid { grid-template-columns: 1fr; }
-  .page-profile { padding: 24px; }
-  .profile-title { font-size: 34px; }
+.neuro-score { color: var(--text); font-size: 36px; line-height: 1; font-weight: 800; letter-spacing: -1.5px; }
+.neuro-label { color: var(--accent); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; font-family: var(--mono); }
+.neuro-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 14px; }
+.neuro-bar-row { display: grid; gap: 5px; }
+.neuro-bar-meta { display: flex; justify-content: space-between; color: var(--faint); font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; font-family: var(--mono); }
+.neuro-bar-track { height: 3px; border-radius: 999px; overflow: hidden; background: var(--panel-3); }
+.neuro-bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent) 0%, #19d8e6 100%); }
+.neuro-note { margin-top: 10px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+
+/* ─── Mobile sidebar ─────────────────────────────────────────────── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 40;
+}
+.mobile-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* ─── Responsive breakpoints ─────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .app {
+    grid-template-columns: 200px 1fr 280px;
+  }
+}
+@media (max-width: 860px) {
+  .app {
+    grid-template-areas:
+      "topbar topbar"
+      "workspace workspace";
+    grid-template-columns: 1fr;
+    grid-template-rows: 46px 1fr;
+  }
+  .app.page-memory,
+  .app.page-diagnostics,
+  .app.page-profile,
+  .app.page-connectors,
+  .app.page-version {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: fixed;
+    left: -240px;
+    top: 0;
+    bottom: 0;
+    width: 220px;
+    z-index: 50;
+    transition: left 0.22s ease;
+    box-shadow: 2px 0 16px rgba(0,0,0,0.12);
+  }
+  .sidebar.open { left: 0; }
+  .sidebar-overlay.open { display: block; }
+  .mobile-menu-btn { display: flex; }
+  .details { display: none !important; }
+  .app { grid-template-columns: 1fr; }
   .neuro-grid { grid-template-columns: 1fr; }
+  .profile-body { grid-template-columns: 1fr; }
+  .profile-right {
+    border-right: none;
+    border-top: 1px solid var(--line);
+    max-height: 360px;
+  }
+  .version-features { grid-template-columns: 1fr; }
+  .page-version { padding: 24px; }
+}
+@media (max-width: 600px) {
+  .topbar { padding: 0 10px; gap: 8px; }
+  .topbar-brand { font-size: 13px; }
+  .page-version { padding: 16px; }
+  .profile-tab-content { padding: 16px; }
+  .profile-header { padding: 14px 16px 12px; }
 }
 </style>
 </head>
@@ -1480,6 +2659,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 <div class="app" id="appShell">
   <!-- ── Topbar ── -->
   <header class="topbar">
+    <button class="mobile-menu-btn" onclick="toggleSidebar()" title="Menu">☰</button>
     <div class="topbar-brand">
       <span class="logo-mark">TV</span>
       ThinkVelocity
@@ -1492,8 +2672,11 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
     <div class="status-dot" id="statusDot" title="Ready"></div>
   </header>
 
+  <!-- ── Mobile sidebar overlay ── -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
   <!-- ── Sidebar ── -->
-  <nav class="sidebar">
+  <nav class="sidebar" id="sidebar">
     <div class="sidebar-nav">
       <span class="nav-section-label">Tools</span>
       <button class="nav-btn active" id="nav-enhance" onclick="showView('enhance')">
@@ -1505,11 +2688,14 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
       <button class="nav-btn" id="nav-profile" onclick="showView('profile')">
         <span class="nav-icon">◎</span> Profile
       </button>
+      <button class="nav-btn" id="nav-connectors" onclick="showView('connectors')">
+        <span class="nav-icon">⬡</span> Connectors
+      </button>
       <button class="nav-btn" id="nav-diagnostics" onclick="showView('diagnostics')">
         <span class="nav-icon">⚙</span> Diagnostics
       </button>
-      <button class="nav-btn" id="nav-cothinker" onclick="showView('cothinker')">
-        <span class="nav-icon">🎙</span> CoThinker
+      <button class="nav-btn" id="nav-version" onclick="showView('version')">
+        <span class="nav-icon">◑</span> Version
       </button>
       <div class="nav-divider"></div>
       <button class="nav-btn" onclick="clearWorkspace()">
@@ -1527,8 +2713,21 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 
     <!-- ========= ENHANCE PAGE ========= -->
     <div class="page-enhance" id="pageEnhance">
+      <div class="enh-mode-strip">
+        <button class="enh-mode-tab active" id="enhTab-enhance" onclick="setEnhMode('enhance')">✦ Enhance</button>
+        <button class="enh-mode-tab" id="enhTab-cothinker" onclick="setEnhMode('cothinker')">🎙 CoThinker</button>
+        <button class="enh-mode-tab" id="enhTab-chat" onclick="setEnhMode('chat')">⚡ Chat</button>
+      </div>
+      <div id="enhPaneEnhance" class="enh-pane">
       <div class="enhance-input-zone">
         <textarea class="prompt-textarea" id="promptInput" placeholder="Enter your raw prompt…" rows="4"></textarea>
+        <!-- Workspace context toggle (visible only when WS token is saved) -->
+        <div id="wsContextRow" class="ws-context-row" style="display:none">
+          <label class="ws-context-label">
+            <input type="checkbox" id="wsContextToggle"> Workspace context
+          </label>
+          <span class="ws-context-hint">Gmail · Calendar · Drive</span>
+        </div>
         <div class="enhance-controls">
           <select class="control-select" id="targetAiSelect">
             <option value="">Any AI</option>
@@ -1538,12 +2737,34 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
             <option value="midjourney">Midjourney</option>
             <option value="cursor">Cursor</option>
           </select>
-          <select class="control-select" id="promptModeSelect">
-            <option value="normal">Normal</option>
-            <option value="caveman">Caveman</option>
-          </select>
+          <div class="prompt-mode-tabs" id="promptModeTabs">
+            <button class="pm-tab active" id="pmTab-research" onclick="setPromptMode('research')">Research</button>
+            <button class="pm-tab" id="pmTab-fast_build" onclick="setPromptMode('fast_build')">Fast Build</button>
+            <button class="pm-tab" id="pmTab-media" onclick="setPromptMode('media')">Media</button>
+          </div>
           <div class="topbar-spacer"></div>
-          <button class="btn-secondary" id="btnCompare" onclick="runCompare()" title="Compare Normal vs Caveman modes">Compare</button>
+          <select class="control-select control-select-sm" id="compareModelA" title="Model A for compare">
+            <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+            <option value="llama-3.1-8b-instant">Llama 3.1 8B (fast)</option>
+            <option value="llama3-70b-8192">Llama 3 70B</option>
+            <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+            <option value="gemma2-9b-it">Gemma 2 9B</option>
+            <option value="qwen-qwq-32b">Qwen QwQ 32B</option>
+            <option value="deepseek-r1-distill-llama-70b">DeepSeek R1 70B</option>
+            <option value="compound-beta">Compound β</option>
+          </select>
+          <span class="compare-vs-label">vs</span>
+          <select class="control-select control-select-sm" id="compareModelB" title="Model B for compare">
+            <option value="llama-3.1-8b-instant">Llama 3.1 8B (fast)</option>
+            <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+            <option value="llama3-70b-8192">Llama 3 70B</option>
+            <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+            <option value="gemma2-9b-it">Gemma 2 9B</option>
+            <option value="qwen-qwq-32b">Qwen QwQ 32B</option>
+            <option value="deepseek-r1-distill-llama-70b">DeepSeek R1 70B</option>
+            <option value="compound-beta">Compound β</option>
+          </select>
+          <button class="btn-secondary" id="btnCompare" onclick="runCompare()" title="Compare two models">Compare</button>
           <button class="btn-primary" id="btnEnhance" onclick="runEnhance()">✦ Enhance</button>
         </div>
       </div>
@@ -1645,65 +2866,269 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
           <div class="empty-state-text">Enter a prompt above and hit Enhance to see the magic.</div>
         </div>
       </div>
-    </div>
+      </div><!-- /enhPaneEnhance -->
 
-    <!-- ========= BRAIN PAGE (full-size, persona-first) ========= -->
-    <div class="page-brain" id="pageBrain" style="display:none">
-      <div class="persona-bar" id="personaBar">
-        <div class="persona-identity">
-          <div class="persona-avatar" id="personaAvatar">TV</div>
-          <div>
-            <div class="persona-name" id="personaName">Your Persona</div>
-            <div class="persona-sub" id="personaSub">Loading…</div>
+      <!-- ── CoThinker pane ── -->
+      <div id="enhPaneCothinker" class="enh-pane" style="display:none">
+        <!-- Chat view -->
+        <div id="ctChatView" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+          <div class="ct-chat" id="ctChat"></div>
+          <div class="ct-controls">
+            <div class="ct-status-row">
+              <div class="ct-wave" id="ctWave">
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <div class="ct-status" id="ctStatus">Click the mic to start the conversation</div>
+            </div>
+            <div class="ct-live-transcript" id="ctLiveTranscript"></div>
+            <div class="ct-buttons">
+              <button class="ct-mic-btn" id="ctMicBtn" onclick="ctToggleMic()">🎤 Start Speaking</button>
+              <button class="btn-secondary" id="ctFinalizeBtn" onclick="ctFinalize()" style="opacity:0.4;pointer-events:none">✓ Generate Prompt</button>
+            </div>
+            <div class="ct-text-row">
+              <input class="ct-text-input" id="ctTextInput" placeholder="Or type here…" onkeydown="if(event.key==='Enter')ctSendText()" />
+              <button class="btn-secondary" onclick="ctSendText()">Send</button>
+            </div>
+            <div class="ct-no-voice" id="ctNoVoice" style="display:none">⚠ Voice not supported in this browser — use the text input above.</div>
+          </div>
+          <div class="ct-checklist" id="ctChecklist">
+            <div class="ct-checklist-label">Confirmed <span id="ctConfirmCount">0</span>/10</div>
+            <div class="ct-check-item" id="ctck-target_llm"><span class="ct-check-icon">○</span>Target AI</div>
+            <div class="ct-check-item" id="ctck-core_goal"><span class="ct-check-icon">○</span>Core Goal</div>
+            <div class="ct-check-item" id="ctck-task_type"><span class="ct-check-icon">○</span>Task Type</div>
+            <div class="ct-check-item" id="ctck-domain"><span class="ct-check-icon">○</span>Domain</div>
+            <div class="ct-check-item" id="ctck-audience"><span class="ct-check-icon">○</span>Audience</div>
+            <div class="ct-check-item" id="ctck-output_format"><span class="ct-check-icon">○</span>Output Format</div>
+            <div class="ct-check-item" id="ctck-constraints"><span class="ct-check-icon">○</span>Constraints</div>
+            <div class="ct-check-item" id="ctck-background_context"><span class="ct-check-icon">○</span>Context</div>
+            <div class="ct-check-item" id="ctck-tone"><span class="ct-check-icon">○</span>Tone</div>
+            <div class="ct-check-item" id="ctck-success_criteria"><span class="ct-check-icon">○</span>Success</div>
           </div>
         </div>
-        <div class="persona-stats" id="personaStats">
+        <!-- Result view (shown after finalize) -->
+        <div id="ctResultView" style="display:none;flex-direction:column;height:100%;overflow:hidden">
+          <div class="ct-result" id="ctResult">
+            <div class="ct-result-header">
+              <span class="ct-result-title">Your Enhanced Prompt</span>
+              <span class="ct-result-badge">CoThinker</span>
+            </div>
+            <div class="ct-meta-row" id="ctResultMeta"></div>
+            <div class="ct-prompt-box" id="ctResultPrompt"></div>
+            <div class="ct-techniques" id="ctResultTechniques"></div>
+            <div class="ct-result-actions">
+              <button class="btn-primary" onclick="ctCopyPrompt()">⎘ Copy Prompt</button>
+              <button class="btn-secondary" onclick="ctSendToEnhance()">↗ Open in Enhance</button>
+              <button class="btn-secondary" onclick="ctReset()">↺ New Conversation</button>
+            </div>
+          </div>
+        </div>
+      </div><!-- /enhPaneCothinker -->
+
+      <!-- ── Chat pane ── -->
+      <div id="enhPaneChat" class="enh-pane" style="display:none">
+        <!-- Idle state: hidden once conversation starts -->
+        <div class="ag-welcome" id="agWelcome">
+          <div class="ag-idle-glyph">⚡</div>
+          <div class="ag-idle-title">Agentic Prompt Enhancement</div>
+          <div class="ag-idle-sub">Improve your prompts using web search, code execution, and live data</div>
+        </div>
+        <!-- Chat thread -->
+        <div class="agentic-chat" id="agenticChat"></div>
+        <!-- Input area -->
+        <div class="ag-input-wrap">
+          <div class="ag-input-box">
+            <textarea class="ag-textarea" id="agenticInput" placeholder="Write your prompt" rows="2"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();agenticSend()}"></textarea>
+            <div class="ag-toolbar">
+              <div class="ag-toolbar-r">
+                <!-- Connector / data source selector -->
+                <div class="ag-mode-wrap" id="agModeWrap">
+                  <button class="ag-std-btn" id="agModeBtn" onclick="agToggleModeMenu(event)">
+                    <span id="agModeLabel">⚡ Standard</span> ▾
+                  </button>
+                  <div class="ag-mode-menu" id="agModeMenu">
+                    <button class="ag-mode-opt" id="agOpt-standard" onclick="agSetMode('standard')">
+                      <span class="ag-mode-opt-icon">⚡</span>
+                      <span class="ag-mode-opt-info">
+                        <span class="ag-mode-opt-name">Standard</span>
+                        <span class="ag-mode-opt-desc">Agentic — web search &amp; code</span>
+                      </span>
+                    </button>
+                    <div class="ag-mode-divider"></div>
+                    <div class="ag-mode-section-label">Google Workspace</div>
+                    <button class="ag-mode-opt" id="agOpt-connector_googledrive" onclick="agSetMode('connector_googledrive')">
+                      <span class="ag-mode-opt-icon">📁</span>
+                      <span class="ag-mode-opt-info">
+                        <span class="ag-mode-opt-name">Google Drive</span>
+                        <span class="ag-mode-opt-desc">Search &amp; read your files</span>
+                      </span>
+                    </button>
+                    <button class="ag-mode-opt" id="agOpt-connector_gmail" onclick="agSetMode('connector_gmail')">
+                      <span class="ag-mode-opt-icon">✉️</span>
+                      <span class="ag-mode-opt-info">
+                        <span class="ag-mode-opt-name">Gmail</span>
+                        <span class="ag-mode-opt-desc">Search &amp; read emails</span>
+                      </span>
+                    </button>
+                    <button class="ag-mode-opt" id="agOpt-connector_googlecalendar" onclick="agSetMode('connector_googlecalendar')">
+                      <span class="ag-mode-opt-icon">📅</span>
+                      <span class="ag-mode-opt-info">
+                        <span class="ag-mode-opt-name">Calendar</span>
+                        <span class="ag-mode-opt-desc">View events &amp; meetings</span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                <button class="ag-send-btn" onclick="agenticSend()" id="agenticSendBtn">&#10148;</button>
+              </div>
+            </div>
+          </div>
+          <!-- OAuth token row — shown only for connector modes -->
+          <div class="ag-token-row" id="agTokenRow" style="display:none">
+            <span class="ag-token-icon">🔑</span>
+            <input class="ag-token-input" id="agOAuthToken" type="password"
+              placeholder="Paste Google OAuth access token (ya29.A0…)" />
+            <a class="ag-token-link" href="https://developers.google.com/oauthplayground/" target="_blank">Get token ↗</a>
+          </div>
+          <!-- Suggestion chips -->
+          <div class="ag-suggestions" id="agSuggestions"></div>
+          <p class="ag-footer-note" id="agFooterNote">Powered by Groq Compound — web search &amp; code execution</p>
+        </div>
+      </div><!-- /enhPaneChat -->
+    </div><!-- /pageEnhance -->
+
+    <!-- ========= BRAIN PAGE (structured: header + sidebar + graph) ========= -->
+    <div class="page-brain" id="pageBrain" style="display:none">
+      <!-- Persona header bar -->
+      <div class="brain-header">
+        <div class="persona-avatar" id="personaAvatar">TV</div>
+        <div class="brain-persona-info">
+          <div class="persona-name" id="personaName">Your Persona</div>
+          <div class="persona-sub" id="personaSub">Loading…</div>
+        </div>
+        <div class="brain-stats-row">
           <div class="p-stat"><span class="p-stat-val" id="pEnhancements">—</span><span class="p-stat-lbl">enhancements</span></div>
           <div class="p-stat"><span class="p-stat-val" id="pDomains">—</span><span class="p-stat-lbl">domains</span></div>
           <div class="p-stat"><span class="p-stat-val" id="pIntents">—</span><span class="p-stat-lbl">intents</span></div>
         </div>
-        <div class="persona-chips" id="personaChips"></div>
-        <div class="persona-actions">
+        <div class="persona-chips" id="personaChips" style="flex:1;min-width:0"></div>
+        <div class="brain-header-actions">
           <button class="btn-ghost" onclick="loadBrainData()" title="Refresh">⟳</button>
           <button class="btn-ghost" onclick="resetMemory()" title="Reset memory" style="color:var(--bad)">⏾</button>
         </div>
       </div>
+      <!-- Body: sidebar + graph -->
       <div class="brain-body">
+        <!-- Left sidebar -->
+        <div class="brain-sidebar">
+          <!-- Insights -->
+          <div class="brain-insights" id="brainInsights" style="display:none">
+            <div class="insight-block">
+              <div class="insight-title">Project Phase</div>
+              <div class="insight-item" id="insightClassification">Run some enhancements first.</div>
+            </div>
+            <div class="insight-block">
+              <div class="insight-title">Semantic Clusters</div>
+              <div id="insightClusters"><div style="font-size:12px;color:var(--faint)">No clusters yet</div></div>
+            </div>
+            <div class="insight-block">
+              <div class="insight-title">Co-occurrence Patterns</div>
+              <div id="insightMarketBasket"><div style="font-size:12px;color:var(--faint)">No patterns yet</div></div>
+            </div>
+          </div>
+          <!-- Proactive suggestions -->
+          <div class="brain-suggestions" id="brainSuggestions" style="display:none">
+            <div class="insight-title">Start From Memory</div>
+            <div id="brainSuggestList"></div>
+          </div>
+        </div>
+        <!-- Graph canvas -->
         <div id="brainCanvas"></div>
       </div>
     </div>
 
     <!-- ========= PROFILE PAGE ========= -->
     <div class="page-profile" id="pageProfile" style="display:none">
-      <div class="profile-shell">
-        <section class="profile-hero">
-          <div class="velocity-pill">Profile Signal</div>
-          <div class="profile-title">Tell Velocity how you work.</div>
-          <div class="profile-subtitle">
-            Describe your preferences once. Velocity extracts a reusable profile, applies it to prompt enhancement, and shows when personalization improved the output.
+      <div class="profile-header">
+        <h2>Profile</h2>
+        <p>Describe how you work once — Velocity extracts a reusable preference profile and applies it to every enhancement.</p>
+      </div>
+      <div class="profile-body">
+        <!-- Left: input methods -->
+        <div class="profile-left">
+          <div class="profile-tabs">
+            <button class="profile-tab active" id="profTab-questionnaire" onclick="switchProfileTab('questionnaire')">
+              ◎ Questionnaire
+            </button>
+            <button class="profile-tab" id="profTab-import" onclick="switchProfileTab('import')">
+              ↓ Import Data
+            </button>
           </div>
-        </section>
-        <section class="profile-grid">
-          <div class="profile-card">
-            <div class="profile-label">Preference Input</div>
-            <textarea class="profile-textarea" id="profileNotesInput" placeholder="Example: I prefer concise prompts, senior-level technical depth, explicit acceptance criteria, direct tone, and implementation checklists. Avoid generic advice and long intros."></textarea>
+
+          <!-- Questionnaire tab -->
+          <div class="profile-tab-content active" id="profContent-questionnaire">
+            <div>
+              <div class="profile-section-label">Tell us about yourself</div>
+              <div class="profile-field-group">
+                <div class="profile-field">
+                  <label>Role / Industry</label>
+                  <input type="text" class="profile-input" id="profQRole" placeholder="e.g. Senior Frontend Engineer, Data Scientist">
+                </div>
+                <div class="profile-field">
+                  <label>Target AI</label>
+                  <input type="text" class="profile-input" id="profQTarget" placeholder="e.g. Claude 3.5 Sonnet, GPT-4o">
+                  <span class="field-hint">Which model do you prompt most? This tunes output style.</span>
+                </div>
+                <div class="profile-field">
+                  <label>Preferred tone</label>
+                  <input type="text" class="profile-input" id="profQTone" placeholder="e.g. Direct, Academic, No fluff">
+                </div>
+                <div class="profile-field">
+                  <label>Output formats</label>
+                  <input type="text" class="profile-input" id="profQFormats" placeholder="e.g. Markdown checklists, code only, structured JSON">
+                </div>
+              </div>
+            </div>
             <div class="profile-actions">
-              <button class="btn-primary" onclick="extractProfile(false)">Extract Preferences</button>
-              <button class="btn-secondary" onclick="extractProfile(true)">Extract + Save</button>
-              <button class="btn-secondary" onclick="loadProfile()">Load Current</button>
+              <button class="btn-primary" onclick="extractProfile(false)">Extract preferences</button>
+              <button class="btn-secondary" onclick="extractProfile(true)">Extract + save</button>
+              <button class="btn-ghost" onclick="loadProfile()">Load saved</button>
             </div>
           </div>
-          <div class="profile-card">
-            <div class="profile-label">Review Profile</div>
-            <div class="profile-review" id="profileReview">
-              <div style="color:var(--faint);font-size:12px">No profile loaded yet.</div>
+
+          <!-- Import tab -->
+          <div class="profile-tab-content" id="profContent-import">
+            <div class="profile-ingest-hint">
+              <strong>Paste anything.</strong> Export from ChatGPT, Claude, Notion, a plain-text bio, or raw JSON from a previous Velocity export. The LLM will extract domains, frameworks, tone preferences and populate your profile automatically.
+            </div>
+            <div class="profile-field">
+              <label>Raw data</label>
+              <textarea class="profile-textarea" id="profIngestData" placeholder="Paste your ChatGPT memory export, bio, previous AI conversation, or any structured/unstructured text about how you work…"></textarea>
             </div>
             <div class="profile-actions">
-              <button class="btn-primary" onclick="saveExtractedProfile()">Save Reviewed Profile</button>
-              <button class="btn-secondary" onclick="clearProfileDraft()">Discard Draft</button>
+              <button class="btn-primary" onclick="autoIngestProfile()">Import &amp; extract</button>
+              <button class="btn-ghost" onclick="document.getElementById('profIngestData').value=''">Clear</button>
             </div>
           </div>
-        </section>
+        </div>
+
+        <!-- Right: live profile preview -->
+        <div class="profile-right">
+          <div class="profile-preview-header">
+            <span class="profile-preview-title">Current profile</span>
+            <span class="profile-status-badge" id="profileStatusBadge">—</span>
+          </div>
+          <div class="profile-review" id="profileReview">
+            <div class="profile-empty">
+              <div class="profile-empty-icon">◎</div>
+              <div class="profile-empty-text">Fill the questionnaire or import data<br>to see your extracted profile here.</div>
+            </div>
+          </div>
+          <div class="profile-preview-actions">
+            <button class="btn-primary" onclick="saveExtractedProfile()">Save profile</button>
+            <button class="btn-ghost" onclick="clearProfileDraft()">Discard</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1840,59 +3265,217 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
       </div>
     </div>
 
-    <!-- ========= COTHINKER PAGE ========= -->
-    <div class="page-cothinker" id="pageCothinker" style="display:none">
-      <!-- Chat view -->
-      <div id="ctChatView" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
-        <div class="ct-chat" id="ctChat"></div>
-        <div class="ct-controls">
-          <div class="ct-status-row">
-            <div class="ct-wave" id="ctWave">
-              <span></span><span></span><span></span><span></span><span></span>
-            </div>
-            <div class="ct-status" id="ctStatus">Click the mic to start the conversation</div>
-          </div>
-          <div class="ct-live-transcript" id="ctLiveTranscript"></div>
-          <div class="ct-buttons">
-            <button class="ct-mic-btn" id="ctMicBtn" onclick="ctToggleMic()">🎤 Start Speaking</button>
-            <button class="btn-secondary" id="ctFinalizeBtn" onclick="ctFinalize()" style="opacity:0.4;pointer-events:none">✓ Generate Prompt</button>
-          </div>
-          <div class="ct-text-row">
-            <input class="ct-text-input" id="ctTextInput" placeholder="Or type here…" onkeydown="if(event.key==='Enter')ctSendText()" />
-            <button class="btn-secondary" onclick="ctSendText()">Send</button>
-          </div>
-          <div class="ct-no-voice" id="ctNoVoice" style="display:none">⚠ Voice not supported in this browser — use the text input above.</div>
-        </div>
-        <div class="ct-checklist" id="ctChecklist">
-          <div class="ct-checklist-label">Confirmed <span id="ctConfirmCount">0</span>/10</div>
-          <div class="ct-check-item" id="ctck-target_llm"><span class="ct-check-icon">○</span>Target AI</div>
-          <div class="ct-check-item" id="ctck-core_goal"><span class="ct-check-icon">○</span>Core Goal</div>
-          <div class="ct-check-item" id="ctck-task_type"><span class="ct-check-icon">○</span>Task Type</div>
-          <div class="ct-check-item" id="ctck-domain"><span class="ct-check-icon">○</span>Domain</div>
-          <div class="ct-check-item" id="ctck-audience"><span class="ct-check-icon">○</span>Audience</div>
-          <div class="ct-check-item" id="ctck-output_format"><span class="ct-check-icon">○</span>Output Format</div>
-          <div class="ct-check-item" id="ctck-constraints"><span class="ct-check-icon">○</span>Constraints</div>
-          <div class="ct-check-item" id="ctck-background_context"><span class="ct-check-icon">○</span>Context</div>
-          <div class="ct-check-item" id="ctck-tone"><span class="ct-check-icon">○</span>Tone</div>
-          <div class="ct-check-item" id="ctck-success_criteria"><span class="ct-check-icon">○</span>Success</div>
+    <!-- pageCothinker and pageAgentic content moved into pageEnhance panes above -->
+    <div class="page-cothinker" id="pageCothinker" style="display:none"></div>
+    <div class="page-agentic" id="pageAgentic" style="display:none"></div>
+
+    <!-- ── Connectors page ── -->
+    <div class="page-connectors" id="pageConnectors" style="display:none">
+      <div class="conn-header">
+        <div>
+          <h2 class="conn-title">Google Workspace Connectors</h2>
+          <p class="conn-sub">Connect to Gmail, Calendar, and Drive via Groq MCP Connectors (beta). Paste a Google OAuth access token below — get one from the <a class="conn-link" href="https://developers.google.com/oauthplayground/" target="_blank">OAuth Playground</a>.</p>
         </div>
       </div>
 
-      <!-- Result view (shown after finalize) -->
-      <div id="ctResultView" style="display:none;flex-direction:column;height:100%;overflow:hidden">
-        <div class="ct-result" id="ctResult">
-          <div class="ct-result-header">
-            <span class="ct-result-title">Your Enhanced Prompt</span>
-            <span class="ct-result-badge">CoThinker</span>
+      <!-- Service selector -->
+      <div class="conn-service-row">
+        <button class="conn-service-btn active" id="connSvc-drive"     onclick="connSelectService('connector_googledrive')">
+          <span class="conn-svc-icon">📁</span>
+          <span class="conn-svc-name">Google Drive</span>
+          <span class="conn-svc-scope">drive.readonly</span>
+        </button>
+        <button class="conn-service-btn" id="connSvc-gmail"    onclick="connSelectService('connector_gmail')">
+          <span class="conn-svc-icon">✉️</span>
+          <span class="conn-svc-name">Gmail</span>
+          <span class="conn-svc-scope">gmail.readonly</span>
+        </button>
+        <button class="conn-service-btn" id="connSvc-calendar" onclick="connSelectService('connector_googlecalendar')">
+          <span class="conn-svc-icon">📅</span>
+          <span class="conn-svc-name">Calendar</span>
+          <span class="conn-svc-scope">calendar.events</span>
+        </button>
+      </div>
+
+      <!-- Token + query form -->
+      <div class="conn-form">
+        <div class="conn-field">
+          <label class="conn-label">OAuth Access Token</label>
+          <input class="conn-token-input" id="connToken" type="password"
+            placeholder="ya29.A0AR3da… (paste your Google OAuth token)" />
+        </div>
+        <div class="conn-field">
+          <label class="conn-label">Prompt</label>
+          <textarea class="conn-prompt-input" id="connPrompt" rows="3"
+            placeholder="e.g. Find spreadsheet files I worked on last month"></textarea>
+        </div>
+        <div class="conn-quick-row" id="connQuickRow">
+          <!-- populated by JS based on selected service -->
+        </div>
+        <div class="conn-actions">
+          <button class="btn-primary" onclick="connRun()" id="connRunBtn">Run Query</button>
+          <button class="btn-secondary" onclick="connDriveTest()" id="connTestBtn">▶ Drive Workflow Test</button>
+          <button class="btn-secondary" onclick="connSaveToken()" id="connSaveBtn" title="Save token for use in Enhance workspace context">⬡ Save for Workspace</button>
+          <div class="conn-spinner" id="connSpinner" style="display:none">⏳</div>
+        </div>
+      </div>
+
+      <!-- Result -->
+      <div class="conn-result-wrap" id="connResultWrap" style="display:none">
+        <div class="conn-result-header">
+          <span class="conn-result-label">Response</span>
+          <span class="conn-result-model" id="connResultModel"></span>
+          <span class="conn-result-usage" id="connResultUsage"></span>
+          <button class="btn-ghost" onclick="connClearResult()">✕ Clear</button>
+        </div>
+        <pre class="conn-result-body" id="connResultBody"></pre>
+      </div>
+    </div>
+
+    <!-- ── Version page ── -->
+    <div class="page-version" id="pageVersion">
+      <div class="version-hero">
+        <div class="version-badge">◑ ThinkVelocity &nbsp;·&nbsp; v2.0.0 &nbsp;·&nbsp; Production</div>
+        <h1>What's in this build</h1>
+        <p>A lean, self-hosted prompt engineering assistant. Single FastAPI service — no database, no heavy infrastructure. Every feature listed below is live and callable from this UI or via the API.</p>
+      </div>
+
+      <div>
+        <div class="version-section-title">Core pipeline — how Enhance works end to end</div>
+        <div class="version-pipeline">
+          <div class="pipeline-step">
+            <div class="pipeline-step-num">1</div>
+            <div class="pipeline-step-body">
+              <strong>Intent detection</strong>
+              <p>Your raw prompt hits <code>POST /intent</code>. The LLM reads it and returns a structured signal: domain, goal, complexity, confidence score, and a list of recommended enhancement techniques. This governs everything downstream.</p>
+            </div>
           </div>
-          <div class="ct-meta-row" id="ctResultMeta"></div>
-          <div class="ct-prompt-box" id="ctResultPrompt"></div>
-          <div class="ct-techniques" id="ctResultTechniques"></div>
-          <div class="ct-result-actions">
-            <button class="btn-primary" onclick="ctCopyPrompt()">⎘ Copy Prompt</button>
-            <button class="btn-secondary" onclick="ctSendToEnhance()">↗ Open in Enhance</button>
-            <button class="btn-secondary" onclick="ctReset()">↺ New Conversation</button>
+          <div class="pipeline-step">
+            <div class="pipeline-step-num">2</div>
+            <div class="pipeline-step-body">
+              <strong>Memory read (unless incognito)</strong>
+              <p>The active memory layer reads your stored context from <code>GET /context/:userId</code>. Prior session facts, preferences, and domain knowledge are injected into the enhancement prompt so the output is personalised to you.</p>
+            </div>
           </div>
+          <div class="pipeline-step">
+            <div class="pipeline-step-num">3</div>
+            <div class="pipeline-step-body">
+              <strong>Technique-driven enhancement</strong>
+              <p><code>POST /enhance</code> receives your prompt, the intent signal, and your memory context. The system prompt in <code>core/prompts/enhance_system.md</code> instructs the LLM to apply 1–4 of 16 named techniques (chain-of-thought, persona injection, structured output, etc.) and return a fully annotated JSON result.</p>
+            </div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-step-num">4</div>
+            <div class="pipeline-step-body">
+              <strong>Output validation &amp; segment tagging</strong>
+              <p>The raw LLM JSON is validated by <code>core/output_validator.py</code> against the shared contract in <code>core/contracts.py</code>. Each sentence in the enhanced prompt is tagged with its technique, rendered as colour-coded segments in the UI.</p>
+            </div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-step-num">5</div>
+            <div class="pipeline-step-body">
+              <strong>Refine loop</strong>
+              <p><code>POST /refine</code> takes the previous enhanced prompt and a follow-up instruction. The LLM re-applies the same contract and returns a diff-able updated version — iterate until it's right.</p>
+            </div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-step-num">6</div>
+            <div class="pipeline-step-body">
+              <strong>Memory write (unless incognito)</strong>
+              <p>After a successful enhance or refine, the active memory layer extracts durable facts from the interaction and upserts them into <code>storage/data/</code> via <code>core/active_memory.py</code>. The Brain view shows the resulting knowledge graph.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="version-section-title">Features in this release</div>
+        <div class="version-features">
+          <div class="version-card">
+            <div class="version-card-icon">✦</div>
+            <h3>Enhance</h3>
+            <p>Technique-annotated prompt enhancement with intent-aware technique selection and segment-level explanations.</p>
+            <div class="vc-endpoint">POST /enhance</div>
+          </div>
+          <div class="version-card">
+            <div class="version-card-icon">↺</div>
+            <h3>Refine</h3>
+            <p>Iterative prompt refinement. Feed a follow-up instruction and get an updated enhanced prompt that preserves prior improvements.</p>
+            <div class="vc-endpoint">POST /refine</div>
+          </div>
+          <div class="version-card">
+            <div class="version-card-icon">◈</div>
+            <h3>Memory / Brain</h3>
+            <p>Persistent user context stored as JSON. Visualised as a live knowledge graph. Supports incognito mode to skip read/write entirely.</p>
+            <div class="vc-endpoint">GET /context/:userId · POST /context/:userId</div>
+          </div>
+          <div class="version-card">
+            <div class="version-card-icon">◎</div>
+            <h3>Profile</h3>
+            <p>Auto-ingest unstructured text or JSON from other AI tools to populate your persona and preferences into the knowledge graph.</p>
+            <div class="vc-endpoint">POST /profile/auto-ingest</div>
+          </div>
+          <div class="version-card">
+            <div class="version-card-icon">🎙</div>
+            <h3>CoThinker (voice)</h3>
+            <p>Conversational voice loop. Speak your prompt idea; CoThinker transcribes via Groq Whisper, asks clarifying questions, and finalises an enhanced prompt when 8+ of 10 fields are confirmed.</p>
+            <div class="vc-endpoint">POST /cothinker/transcribe · /turn · /finalize</div>
+          </div>
+          <div class="version-card">
+            <div class="version-card-icon">⚡</div>
+            <h3>Agentic Chat</h3>
+            <p>Streaming chat endpoint with a configurable system prompt. Tokens stream over SSE so responses feel instant. Designed for web search and browsing agentic workflows.</p>
+            <div class="vc-endpoint">POST /agentic/chat (SSE stream)</div>
+          </div>
+          <div class="version-card">
+            <div class="version-card-icon">⚙</div>
+            <h3>Neuro Mode</h3>
+            <p>Scores your prompt across cognitive clarity, specificity, reasoning depth, and output alignment. Returns a rubric-based JSON report with an overall neuro score.</p>
+            <div class="vc-endpoint">POST /neuro/score</div>
+          </div>
+          <div class="version-card">
+            <div class="version-card-icon">⊞</div>
+            <h3>Connectors</h3>
+            <p>Natural-language queries over your Google Workspace — Gmail, Google Calendar, and Google Drive — via the Groq Responses API.</p>
+            <div class="vc-endpoint">POST /connectors/query</div>
+          </div>
+          <div class="version-card">
+            <div class="version-card-icon">◫</div>
+            <h3>MCP Server</h3>
+            <p>Exposes Enhance and Refine as Model Context Protocol tools. Connect Claude Desktop, Cursor, or any MCP client directly to this instance.</p>
+            <div class="vc-endpoint">mcp/stdio.py · GET /mcp/schema</div>
+          </div>
+          <div class="version-card">
+            <div class="version-card-icon">⊙</div>
+            <h3>Diagnostics</h3>
+            <p>One-click health checks for every subsystem: intent, enhance, memory read/write, incognito, refine, and storage. Live status badges.</p>
+            <div class="vc-endpoint">GET /health · GET /ready · POST /diagnostics/*</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="version-section-title">Tech stack</div>
+        <div class="version-stack">
+          <span class="stack-pill">Python 3.12</span>
+          <span class="stack-pill">FastAPI 0.110</span>
+          <span class="stack-pill">Groq SDK</span>
+          <span class="stack-pill">llama-3.3-70b-versatile</span>
+          <span class="stack-pill">Groq Whisper (voice)</span>
+          <span class="stack-pill">Uvicorn</span>
+          <span class="stack-pill">Nginx + TLS</span>
+          <span class="stack-pill">AWS Lightsail (Mumbai)</span>
+          <span class="stack-pill">JSON flat-file storage</span>
+          <span class="stack-pill">Vanilla JS UI</span>
+          <span class="stack-pill">vis-network (brain graph)</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="version-section-title">Live instance</div>
+        <div class="version-health">
+          <div class="dot" id="versionHealthDot"></div>
+          <span id="versionHealthText">Checking health…</span>
         </div>
       </div>
     </div>
@@ -1941,7 +3524,7 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
 </div>
 
 <script>
-const BASE = "http://localhost:8000";
+const BASE = location.protocol === "file:" ? "http://localhost:8000" : "";
 
 const state = {
   incognito: false,
@@ -1955,22 +3538,27 @@ const state = {
   _brainCtx: null,
   intentQAAnswers: [],
   intentQARound: 0,
+  promptMode: "research",
+  pendingAction: null,
 };
 
 // ── View switching ────────────────────────────────────────────────
 function showView(view) {
+  document.getElementById("sidebar")?.classList.remove("open");
+  document.getElementById("sidebarOverlay")?.classList.remove("open");
   const shell = document.getElementById("appShell");
-  shell.classList.remove("page-brain", "page-diagnostics", "page-cothinker", "page-profile");
+  shell.classList.remove("page-memory", "page-diagnostics", "page-profile", "page-connectors", "page-version");
   document.getElementById("pageEnhance").style.display = "none";
   document.getElementById("pageBrain").style.display = "none";
   document.getElementById("pageProfile").style.display = "none";
   document.getElementById("pageDiagnostics").style.display = "none";
-  document.getElementById("pageCothinker").style.display = "none";
+  document.getElementById("pageConnectors").style.display = "none";
+  document.getElementById("pageVersion").style.display = "none";
 
-  const titles = { enhance: "Enhance", brain: "Memory", profile: "Profile", diagnostics: "Diagnostics", cothinker: "CoThinker" };
+  const titles = { enhance: "Enhance", brain: "Memory", profile: "Profile", diagnostics: "Diagnostics", connectors: "Connectors", version: "Version" };
   document.getElementById("topbarViewTitle").textContent = titles[view] || view;
 
-  ["enhance","brain","profile","diagnostics","cothinker"].forEach(v => {
+  ["enhance","brain","profile","diagnostics","connectors","version"].forEach(v => {
     document.getElementById("nav-" + v)?.classList.remove("active");
   });
   document.getElementById("nav-" + view)?.classList.add("active");
@@ -1982,7 +3570,7 @@ function showView(view) {
   }
 
   if (view === "brain") {
-    shell.classList.add("page-brain");
+    shell.classList.add("page-memory");
     document.getElementById("pageBrain").style.display = "flex";
     requestAnimationFrame(() => requestAnimationFrame(loadBrainData));
   } else if (view === "profile") {
@@ -1992,12 +3580,88 @@ function showView(view) {
   } else if (view === "diagnostics") {
     shell.classList.add("page-diagnostics");
     document.getElementById("pageDiagnostics").style.display = "flex";
-  } else if (view === "cothinker") {
-    shell.classList.add("page-cothinker");
-    document.getElementById("pageCothinker").style.display = "flex";
-    ctInit();
+  } else if (view === "connectors") {
+    shell.classList.add("page-connectors");
+    document.getElementById("pageConnectors").style.display = "flex";
+  } else if (view === "version") {
+    shell.classList.add("page-version");
+    document.getElementById("pageVersion").style.display = "flex";
+    loadVersionHealth();
   } else {
     document.getElementById("pageEnhance").style.display = "flex";
+  }
+}
+
+function loadVersionHealth() {
+  const dot = document.getElementById("versionHealthDot");
+  const txt = document.getElementById("versionHealthText");
+  fetch(BASE + "/health").then(r => r.json()).then(d => {
+    dot.style.background = "var(--ok)";
+    txt.textContent = "API live · model: " + (d.model || "–") + " · env: " + (d.env || "–");
+  }).catch(() => {
+    dot.style.background = "var(--bad)";
+    txt.textContent = "Cannot reach API";
+  });
+}
+
+// ── Enhance mode tabs ─────────────────────────────────────────────
+function setEnhMode(mode) {
+  ['enhance','cothinker','chat'].forEach(m => {
+    const key = m.charAt(0).toUpperCase() + m.slice(1);
+    const pane = document.getElementById('enhPane' + key);
+    if (pane) pane.style.display = 'none';
+    document.getElementById('enhTab-' + m)?.classList.remove('active');
+  });
+  const key = mode.charAt(0).toUpperCase() + mode.slice(1);
+  const active = document.getElementById('enhPane' + key);
+  if (active) active.style.display = 'flex';
+  document.getElementById('enhTab-' + mode)?.classList.add('active');
+  if (mode === 'cothinker') ctInit();
+  if (mode === 'chat') agRenderSuggestions(agChatMode);
+}
+
+// ── Prompt mode (Research / Fast Build / Media) ───────────────────
+function setPromptMode(mode) {
+  state.promptMode = mode;
+  document.querySelectorAll('.pm-tab').forEach(btn => btn.classList.remove('active'));
+  document.getElementById('pmTab-' + mode)?.classList.add('active');
+}
+
+// ── Workspace context token ───────────────────────────────────────
+function connSaveToken() {
+  const token = document.getElementById("connToken")?.value.trim();
+  if (!token) { alert("Paste an OAuth access token first."); return; }
+  localStorage.setItem("ws_access_token", token);
+  document.getElementById("wsContextRow").style.display = "flex";
+  const btn = document.getElementById("connSaveBtn");
+  if (btn) { btn.textContent = "✓ Saved"; setTimeout(() => { btn.textContent = "⬡ Save for Workspace"; }, 2000); }
+}
+
+function wsInitToggle() {
+  if (localStorage.getItem("ws_access_token")) {
+    const row = document.getElementById("wsContextRow");
+    if (row) row.style.display = "flex";
+  }
+}
+
+async function wsGatherContext(prompt) {
+  const token = localStorage.getItem("ws_access_token");
+  if (!token) return null;
+  if (!document.getElementById("wsContextToggle")?.checked) return null;
+  try {
+    const res = await fetch(`${BASE}/connectors/context-gather`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, access_token: token, connectors: ["gmail", "calendar", "drive"] }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const snippets = data.snippets || [];
+    if (!snippets.length) return null;
+    const lines = snippets.map(s => `[${s.source}] ${s.summary}`).join("\n");
+    return `\n\n---\nWorkspace context:\n${lines}`;
+  } catch {
+    return null;
   }
 }
 
@@ -2065,7 +3729,7 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-// ── Intent Q&A flow (called by runEnhance) ───────────────────────
+// ── Intent classification flow (single-shot) ─────────────────────
 async function runEnhance() {
   const prompt = document.getElementById("promptInput").value.trim();
   if (!prompt) return;
@@ -2081,49 +3745,38 @@ async function runEnhance() {
   document.getElementById("fallbackNotice").classList.remove("visible");
 
   state.intentQAAnswers = [];
-  state.intentQARound = 0;
 
   try {
-    await runIntentQATurn(null);
+    const body = {
+      prompt,
+      user_id: userId(),
+      target_ai: document.getElementById("targetAiSelect").value || null,
+      prompt_mode: state.promptMode || "research",
+      incognito: state.incognito,
+    };
+
+    const res = await fetch(`${BASE}/intent/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error("intent failed");
+
+    state.lastIntent = data;
+
+    if (data.is_finalized || !data.questions.length) {
+      // No gaps — go straight to enhance
+      showIntentFinalized(data);
+    } else {
+      // Gaps found — show all questions at once (single shot)
+      showIntentQAQuestions(data);
+    }
   } catch {
     document.getElementById("btnEnhance").disabled = false;
     document.getElementById("btnCompare").disabled = false;
     runActualEnhance(null);
   }
-}
-
-async function runIntentQATurn(answers) {
-  const prompt = document.getElementById("promptInput").value.trim();
-  const body = {
-    prompt,
-    user_id: userId(),
-    target_ai: document.getElementById("targetAiSelect").value || null,
-    prompt_mode: document.getElementById("promptModeSelect").value || "normal",
-    incognito: state.incognito,
-  };
-
-  if (state.lastIntent && answers) {
-    body.previous_context = state.lastIntent;
-    body.answers = answers;
-  }
-
-  const res = await fetch(`${BASE}/intent/confirm`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error("intent failed");
-
-  state.lastIntent = data;
-  state.intentQARound++;
-
-  if (data.is_finalized) {
-    showIntentFinalized(data);
-    return;
-  }
-
-  showIntentQAQuestions(data);
 }
 
 function showIntentQAQuestions(data) {
@@ -2133,7 +3786,7 @@ function showIntentQAQuestions(data) {
 
   document.getElementById("intentConfidence").textContent = conf + "% confident";
   document.getElementById("intentQAStatus").innerHTML = `
-    <span>Round ${state.intentQARound} — ${questions.length} question${questions.length > 1 ? 's' : ''} to help narrow down your intent</span>
+    <span>${questions.length} question${questions.length > 1 ? 's' : ''} to help narrow down your intent</span>
     <span style="margin-left:auto">
       <span class="intent-tag">${data.intent ? data.intent.replace(/_/g, " ") : "?"}</span>
       <span class="intent-tag">${data.domain ? data.domain.replace(/_/g, " ") : "?"}</span>
@@ -2151,17 +3804,21 @@ function showIntentQAQuestions(data) {
       <div class="intent-qa-q">${i + 1}. ${q.question}</div>
       <div class="intent-qa-opts" id="qaOpts-${i}">
         ${(q.options || []).map(opt =>
-          `<span class="intent-qa-opt" data-qi="${i}" data-val="${opt}" onclick="selectQAOpt(this)">${opt}</span>`
+          `<span class="intent-qa-opt" data-qi="${i}" data-field="${q.id}" data-val="${opt}" onclick="selectQAOpt(this)">${opt}</span>`
         ).join("")}
       </div>
-      <input class="intent-qa-custom" data-qi="${i}" placeholder="Or type your own answer…" oninput="onQACustomInput(${i}, this.value)" />
+      <input class="intent-qa-custom" data-qi="${i}" data-field="${q.id}" placeholder="Or type your own answer…" oninput="onQACustomInput(${i}, this.value)" />
     `;
     container.appendChild(card);
-    state.intentQAAnswers.push({ question_id: q.id || `q${i+1}`, question: q.question, answer: "" });
+    state.intentQAAnswers.push({ field: q.id, value: "" });
   });
 
   document.getElementById("intentQASummary").style.display = "none";
   document.getElementById("btnIntentSubmit").disabled = false;
+  document.querySelector(".intent-qa-actions").innerHTML = `
+    <button class="btn-primary" id="btnIntentSubmit" onclick="submitIntentQA()">→ Looks good — Enhance</button>
+    <button class="btn-secondary" onclick="skipIntentQA()">Skip Q&A</button>
+  `;
   panel.classList.add("visible");
   document.getElementById("btnEnhance").disabled = false;
   document.getElementById("btnCompare").disabled = false;
@@ -2172,7 +3829,7 @@ function showIntentFinalized(data) {
   const panel = document.getElementById("intentQAPanel");
   const conf = Math.round((data.confidence || 0) * 100);
 
-  document.getElementById("intentConfidence").textContent = conf + "% confident — finalized";
+  document.getElementById("intentConfidence").textContent = conf + "% confident";
   document.getElementById("intentQAStatus").innerHTML = `
     <span class="finalized">✓ Intent confirmed</span>
     <span style="margin-left:auto">
@@ -2187,8 +3844,7 @@ function showIntentFinalized(data) {
   summary.style.display = "";
   summary.textContent = data.interpreted_need || "Intent confirmed.";
 
-  const actions = document.querySelector(".intent-qa-actions");
-  actions.innerHTML = `
+  document.querySelector(".intent-qa-actions").innerHTML = `
     <button class="btn-primary" onclick="proceedWithIntent()">✓ Looks right — Enhance</button>
     <button class="btn-secondary" onclick="skipIntentQA()">Skip</button>
   `;
@@ -2204,7 +3860,7 @@ function selectQAOpt(el) {
   const opts = el.closest(".intent-qa-opts");
   opts.querySelectorAll(".intent-qa-opt").forEach(o => o.classList.remove("selected"));
   el.classList.add("selected");
-  state.intentQAAnswers[qi].answer = el.dataset.val;
+  state.intentQAAnswers[qi].value = el.dataset.val;
   const custom = document.querySelector(`.intent-qa-custom[data-qi="${qi}"]`);
   if (custom) custom.value = el.dataset.val;
 }
@@ -2212,32 +3868,51 @@ function selectQAOpt(el) {
 function onQACustomInput(qi, value) {
   const opts = document.getElementById(`qaOpts-${qi}`);
   if (opts) opts.querySelectorAll(".intent-qa-opt").forEach(o => o.classList.remove("selected"));
-  state.intentQAAnswers[qi].answer = value;
+  state.intentQAAnswers[qi].value = value;
 }
 
 async function submitIntentQA() {
-  const answered = state.intentQAAnswers.filter(a => a.answer.trim());
+  const answered = state.intentQAAnswers.filter(a => a.value.trim());
   if (answered.length === 0) return;
 
   document.getElementById("btnIntentSubmit").disabled = true;
   setStatus("busy");
 
-  try {
-    await runIntentQATurn(answered);
-  } catch {
-    document.getElementById("btnIntentSubmit").disabled = false;
-    setStatus("error");
+  // Merge answers into the confirmation before sending to enhance
+  const merged = { ...state.lastIntent };
+  answered.forEach(a => {
+    const field = a.field;
+    if (field === "key_constraints") {
+      merged.key_constraints = [a.value];
+    } else {
+      merged[field] = a.value;
+    }
+  });
+  merged.is_finalized = true;
+  merged.confidence = 1.0;
+
+  document.getElementById("intentQAPanel").classList.remove("visible");
+  if (state.pendingAction === "compare") {
+    runActualCompare();
+  } else {
+    runActualEnhance(merged);
   }
 }
 
 function skipIntentQA() {
   document.getElementById("intentQAPanel").classList.remove("visible");
-  runActualEnhance(null);
+  if (state.pendingAction === "compare") {
+    runActualCompare();
+  } else {
+    runActualEnhance(null);
+  }
 }
 
 function proceedWithIntent() {
   document.getElementById("intentQAPanel").classList.remove("visible");
-  if (state.lastIntent) {
+  if (state.pendingAction === "compare") {
+    runActualCompare();
+  } else if (state.lastIntent) {
     runActualEnhance(state.lastIntent);
   } else {
     runActualEnhance(null);
@@ -2245,12 +3920,12 @@ function proceedWithIntent() {
 }
 
 // ── Enhance (actual SSE streaming) ────────────────────────────────
-function enhancementPayload(intentConfirmation) {
+function enhancementPayload(intentConfirmation, promptOverride) {
   return {
-    prompt: document.getElementById("promptInput").value.trim(),
+    prompt: promptOverride || document.getElementById("promptInput").value.trim(),
     user_id: userId(),
     target_ai: document.getElementById("targetAiSelect").value || null,
-    prompt_mode: document.getElementById("promptModeSelect").value || "normal",
+    prompt_mode: state.promptMode || "research",
     incognito: state.incognito,
     intent_confirmation: intentConfirmation || null,
   };
@@ -2259,6 +3934,10 @@ function enhancementPayload(intentConfirmation) {
 async function runActualEnhance(intentConfirmation) {
   const prompt = document.getElementById("promptInput").value.trim();
   if (!prompt) return;
+
+  // A4: gather workspace context if toggle is on
+  const wsContext = await wsGatherContext(prompt);
+  const augmentedPrompt = wsContext ? prompt + wsContext : prompt;
 
   setStatus("busy");
   document.getElementById("btnEnhance").disabled = true;
@@ -2277,7 +3956,7 @@ async function runActualEnhance(intentConfirmation) {
     const res = await fetch(`${BASE}/enhance`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(enhancementPayload(intentConfirmation)),
+      body: JSON.stringify(enhancementPayload(intentConfirmation, augmentedPrompt)),
     });
 
     if (!res.ok) {
@@ -2418,7 +4097,7 @@ async function scoreNeuroPrompt(result) {
         raw_prompt: document.getElementById("promptInput").value.trim(),
         enhanced_prompt: result.enhanced_prompt,
         target_ai: document.getElementById("targetAiSelect").value || null,
-        prompt_mode: document.getElementById("promptModeSelect").value || "normal",
+        prompt_mode: state.promptMode || "research",
         personalization_context: personalization,
       }),
     });
@@ -2587,21 +4266,70 @@ function openRefinePanel() {
   const panel = document.getElementById("refinePanel");
   const qList = document.getElementById("refineQList");
   const questions = state.lastResult?.clarification_questions || [];
-  state.refineAnswers = questions.map(q => ({ question: q.question, answer: "" }));
   qList.innerHTML = "";
-  if (questions.length === 0) {
-    qList.innerHTML = `<div class="clarification-q" style="color:var(--muted)">No clarification questions. Add any follow-up notes below.</div>`;
-  } else {
+
+  if (questions.length > 0) {
+    // Use backend-provided questions
+    state.refineAnswers = questions.map(q => ({ question: q.question, answer: "" }));
     questions.forEach((q, i) => {
       const div = document.createElement("div");
       div.style.marginBottom = "10px";
-      let html = `<div class="clarification-q">${i + 1}. ${q.question}</div>`;
-      html += `<input class="clarification-input" placeholder="Your answer…" oninput="state.refineAnswers[${i}].answer=this.value" />`;
-      div.innerHTML = html;
+      div.innerHTML = `<div class="clarification-q">${i + 1}. ${q.question}</div>
+        <input class="clarification-input" placeholder="Your answer…" oninput="state.refineAnswers[${i}].answer=this.value" />`;
+      qList.appendChild(div);
+    });
+  } else {
+    // Generate smart questions from intent/domain context
+    const intent = state.lastResult?.intent || state.lastIntent?.intent || "";
+    const domain = state.lastResult?.domain || state.lastIntent?.domain || "";
+    const smartQs = generateRefinementQuestions(intent, domain);
+    state.refineAnswers = smartQs.map(q => ({ question: q, answer: "" }));
+    smartQs.forEach((q, i) => {
+      const div = document.createElement("div");
+      div.style.marginBottom = "10px";
+      div.innerHTML = `<div class="clarification-q">${i + 1}. ${q}</div>
+        <input class="clarification-input" placeholder="Your answer…" oninput="state.refineAnswers[${i}].answer=this.value" />`;
       qList.appendChild(div);
     });
   }
+
+  // Always append a free-form notes field at the end
+  const notesIdx = state.refineAnswers.length;
+  state.refineAnswers.push({ question: "Additional instructions", answer: "" });
+  const notesDiv = document.createElement("div");
+  notesDiv.style.marginTop = "6px";
+  notesDiv.innerHTML = `<div class="clarification-q" style="color:var(--muted)">Anything else? (tone, length, style…)</div>
+    <textarea class="clarification-input" style="min-height:56px;resize:vertical"
+      placeholder="e.g. Make it shorter, add examples, change tone to informal…"
+      oninput="state.refineAnswers[${notesIdx}].answer=this.value"></textarea>`;
+  qList.appendChild(notesDiv);
+
   panel.classList.add("visible");
+}
+
+function generateRefinementQuestions(intent, domain) {
+  const intentQs = {
+    code_generation:      ["What language, framework, or library should be used?", "Should the output include tests or error handling?"],
+    debugging:            ["What is the expected behavior vs. what's actually happening?", "What environment, version, or runtime is involved?"],
+    code_review:          ["What specific concerns should the review focus on?", "Are there performance or security requirements to consider?"],
+    creative_writing:     ["What tone or style should it be written in?", "Who is the target audience?"],
+    research:             ["How comprehensive or concise should the answer be?", "Should it focus on recent work or foundational concepts?"],
+    data_analysis:        ["What output format do you need (table, code, chart)?", "Any specific time range or data filters to apply?"],
+    learning_explanation: ["What is your current experience level with this topic?", "Should analogies or step-by-step examples be included?"],
+    architecture_design:  ["What are the key scale or reliability requirements?", "Are there existing systems or constraints to respect?"],
+    copywriting:          ["What is the desired tone — formal, casual, persuasive?", "What action should the reader take after reading?"],
+    general_qa:           ["How detailed should the response be?", "Should it be structured (sections/bullets) or conversational?"],
+  };
+  const domainQs = {
+    software_engineering: ["Which programming language and framework should be targeted?"],
+    design_ux:            ["Are there brand guidelines or specific design constraints?"],
+    marketing_growth:     ["Who is the target customer segment?"],
+    creative_arts:        ["What medium or format is this created for?"],
+    legal:                ["What jurisdiction or regulatory context applies?"],
+  };
+  const base = intentQs[intent] || intentQs.general_qa;
+  const extra = domainQs[domain] || [];
+  return [...base, ...extra].slice(0, 3);
 }
 
 function closeRefinePanel() {
@@ -2629,7 +4357,7 @@ async function submitRefine() {
         previous_placeholder_fields: state.lastResult.placeholder_fields || [],
         user_id: userId(),
         target_ai: document.getElementById("targetAiSelect").value || null,
-        prompt_mode: document.getElementById("promptModeSelect").value || "normal",
+        prompt_mode: state.promptMode || "research",
         incognito: state.incognito,
       }),
     });
@@ -2650,12 +4378,57 @@ async function submitRefine() {
 async function runCompare() {
   const prompt = document.getElementById("promptInput").value.trim();
   if (!prompt) return;
+
+  // If intent not yet confirmed, run intent flow first then proceed to compare
+  if (!state.lastIntent || !state.lastIntent.is_finalized) {
+    state.pendingAction = "compare";
+    setStatus("busy");
+    document.getElementById("btnEnhance").disabled = true;
+    document.getElementById("btnCompare").disabled = true;
+    document.getElementById("intentQAPanel").classList.remove("visible");
+    document.getElementById("clarificationPanel").classList.remove("visible");
+    document.getElementById("streamCard").classList.remove("visible");
+    document.getElementById("compareCard").classList.remove("visible");
+    document.getElementById("fallbackNotice").classList.remove("visible");
+    state.intentQAAnswers = [];
+    try {
+      const res = await fetch(`${BASE}/intent/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, user_id: userId(), target_ai: document.getElementById("targetAiSelect").value || null, prompt_mode: state.promptMode || "research", incognito: state.incognito }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error("intent failed");
+      state.lastIntent = data;
+      if (data.is_finalized || !data.questions.length) {
+        showIntentFinalized(data);
+      } else {
+        showIntentQAQuestions(data);
+      }
+    } catch {
+      state.pendingAction = null;
+      document.getElementById("btnEnhance").disabled = false;
+      document.getElementById("btnCompare").disabled = false;
+      runActualCompare();
+    }
+    return;
+  }
+
+  runActualCompare();
+}
+
+async function runActualCompare() {
+  state.pendingAction = null;
+  const prompt = document.getElementById("promptInput").value.trim();
+  if (!prompt) return;
   setStatus("busy");
   document.getElementById("btnCompare").disabled = true;
   document.getElementById("emptyState").style.display = "none";
   document.getElementById("compareCard").classList.add("visible");
   document.getElementById("compareResults").innerHTML = `<div style="color:var(--muted);font-size:13px">Running comparison…</div>`;
   try {
+    const modelA = document.getElementById("compareModelA").value;
+    const modelB = document.getElementById("compareModelB").value;
     const res = await fetch(`${BASE}/enhance/compare`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2663,13 +4436,16 @@ async function runCompare() {
         prompt,
         user_id: userId(),
         target_ai: document.getElementById("targetAiSelect").value || null,
-        modes: ["normal", "caveman"],
+        modes: [state.promptMode || "research", state.promptMode || "research"],
+        model_a: modelA,
+        model_b: modelB,
         incognito: state.incognito,
+        intent_confirmation: state.lastIntent || null,
       }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail?.message || JSON.stringify(data.detail) || "Compare failed");
-    renderCompareResults(data);
+    renderCompareResults(data, modelA, modelB);
     setStatus("ok");
   } catch (e) {
     setStatus("error");
@@ -2679,17 +4455,18 @@ async function runCompare() {
   }
 }
 
-function renderCompareResults(data) {
+function renderCompareResults(data, modelA, modelB) {
   const container = document.getElementById("compareResults");
   container.innerHTML = "";
   const modes = data.mode_order || [];
+  const modelLabels = [modelA || "Model A", modelB || "Model B"];
   modes.forEach((mode, i) => {
     const result = data.results[i];
     if (!result) return;
     const col = document.createElement("div");
     col.className = "compare-col";
     col.innerHTML = `
-      <div class="compare-col-label">${mode}</div>
+      <div class="compare-col-label">${modelLabels[i]}</div>
       <div style="font-size:13px;line-height:1.65;color:var(--text);white-space:pre-wrap">${result.enhanced_prompt || ""}</div>
       <div style="margin-top:8px;font-size:11px;color:var(--muted)">Score: <span style="color:var(--accent)">${(result.prompt_quality_score || 0).toFixed(2)}</span></div>
     `;
@@ -2792,21 +4569,32 @@ function renderDetailsRaw(result) {
 async function loadProfile() {
   const review = document.getElementById("profileReview");
   if (!review) return;
-  review.innerHTML = `<div style="color:var(--muted);font-size:12px">Loading profile...</div>`;
+  review.innerHTML = `<div style="color:var(--muted);font-size:12px;padding:16px">Loading…</div>`;
+  setBadge("…", "");
   try {
     const r = await fetch(`${BASE}/context/${userId()}`);
     const ctx = await r.json();
     if (!r.ok) throw new Error(ctx.detail || "Profile load failed");
-    document.getElementById("profileNotesInput").value = ctx.personalization_notes || "";
-    state.profileDraft = { preferences: ctx.preferences || {}, summary: ctx.personalization_notes || "Current saved profile." };
-    renderProfileReview(state.profileDraft, false);
+    const hasPref = ctx.preferences && Object.values(ctx.preferences).some(v => v && (Array.isArray(v) ? v.length : true));
+    state.profileDraft = { preferences: ctx.preferences || {}, summary: ctx.personalization_notes || (hasPref ? "Loaded from saved context." : null) };
+    renderProfileReview(state.profileDraft, true);
   } catch (e) {
-    review.innerHTML = `<div style="color:var(--bad);font-size:12px">${escapeHtml(e.message)}</div>`;
+    review.innerHTML = `<div style="color:var(--bad);font-size:12px;padding:16px">${escapeHtml(e.message)}</div>`;
+    setBadge("Error", "");
   }
 }
 
 async function extractProfile(apply) {
-  const notes = document.getElementById("profileNotesInput").value.trim();
+  const role = document.getElementById("profQRole")?.value.trim() || "";
+  const target = document.getElementById("profQTarget")?.value.trim() || "";
+  const tone = document.getElementById("profQTone")?.value.trim() || "";
+  const formats = document.getElementById("profQFormats")?.value.trim() || "";
+  const parts = [];
+  if (role) parts.push(`Role/Industry: ${role}`);
+  if (target) parts.push(`Target AI: ${target}`);
+  if (tone) parts.push(`Tone: ${tone}`);
+  if (formats) parts.push(`Formats: ${formats}`);
+  const notes = parts.join("\n");
   if (!notes) return;
   const review = document.getElementById("profileReview");
   review.innerHTML = `<div style="color:var(--muted);font-size:12px">Extracting preferences...</div>`;
@@ -2819,6 +4607,7 @@ async function extractProfile(apply) {
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail?.message || data.detail || "Extraction failed");
     state.profileDraft = data;
+    state.profileDraft._rawNotes = notes;
     renderProfileReview(data, apply);
   } catch (e) {
     review.innerHTML = `<div style="color:var(--bad);font-size:12px">${escapeHtml(e.message)}</div>`;
@@ -2828,7 +4617,7 @@ async function extractProfile(apply) {
 async function saveExtractedProfile() {
   if (!state.profileDraft?.preferences) return;
   try {
-    const notes = document.getElementById("profileNotesInput").value.trim();
+    const notes = state.profileDraft._rawNotes || "";
     const r = await fetch(`${BASE}/context/${userId()}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -2848,13 +4637,22 @@ async function saveExtractedProfile() {
 
 function clearProfileDraft() {
   state.profileDraft = null;
-  document.getElementById("profileReview").innerHTML = `<div style="color:var(--faint);font-size:12px">Draft discarded.</div>`;
+  setBadge("—", "");
+  document.getElementById("profileReview").innerHTML = `<div class="profile-empty"><div class="profile-empty-icon">◎</div><div class="profile-empty-text">Draft discarded.</div></div>`;
+}
+
+function setBadge(text, cls) {
+  const b = document.getElementById("profileStatusBadge");
+  if (!b) return;
+  b.textContent = text;
+  b.className = "profile-status-badge" + (cls ? " " + cls : "");
 }
 
 function renderProfileReview(data, saved) {
   const prefs = data.preferences || {};
+  const isSaved = saved || data.applied;
+  setBadge(isSaved ? "Saved" : "Draft", isSaved ? "saved" : "draft");
   const rows = [
-    ["Status", saved || data.applied ? "Saved" : "Draft"],
     ["Output style", prefs.output_style],
     ["Expertise", prefs.expertise_level],
     ["Tone", prefs.tone],
@@ -2868,19 +4666,57 @@ function renderProfileReview(data, saved) {
   const review = document.getElementById("profileReview");
   review.innerHTML = "";
   if (data.summary) {
-    const summary = document.createElement("div");
-    summary.className = "neuro-note";
-    summary.style.marginTop = "0";
-    summary.textContent = data.summary;
-    review.appendChild(summary);
+    const s = document.createElement("div");
+    s.className = "profile-summary-note";
+    s.textContent = data.summary;
+    review.appendChild(s);
   }
   rows.forEach(([key, value]) => {
     if (!value) return;
     const row = document.createElement("div");
     row.className = "profile-kv";
-    row.innerHTML = `<span>${escapeHtml(key)}</span><span>${escapeHtml(value)}</span>`;
+    row.innerHTML = `<span class="profile-kv-key">${escapeHtml(key)}</span><span class="profile-kv-val">${escapeHtml(value)}</span>`;
     review.appendChild(row);
   });
+  if (review.children.length === 0) {
+    review.innerHTML = `<div class="profile-empty"><div class="profile-empty-icon">◎</div><div class="profile-empty-text">No preferences extracted yet.</div></div>`;
+  }
+}
+
+function switchProfileTab(tab) {
+  ["questionnaire","import"].forEach(t => {
+    document.getElementById("profTab-" + t)?.classList.toggle("active", t === tab);
+    document.getElementById("profContent-" + t)?.classList.toggle("active", t === tab);
+  });
+}
+
+async function autoIngestProfile() {
+  const raw = document.getElementById("profIngestData")?.value.trim();
+  if (!raw) return;
+  const review = document.getElementById("profileReview");
+  review.innerHTML = `<div style="color:var(--muted);font-size:12px;padding:16px">Parsing and extracting…</div>`;
+  setBadge("…", "");
+  try {
+    const r = await fetch(`${BASE}/profile/auto-ingest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId(), raw_data: raw }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || "Import failed");
+    state.profileDraft = { preferences: data.data?.preferences || {}, summary: "Imported from external source." };
+    renderProfileReview(state.profileDraft, true);
+  } catch (e) {
+    review.innerHTML = `<div style="color:var(--bad);font-size:12px;padding:16px">${escapeHtml(e.message)}</div>`;
+    setBadge("Error", "");
+  }
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  const open = sidebar.classList.toggle("open");
+  overlay.classList.toggle("open", open);
 }
 
 // ── Segment tooltip ───────────────────────────────────────────────
@@ -2904,19 +4740,61 @@ function hideTooltip() {
 async function loadBrainData() {
   const uid = userId();
   const container = document.getElementById("brainCanvas");
-  // Show loading state
   container.innerHTML = `<div class="brain-empty"><div class="icon">◈</div><div>Loading memory graph…</div></div>`;
+
+  const insightsPanel = document.getElementById("brainInsights");
+  // Show panel immediately with loading states
+  if (insightsPanel) {
+    insightsPanel.style.display = "flex";
+    document.getElementById("insightClassification").textContent = "Loading…";
+    document.getElementById("insightClusters").innerHTML = `<div style="font-size:12px;color:var(--faint)">Loading…</div>`;
+    document.getElementById("insightMarketBasket").innerHTML = `<div style="font-size:12px;color:var(--faint)">Loading…</div>`;
+  }
+
   try {
     const res = await fetch(`${BASE}/context/${uid}`);
     if (!res.ok) throw new Error("context fetch failed");
     const ctx = await res.json();
     state._brainCtx = ctx;
-    // Wait for layout to settle
+
+    // Populate insights async
+    fetch(`${BASE}/context/${uid}/insights`).then(r => r.json()).then(insights => {
+      if (!insights) return;
+      document.getElementById("insightClassification").textContent = insights.classification || "General";
+
+      const clustersEl = document.getElementById("insightClusters");
+      if (insights.clusters && insights.clusters.length) {
+        clustersEl.innerHTML = insights.clusters.map(c =>
+          `<div class="insight-item" style="margin-bottom:5px"><div class="insight-item-header">${escapeHtml(c.theme)}</div><div class="insight-item-desc">${c.count} items</div></div>`
+        ).join("");
+      } else {
+        clustersEl.innerHTML = `<div style="font-size:12px;color:var(--faint)">No clusters yet</div>`;
+      }
+
+      const basketEl = document.getElementById("insightMarketBasket");
+      if (insights.market_basket && insights.market_basket.length) {
+        basketEl.innerHTML = insights.market_basket.map(b =>
+          `<div class="insight-item" style="margin-bottom:5px"><div class="insight-item-header">${escapeHtml(b.items.join(" + "))}</div><div class="insight-item-desc">${escapeHtml(b.description)}</div></div>`
+        ).join("");
+      } else {
+        basketEl.innerHTML = `<div style="font-size:12px;color:var(--faint)">No patterns yet</div>`;
+      }
+    }).catch(() => {
+      document.getElementById("insightClassification").textContent = "Unavailable";
+      document.getElementById("insightClusters").innerHTML = `<div style="font-size:12px;color:var(--faint)">Run more enhancements</div>`;
+      document.getElementById("insightMarketBasket").innerHTML = `<div style="font-size:12px;color:var(--faint)">Run more enhancements</div>`;
+    });
+
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     renderBrainGraph(ctx, uid);
     renderBrainStats(ctx);
   } catch (e) {
     state._brainCtx = null;
+    if (insightsPanel) {
+      document.getElementById("insightClassification").textContent = "No data yet";
+      document.getElementById("insightClusters").innerHTML = `<div style="font-size:12px;color:var(--faint)">Run some enhancements first</div>`;
+      document.getElementById("insightMarketBasket").innerHTML = `<div style="font-size:12px;color:var(--faint)">Run some enhancements first</div>`;
+    }
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     renderBrainGraph(null, uid);
   }
@@ -3527,6 +5405,87 @@ function renderBrainStats(ctx) {
   } else {
     chipsContainer.innerHTML = `<span class="persona-chip" style="color:var(--faint)">No activity yet</span>`;
   }
+
+  // Proactive suggestions
+  const suggestions = generateProactiveSuggestions(ctx);
+  const suggestPanel = document.getElementById("brainSuggestions");
+  const suggestList = document.getElementById("brainSuggestList");
+  if (suggestions.length > 0 && suggestPanel && suggestList) {
+    suggestList.innerHTML = "";
+    suggestions.forEach(s => {
+      const btn = document.createElement("button");
+      btn.className = "brain-suggest-btn";
+      btn.innerHTML = `<span class="brain-suggest-label">✦ Try this</span>${escapeHtml(s)}`;
+      btn.onclick = () => {
+        document.getElementById("promptInput").value = s;
+        showView("enhance");
+        setEnhMode("enhance");
+      };
+      suggestList.appendChild(btn);
+    });
+    suggestPanel.style.display = "flex";
+  } else if (suggestPanel) {
+    suggestPanel.style.display = "none";
+  }
+}
+
+function generateProactiveSuggestions(ctx) {
+  if (!ctx) return [];
+  const domains = ctx.domains || [];
+  const recentCtx = ctx.recent_context || [];
+  const intents = [...new Set(recentCtx.map(r => r.intent).filter(Boolean))];
+  const prefs = ctx.preferences || {};
+
+  const intentTemplates = {
+    code_generation:     ["Write a function to handle", "Build a reusable component for", "Create a utility that"],
+    debugging:           ["Help me debug the issue where", "Find and fix the bug causing", "Explain why this code fails when"],
+    code_review:         ["Review this code and suggest improvements for", "Check this implementation for edge cases in"],
+    creative_writing:    ["Write a compelling story about", "Draft a blog post exploring", "Create a narrative that captures"],
+    research:            ["Summarize the key research findings on", "Explain the tradeoffs between", "What are best practices for"],
+    data_analysis:       ["Analyze the patterns in this dataset about", "Create a visualization showing", "Write a data pipeline for"],
+    learning_explanation:["Explain the concept of", "Break down how", "Give me a deep dive on"],
+    architecture_design: ["Design a scalable system for", "What architecture would work best for", "Draft an ADR for"],
+    general_qa:          ["Help me think through", "What's the best approach to", "Give me a thorough answer on"],
+  };
+
+  const domainContext = {
+    software_engineering: ["React hooks", "TypeScript types", "API design", "system design"],
+    data_science:         ["pandas dataframes", "model evaluation", "feature engineering"],
+    creative_arts:        ["my audience", "a compelling narrative", "the visual concept"],
+    marketing_growth:     ["our target customers", "campaign messaging", "conversion optimization"],
+    design_ux:            ["user flow", "component interactions", "accessibility"],
+    devops_infrastructure:["CI/CD pipeline", "container orchestration", "monitoring"],
+  };
+
+  const primaryIntent = intents[0] || "general_qa";
+  const primaryDomain = domains[0];
+  const contexts = domainContext[primaryDomain] || ["the task", "this problem", "my project"];
+  const templates = intentTemplates[primaryIntent] || intentTemplates.general_qa;
+
+  const suggestions = [];
+
+  // Template-based from top intent + domain
+  templates.slice(0, 2).forEach((t, i) => {
+    const ctx_ = contexts[i % contexts.length];
+    suggestions.push(`${t} ${ctx_}`);
+  });
+
+  // Recent prompt recycling — take the most recent non-trivial prompt
+  recentCtx.slice(0, 3).forEach(r => {
+    const text = r.original_prompt || r.summary || "";
+    if (text.length > 15 && text.length < 200) {
+      suggestions.push(text.slice(0, 120) + (text.length > 120 ? "…" : ""));
+    }
+  });
+
+  // Dedupe and limit
+  const seen = new Set();
+  return suggestions.filter(s => {
+    const key = s.slice(0, 40);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 5);
 }
 
 async function resetMemory() {
@@ -3557,7 +5516,7 @@ const DIAG_TESTS = {
     const r = await fetch(`${BASE}/enhance`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: "Explain neural networks simply", user_id: userId(), prompt_mode: "normal", incognito: true }),
+      body: JSON.stringify({ prompt: "Explain neural networks simply", user_id: userId(), prompt_mode: "research", incognito: true }),
     });
     const result = await readSSE(r);
     return { status: "ok", enhanced_prompt: result?.enhanced_prompt?.slice(0, 100) + "…", score: result?.prompt_quality_score };
@@ -4000,10 +5959,15 @@ async function ctFinalize() {
   ct.currentAudio?.pause(); ct.currentAudio = null;
   window.speechSynthesis?.cancel();
   try {
+    const ctLastMsg = (ct.messages || []).map(m => m.content || "").join(" ").slice(0, 500);
+    const ctWsContext = await wsGatherContext(ctLastMsg);
+    const ctMessages = ctWsContext
+      ? [...ct.messages, { role: "user", content: `Workspace context for this session:\n${ctWsContext}` }]
+      : ct.messages;
     const res = await fetch(`${BASE}/cothinker/finalize`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: ct.sessionId, messages: ct.messages, user_id: userId(), target_ai: null, prompt_mode: "normal", incognito: state.incognito }),
+      body: JSON.stringify({ session_id: ct.sessionId, messages: ctMessages, user_id: userId(), target_ai: null, prompt_mode: state.promptMode || "research", incognito: state.incognito }),
     });
     if (!res.ok) throw new Error("Finalize error: " + res.status);
     ct.finalResult = await res.json();
@@ -4047,7 +6011,7 @@ function ctCopyPrompt() {
 
 function ctSendToEnhance() {
   document.getElementById("promptInput").value = document.getElementById("ctResultPrompt").textContent;
-  showView("enhance");
+  setEnhMode("enhance");
 }
 
 function ctReset() {
@@ -4074,7 +6038,451 @@ function ctReset() {
 }
 
 
+// ── Main Chat (Agentic + Google Connectors) ───────────────────────
+let agenticAbortController = null;
+let agChatMode = "standard"; // 'standard' | 'connector_googledrive' | 'connector_gmail' | 'connector_googlecalendar'
+
+const AG_MODE_LABELS = {
+  standard:                  "⚡ Standard",
+  connector_googledrive:     "📁 Drive",
+  connector_gmail:           "✉️ Gmail",
+  connector_googlecalendar:  "📅 Calendar",
+};
+
+const AG_MODE_SUGGESTIONS = {
+  standard: [
+    { label: "Research recent trends\nto enhance my prompt", featured: true },
+    { label: "Web search context" },
+    { label: "Verify prompt facts" },
+    { label: "Find latest news" },
+    { label: "Analyze via code" },
+  ],
+  connector_googledrive: [
+    { label: "Find spreadsheets\nfrom last month", featured: true },
+    { label: "Recent docs" },
+    { label: "Search budget files" },
+    { label: "Find shared files" },
+    { label: "List PDFs" },
+  ],
+  connector_gmail: [
+    { label: "Unread emails\nthis week", featured: true },
+    { label: "Emails with attachments" },
+    { label: "From my manager" },
+    { label: "Summarise last 5" },
+    { label: "Starred emails" },
+  ],
+  connector_googlecalendar: [
+    { label: "Today's schedule", featured: true },
+    { label: "This week's meetings" },
+    { label: "Tomorrow's events" },
+    { label: "Recurring events" },
+    { label: "Next free slot" },
+  ],
+};
+
+// ── Thinking mode ─────────────────────────────────────────────────
+let agThinkMode = 'auto';
+function agSetThink(mode) {
+  agThinkMode = mode;
+  document.querySelectorAll('.ag-think-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('agThink-' + mode)?.classList.add('active');
+}
+
+// ── Mode dropdown ─────────────────────────────────────────────────
+function agToggleModeMenu(e) {
+  e.stopPropagation();
+  document.getElementById("agModeMenu").classList.toggle("open");
+}
+
+document.addEventListener("click", () => {
+  document.getElementById("agModeMenu")?.classList.remove("open");
+});
+
+function agSetMode(mode) {
+  agChatMode = mode;
+  document.getElementById("agModeMenu").classList.remove("open");
+
+  // Update button label
+  document.getElementById("agModeLabel").textContent = AG_MODE_LABELS[mode] || mode;
+
+  // Highlight active option
+  document.querySelectorAll(".ag-mode-opt").forEach(el => el.classList.remove("active"));
+  document.getElementById("agOpt-" + mode)?.classList.add("active");
+
+  // Show / hide OAuth token row
+  const tokenRow = document.getElementById("agTokenRow");
+  tokenRow.style.display = mode === "standard" ? "none" : "flex";
+
+  // Update textarea placeholder
+  const placeholders = {
+    standard:                 "Write your prompt",
+    connector_googledrive:    "Ask about your Drive files…",
+    connector_gmail:          "Ask about your emails…",
+    connector_googlecalendar: "Ask about your calendar…",
+  };
+  document.getElementById("agenticInput").placeholder = placeholders[mode] || "Write your prompt";
+
+  // Update footer note
+  const notes = {
+    standard:                 "Powered by Groq Compound — can search the web & run code",
+    connector_googledrive:    "Google Drive connector · drive.readonly scope required",
+    connector_gmail:          "Gmail connector · gmail.readonly scope required",
+    connector_googlecalendar: "Google Calendar connector · calendar.events scope required",
+  };
+  const noteEl = document.querySelector(".ag-footer-note");
+  if (noteEl) noteEl.textContent = notes[mode] || "";
+
+  // Rebuild suggestion cards
+  agRenderSuggestions(mode);
+
+  // Focus input
+  document.getElementById("agenticInput").focus();
+}
+
+function agRenderSuggestions(mode) {
+  const wrap = document.getElementById("agSuggestions");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  const items = AG_MODE_SUGGESTIONS[mode] || AG_MODE_SUGGESTIONS.standard;
+  items.forEach(item => {
+    const btn = document.createElement("button");
+    btn.className = "ag-suggest-card" + (item.featured ? " ag-suggest-card--featured" : "");
+    const prompt = item.label.replace(/\n/g, " ");
+    btn.onclick = () => agenticSuggest(prompt);
+    if (item.featured) {
+      btn.innerHTML = `<span class="ag-suggest-label">${item.label.replace(/\n/, "<br>")}</span>`;
+    } else {
+      btn.textContent = item.label;
+    }
+    wrap.appendChild(btn);
+  });
+}
+
+// ── Welcome / chat state ──────────────────────────────────────────
+function agenticShowChat() {
+  const welcome = document.getElementById("agWelcome");
+  if (welcome) welcome.style.display = "none";
+}
+
+function agenticShowWelcome() {
+  const welcome = document.getElementById("agWelcome");
+  if (welcome) welcome.style.display = "";
+  agRenderSuggestions(agChatMode);
+}
+
+function agenticSuggest(text) {
+  document.getElementById("agenticInput").value = text;
+  document.getElementById("agenticInput").focus();
+}
+
+// ── Send — routes to agentic or connector based on mode ───────────
+async function agenticSend() {
+  const input  = document.getElementById("agenticInput");
+  const prompt = input.value.trim();
+  if (!prompt) return;
+
+  // Connector mode: validate OAuth token
+  if (agChatMode !== "standard") {
+    const token = document.getElementById("agOAuthToken").value.trim();
+    if (!token) {
+      document.getElementById("agOAuthToken").focus();
+      document.getElementById("agOAuthToken").style.borderBottom = "2px solid var(--bad)";
+      setTimeout(() => document.getElementById("agOAuthToken").style.borderBottom = "", 2000);
+      return;
+    }
+  }
+
+  const chat = document.getElementById("agenticChat");
+  agenticShowChat();
+  appendAgenticMsg(chat, "user", prompt);
+  input.value = "";
+
+  const msgDiv = document.createElement("div");
+  msgDiv.className = "agentic-msg assistant";
+  msgDiv.innerHTML = '<div class="agentic-bubble"><span class="agentic-typing">⏳ Thinking…</span></div>';
+  chat.appendChild(msgDiv);
+  chat.scrollTop = chat.scrollHeight;
+
+  const sendBtn = document.getElementById("agenticSendBtn");
+  if (sendBtn) sendBtn.disabled = true;
+  agenticAbortController = new AbortController();
+
+  try {
+    if (agChatMode === "standard") {
+      // ── Step 1: Intent confirmation ───────────────────────────
+      const bubble = msgDiv.querySelector(".agentic-bubble");
+      bubble.innerHTML = '<div class="ag-thinking-bar"><div class="ag-thinking-spinner"></div><span style="color:var(--faint)">Analysing intent…</span></div>';
+
+      let intentData = null;
+      try {
+        const intentRes = await fetch(`${BASE}/intent/confirm`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt, user_id: currentUserId || "anonymous" }),
+          signal: agenticAbortController.signal,
+        });
+        if (intentRes.ok) {
+          intentData = await intentRes.json();
+        }
+      } catch (_) { /* non-fatal */ }
+
+      // Show intent card if we got a result
+      if (intentData) {
+        const confPct = Math.round((intentData.confidence || 0) * 100);
+        const confColor = confPct >= 70 ? "var(--good)" : confPct >= 40 ? "var(--warn,#f5a623)" : "var(--bad)";
+        const intentLabel = (intentData.intent || "general_qa").replace(/_/g, " ");
+        const domainLabel = (intentData.domain || "general").replace(/_/g, " ");
+        bubble.innerHTML = `
+          <div class="ag-intent-card">
+            <div class="ag-intent-card-header">Intent detected</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <span style="font-size:12px;font-weight:600">${escapeHtml(intentLabel)}</span>
+              <span style="font-size:11px;color:var(--faint)">· ${escapeHtml(domainLabel)}</span>
+              <span style="font-size:11px;font-weight:600;color:${confColor};margin-left:auto">${confPct}% confidence</span>
+            </div>
+            ${intentData.interpreted_need ? `<div style="font-size:11px;color:var(--faint);margin-top:4px">${escapeHtml(intentData.interpreted_need)}</div>` : ""}
+          </div>
+          <div class="ag-thinking-bar" id="agThinkingBar"><div class="ag-thinking-spinner"></div><span style="color:var(--faint)">Working…</span></div>
+          <div id="agContentArea" style="white-space:pre-wrap;line-height:1.6"></div>`;
+      } else {
+        bubble.innerHTML = '<div class="ag-thinking-bar" id="agThinkingBar"><div class="ag-thinking-spinner"></div><span style="color:var(--faint)">Working…</span></div><div id="agContentArea" style="white-space:pre-wrap;line-height:1.6"></div>';
+      }
+      chat.scrollTop = chat.scrollHeight;
+
+      // ── Step 2: Agentic streaming ─────────────────────────────
+      const res = await fetch(`${BASE}/agentic/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+        signal: agenticAbortController.signal,
+      });
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let text = "";
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop(); // keep incomplete line
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6);
+          if (raw === "[DONE]") break;
+          let event;
+          try { event = JSON.parse(raw); } catch (_) { continue; }
+
+          if (typeof event === "string") {
+            const bar = msgDiv.querySelector("#agThinkingBar");
+            if (bar) bar.style.display = "none";
+            text += event;
+            const area = msgDiv.querySelector("#agContentArea");
+            if (area) area.textContent = text;
+          } else if (event.type === "tool_use") {
+            const toolName = (event.tool || "tool").replace(/_/g, " ");
+            const bar = msgDiv.querySelector("#agThinkingBar");
+            if (bar) bar.innerHTML = `<div class="ag-thinking-spinner"></div><span style="color:var(--accent);font-weight:600">${escapeHtml(toolName)}</span><span style="color:var(--faint)"> running…</span>`;
+          } else if (event.type === "content") {
+            const bar = msgDiv.querySelector("#agThinkingBar");
+            if (bar) bar.style.display = "none";
+            text += event.text || "";
+            const area = msgDiv.querySelector("#agContentArea");
+            if (area) area.textContent = text;
+          } else if (event.type === "done") {
+            const bar = msgDiv.querySelector("#agThinkingBar");
+            if (bar) bar.style.display = "none";
+          }
+        }
+        chat.scrollTop = chat.scrollHeight;
+      }
+      if (!text) {
+        const area = msgDiv.querySelector("#agContentArea");
+        if (area) area.textContent = "(no response)";
+        const bar = msgDiv.querySelector("#agThinkingBar");
+        if (bar) bar.style.display = "none";
+      }
+
+    } else {
+      // ── Google Connector (REST) ───────────────────────────────
+      const token = document.getElementById("agOAuthToken").value.trim();
+      const bubble = msgDiv.querySelector(".agentic-bubble");
+      bubble.innerHTML = '<span class="agentic-typing">⏳ Calling Google…</span>';
+
+      const res = await fetch(`${BASE}/connectors/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, access_token: token, connector: agChatMode }),
+        signal: agenticAbortController.signal,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || `Server error ${res.status}`);
+      bubble.textContent = data.output_text || "(no response)";
+
+      // Append subtle mode badge
+      const badge = document.createElement("span");
+      badge.style.cssText = "display:block;margin-top:6px;font-size:10px;color:var(--faint);font-family:var(--mono)";
+      badge.textContent = `via ${AG_MODE_LABELS[agChatMode]} · ${data.usage?.total_tokens || "?"} tokens`;
+      msgDiv.querySelector(".agentic-bubble").appendChild(badge);
+    }
+  } catch (err) {
+    if (err.name !== "AbortError") {
+      msgDiv.querySelector(".agentic-bubble").textContent = "⚠ " + err.message;
+    }
+  } finally {
+    if (sendBtn) sendBtn.disabled = false;
+  }
+}
+
+function appendAgenticMsg(chat, role, text) {
+  const div = document.createElement("div");
+  div.className = "agentic-msg " + role;
+  div.innerHTML = `<div class="agentic-bubble">${escapeHtml(text)}</div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function agenticClear() {
+  if (agenticAbortController) agenticAbortController.abort();
+  document.getElementById("agenticChat").innerHTML = "";
+  agenticShowWelcome();
+}
+
+// ── Google Workspace Connectors ──────────────────────────────────
+const CONN_QUICK_PROMPTS = {
+  connector_googledrive: [
+    "Find spreadsheet files I worked on last month",
+    "What documents did I recently modify?",
+    "Search for files containing 'budget'",
+    "List my most recent documents",
+  ],
+  connector_gmail: [
+    "Show me unread emails from this week",
+    "Find emails from my manager",
+    "Summarise my last 5 emails",
+    "Search for emails with attachments",
+  ],
+  connector_googlecalendar: [
+    "What's on my calendar for today?",
+    "Show my meetings this week",
+    "Do I have any events tomorrow?",
+    "Find all meetings with more than 2 attendees",
+  ],
+};
+
+let _connActiveService = "connector_googledrive";
+
+function connSelectService(connectorId) {
+  _connActiveService = connectorId;
+  ["drive","gmail","calendar"].forEach(s => {
+    document.getElementById("connSvc-" + s)?.classList.remove("active");
+  });
+  const map = {
+    connector_googledrive: "drive",
+    connector_gmail: "gmail",
+    connector_googlecalendar: "calendar",
+  };
+  document.getElementById("connSvc-" + map[connectorId])?.classList.add("active");
+  connRenderQuickPrompts();
+  document.getElementById("connPrompt").value = "";
+}
+
+function connRenderQuickPrompts() {
+  const row = document.getElementById("connQuickRow");
+  row.innerHTML = "";
+  (CONN_QUICK_PROMPTS[_connActiveService] || []).forEach(p => {
+    const btn = document.createElement("button");
+    btn.className = "conn-quick-btn";
+    btn.textContent = p;
+    btn.onclick = () => { document.getElementById("connPrompt").value = p; };
+    row.appendChild(btn);
+  });
+}
+
+function connSetBusy(busy) {
+  document.getElementById("connRunBtn").disabled = busy;
+  document.getElementById("connTestBtn").disabled = busy;
+  document.getElementById("connSpinner").style.display = busy ? "inline" : "none";
+}
+
+function connShowResult(text, model, usage) {
+  document.getElementById("connResultBody").textContent = text;
+  document.getElementById("connResultModel").textContent = model || "";
+  const u = usage || {};
+  document.getElementById("connResultUsage").textContent =
+    u.total_tokens ? `${u.total_tokens} tokens` : "";
+  document.getElementById("connResultWrap").style.display = "block";
+}
+
+function connClearResult() {
+  document.getElementById("connResultWrap").style.display = "none";
+  document.getElementById("connResultBody").textContent = "";
+}
+
+async function connRun() {
+  const token = document.getElementById("connToken").value.trim();
+  const prompt = document.getElementById("connPrompt").value.trim();
+  if (!token) { alert("Paste your Google OAuth access token first."); return; }
+  if (!prompt) { alert("Enter a prompt."); return; }
+
+  connSetBusy(true);
+  connClearResult();
+  try {
+    const res = await fetch(`${BASE}/connectors/query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, access_token: token, connector: _connActiveService }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    connShowResult(data.output_text || "(empty response)", data.model, data.usage);
+  } catch (err) {
+    connShowResult("⚠ Error: " + err.message, "", null);
+  } finally {
+    connSetBusy(false);
+  }
+}
+
+async function connDriveTest() {
+  const token = document.getElementById("connToken").value.trim();
+  if (!token) { alert("Paste your Google OAuth access token first."); return; }
+
+  // Set Drive + use the canonical doc-workflow prompt
+  connSelectService("connector_googledrive");
+  document.getElementById("connPrompt").value = "Find spreadsheet files I worked on last month";
+  connSetBusy(true);
+  connClearResult();
+  try {
+    const res = await fetch(`${BASE}/connectors/query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Find spreadsheet files I worked on last month",
+        access_token: token,
+        connector: "connector_googledrive",
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    connShowResult(data.output_text || "(empty response)", data.model, data.usage);
+  } catch (err) {
+    connShowResult("⚠ Error: " + err.message, "", null);
+  } finally {
+    connSetBusy(false);
+  }
+}
+
 // ── Init ──────────────────────────────────────────────────────────
+// Seed suggestion cards and mark Standard as active on first load
+document.addEventListener("DOMContentLoaded", () => {
+  agRenderSuggestions("standard");
+  document.getElementById("agOpt-standard")?.classList.add("active");
+  connRenderQuickPrompts();
+  wsInitToggle();
+});
+
 showView("enhance");
 </script>
 </body>

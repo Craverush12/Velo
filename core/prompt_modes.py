@@ -16,6 +16,9 @@ _BASE_FILES = {
 _OVERLAY_FILES = {
     "enhance": {
         "caveman": "enhance_caveman_overlay.md",
+        "research": "enhance_research_overlay.md",
+        "fast_build": "enhance_fast_build_overlay.md",
+        "media": "enhance_media_overlay.md",
     },
     "refine": {
         "caveman": "refine_caveman_overlay.md",

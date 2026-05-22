@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 SCHEMA_VERSION = "2026-05-14.prompt-contracts.v3"
-PROMPT_MODE_VALUES = ("normal", "caveman")
+PROMPT_MODE_VALUES = ("normal", "caveman", "research", "fast_build", "media")
 
 TARGET_AI_VALUES = (
     "claude",
@@ -15,6 +15,7 @@ TARGET_AI_VALUES = (
     "gpt-5",
     "gemini",
     "groq",
+    "compound_mini",
     "cursor",
     "bolt",
     "replit",
@@ -28,6 +29,7 @@ TargetAI = Literal[
     "gpt-5",
     "gemini",
     "groq",
+    "compound_mini",
     "cursor",
     "bolt",
     "replit",
@@ -35,7 +37,7 @@ TargetAI = Literal[
     "midjourney",
 ]
 
-PromptMode = Literal["normal", "caveman"]
+PromptMode = Literal["normal", "caveman", "research", "fast_build", "media"]
 
 
 def normalize_prompt_mode(value: str | None) -> str:
@@ -51,6 +53,12 @@ def normalize_prompt_mode(value: str | None) -> str:
         "cave": "caveman",
         "caveman_mode": "caveman",
         "cavemanmode": "caveman",
+        "fast": "fast_build",
+        "build": "fast_build",
+        "fastbuild": "fast_build",
+        "research_mode": "research",
+        "media_mode": "media",
+        "creative": "media",
     }
     normalized = aliases.get(normalized, normalized)
     if normalized not in PROMPT_MODE_VALUES:
@@ -78,6 +86,10 @@ def normalize_target_ai(value: str | None) -> str | None:
         "image-gen": "midjourney",
         "image_gen": "midjourney",
         "presentations": "gamma",
+        "compound-mini": "compound_mini",
+        "groq/compound-mini": "compound_mini",
+        "groq/compound": "compound_mini",
+        "compound": "compound_mini",
     }
     normalized = aliases.get(normalized, normalized)
     if normalized not in TARGET_AI_VALUES:
@@ -319,6 +331,96 @@ class AIRecommendation(BaseModel):
         return value.strip()
 
 
+GAP_FIELDS = [
+    "target_audience",
+    "output_format",
+    "key_constraints",
+]
+
+
+GAP_QUESTIONS: dict[str, dict] = {
+    "target_audience": {
+        "id": "target_audience",
+        "question": "Help me tailor this perfectly — who are you creating this for?",
+        "options": [
+            "End users / customers",
+            "Developers / technical team",
+            "Business stakeholders / executives",
+            "Designers / creatives",
+            "General public / broad audience",
+        ],
+        "type": "multiple_choice",
+        "persuasion": "Knowing your audience lets me match tone, complexity, and framing so it lands the first time.",
+    },
+    "output_format": {
+        "id": "output_format",
+        "question": "To nail the exact format — what should the final output look like?",
+        "options": [
+            "A written document / article",
+            "Step-by-step instructions / guide",
+            "Code / technical specification",
+            "Email or message draft",
+            "Presentation / slide deck",
+        ],
+        "type": "multiple_choice",
+        "persuasion": "The right format means the result is ready to use immediately with zero rework.",
+    },
+    "key_constraints": {
+        "id": "key_constraints",
+        "question": "Any must-have guardrails I should know about?",
+        "options": [
+            "Keep it concise (under 500 words)",
+            "Tone should be professional / formal",
+            "Needs to be beginner-friendly",
+            "Include specific technical details",
+            "No specific constraints — use your judgment",
+        ],
+        "type": "multiple_choice",
+        "persuasion": "Constraints prevent vague outputs and make sure the result fits your exact use case.",
+    },
+}
+
+
+def detect_gaps(classification: dict) -> list[str]:
+    """Deterministically detect which required fields are missing/empty."""
+    gaps: list[str] = []
+    for field in GAP_FIELDS:
+        value = classification.get(field)
+        if not value:
+            gaps.append(field)
+        elif isinstance(value, list) and not value:
+            gaps.append(field)
+        elif isinstance(value, str) and not value.strip():
+            gaps.append(field)
+    return gaps
+
+
+def build_gap_questions(gaps: list[str]) -> list[IntentQuestion]:
+    """Build persuasive questions for each missing field."""
+    questions: list[IntentQuestion] = []
+    for field in gaps:
+        template = GAP_QUESTIONS.get(field)
+        if template:
+            questions.append(IntentQuestion(
+                id=template["id"],
+                question=template["question"],
+                options=list(template["options"]),
+                type=template["type"],
+            ))
+    return questions
+
+
+def compute_confidence(classification: dict) -> float:
+    """Compute confidence deterministically as ratio of filled required fields."""
+    filled = 0
+    for field in GAP_FIELDS:
+        value = classification.get(field)
+        if value and not (isinstance(value, list) and not value) and not (isinstance(value, str) and not value.strip()):
+            filled += 1
+    total = len(GAP_FIELDS)
+    return filled / total if total > 0 else 1.0
+
+
 class IntentConfirmationResult(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -331,13 +433,10 @@ class IntentConfirmationResult(BaseModel):
     output_format: str = ""
     key_constraints: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
-    missing_context: list[str] = Field(default_factory=list)
-    confirmation_question: str
     questions: list[IntentQuestion] = Field(default_factory=list)
-    questions_answered: int = 0
     questions_total: int = 0
-    is_finalized: bool = False
-    confidence: float = Field(ge=0.0, le=1.0)
+    is_finalized: bool = True
+    confidence: float = Field(ge=0.0, le=1.0, default=1.0)
     suggested_prompt_mode: PromptMode = "normal"
     suggested_techniques: list[Technique] = Field(default_factory=list)
     enhancement_strategy: list[str] = Field(default_factory=list)
@@ -351,11 +450,6 @@ class IntentConfirmationResult(BaseModel):
         if not value or not value.strip():
             raise ValueError("must not be empty")
         return value.strip()
-
-    @field_validator("confirmation_question", mode="before")
-    @classmethod
-    def optional_confirmation_question(cls, value: Any) -> str:
-        return "" if value is None else str(value).strip()
 
     @field_validator(
         "target_audience",

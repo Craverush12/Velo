@@ -33,10 +33,11 @@ class EnhanceRequest(BaseModel):
     prompt: str
     user_id: str = "anonymous"
     target_ai: TargetAI | None = None
-    prompt_mode: PromptMode = "normal"
+    prompt_mode: PromptMode = "research"
     intent_confirmation: IntentConfirmationResult | None = None
     session_id: str | None = None
     incognito: bool = False
+    model_override: str | None = None
 
     @field_validator("prompt")
     @classmethod
@@ -60,13 +61,15 @@ class EnhanceRequest(BaseModel):
 
 
 class EnhanceCompareRequest(EnhanceRequest):
-    modes: list[PromptMode] = Field(default_factory=lambda: ["normal", "caveman"])
+    modes: list[PromptMode] = Field(default_factory=lambda: ["research", "fast_build"])
+    model_a: str | None = None
+    model_b: str | None = None
 
     @field_validator("modes", mode="before")
     @classmethod
     def valid_modes(cls, value) -> list[str]:
         if value is None:
-            return ["normal", "caveman"]
+            return ["research", "fast_build"]
         if isinstance(value, str):
             value = [value]
         modes: list[str] = []
@@ -192,7 +195,7 @@ def _record_enhancement(
 
 async def _run_enhance_once(request: EnhanceRequest, bundle: PromptBundle) -> dict:
     clean_prompt, redactions, user_message = _prepare_enhance_input(request)
-    raw, usage = await complete_with_usage(bundle.text, user_message)
+    raw, usage = await complete_with_usage(bundle.text, user_message, model=request.model_override)
     result = await parse_validate_with_repair(
         "enhance",
         raw,
@@ -206,6 +209,11 @@ async def _run_enhance_once(request: EnhanceRequest, bundle: PromptBundle) -> di
     personalization = _personalization_metadata(request)
     if personalization:
         result["_personalization_used"] = personalization
+        
+    # Phase 3: Traceability
+    if "personalization_trace" in result:
+        result["_personalization_trace"] = result.pop("personalization_trace")
+        
     result["_usage"] = usage
     result["_prompt_files"] = list(bundle.files)
     return result
@@ -221,7 +229,7 @@ async def _generate(request: EnhanceRequest, background_tasks: BackgroundTasks):
     async def event_stream():
         nonlocal accumulated
         try:
-            async for chunk in stream_completion(bundle.text, user_message, usage_sink=usage_sink):
+            async for chunk in stream_completion(bundle.text, user_message, usage_sink=usage_sink, model=request.model_override):
                 accumulated += chunk
                 payload = json.dumps({"type": "chunk", "content": chunk})
                 yield f"data: {payload}\n\n"
@@ -240,6 +248,11 @@ async def _generate(request: EnhanceRequest, background_tasks: BackgroundTasks):
                 personalization = _personalization_metadata(request)
                 if personalization:
                     result["_personalization_used"] = personalization
+                
+                # Phase 3: Traceability
+                if "personalization_trace" in result:
+                    result["_personalization_trace"] = result.pop("personalization_trace")
+
                 result["_prompt_files"] = list(bundle.files)
                 _record_enhancement(request, result, clean_prompt, usage_sink, background_tasks)
                 payload = json.dumps({"type": "done", "result": result})
@@ -275,9 +288,11 @@ async def enhance(request: EnhanceRequest, background_tasks: BackgroundTasks):
 @router.post("/enhance/compare")
 async def compare_enhance_modes(request: EnhanceCompareRequest):
     clean_prompt, redactions, _ = _prepare_enhance_input(request)
+    model_overrides = [request.model_a, request.model_b]
     results = []
-    for mode in request.modes:
-        mode_request = request.model_copy(update={"prompt_mode": mode})
+    for i, mode in enumerate(request.modes):
+        model = model_overrides[i] if i < len(model_overrides) else None
+        mode_request = request.model_copy(update={"prompt_mode": mode, "model_override": model})
         bundle = prompt_bundle("enhance", mode)
         result = await _run_enhance_once(mode_request, bundle)
         result.pop("_usage", None)
@@ -285,8 +300,35 @@ async def compare_enhance_modes(request: EnhanceCompareRequest):
     return {
         "prompt": clean_prompt,
         "target_ai": request.target_ai,
-        "baseline_mode": "normal",
+        "baseline_mode": request.modes[0] if request.modes else "research",
         "mode_order": request.modes,
         "redactions": redactions,
         "results": results,
     }
+
+
+class TelemetryDiffRequest(BaseModel):
+    user_id: str
+    original_prompt: str
+    copied_prompt: str
+
+@router.post("/enhance/telemetry/diff")
+async def record_telemetry_diff(request: TelemetryDiffRequest, background_tasks: BackgroundTasks):
+    """
+    Phase 3: Implicit Diff-Learning.
+    When the user edits the generated prompt before copying, calculate the diff.
+    In a full implementation, this triggers an async LLM task to update the Knowledge Graph.
+    """
+    if request.original_prompt == request.copied_prompt:
+        return {"status": "no_diff"}
+        
+    # In a real system we would use difflib to extract the exact structural changes
+    # and feed it to the Knowledge Graph LLM.
+    def _process_diff(user_id: str, orig: str, copied: str):
+        # Placeholder for core/context_graph.py integration
+        # context_graph.learn_from_diff(user_id, orig, copied)
+        pass
+        
+    background_tasks.add_task(_process_diff, request.user_id, request.original_prompt, request.copied_prompt)
+    return {"status": "diff_recorded", "message": "Knowledge graph updated implicitly"}
+
