@@ -53,6 +53,7 @@
       const msg = await res.text().catch(() => "");
       throw new Error(`Enterprise enhance failed: ${res.status} ${msg}`);
     }
+    if (!res.body) throw new Error("No response body from enhance endpoint");
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let accumulated = "";
@@ -78,13 +79,23 @@
         } catch (_) {}
       }
     }
+    buffer += decoder.decode(); // flush internal state (handles multi-byte char boundaries)
     if (buffer.trim()) {
-      try {
-        const data = JSON.parse(buffer.trim().replace(/^data:\s*/, ""));
-        if (data.type === "complete" && data.enhanced_prompt) accumulated = data.enhanced_prompt;
-      } catch (_) {}
+      for (const line of buffer.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const jsonPart = trimmed.slice("data:".length).trimStart();
+        if (!jsonPart || jsonPart === "[DONE]") continue;
+        try {
+          const data = JSON.parse(jsonPart);
+          if (data.type === "content" && data.chunk) accumulated += data.chunk;
+          if (data.type === "complete" && data.enhanced_prompt) accumulated = data.enhanced_prompt;
+        } catch (_) {}
+      }
     }
-    return accumulated.trim();
+    const result = accumulated.trim();
+    if (!result) throw new Error("Empty enhancement response");
+    return result;
   }
 
   /**
@@ -112,7 +123,7 @@
     try {
       accessToken = await TV.tokenManager.ensureFreshEnterpriseToken();
     } catch (err) {
-      return { success: false, code: err.message || "ENT_NO_TOKENS", error: err.message };
+      return { success: false, code: "ENT_NO_TOKENS", error: err.message };
     }
 
     const SK = TV.STORAGE_KEYS;

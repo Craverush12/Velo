@@ -1,0 +1,249 @@
+{
+  "manifest_version": 3,
+  "name": "Velocity: The Prompt Co-Pilot",
+  "version": "3.9.0",
+  "description": "Velocity: The Prompt Co-Pilot. Imagine grammarly for prompting on steroids. Enhance prompts in one click",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabs",
+    "scripting",
+    "notifications",
+    "sidePanel",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "https://thinkvelocity.in/context-engine/*",
+    "https://chat.openai.com/*",
+    "https://chatgpt.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*",
+    "https://chat.mistral.ai/*",
+    "https://gamma.app/*",
+    "https://bolt.new/*",
+    "https://grok.com/*",
+    "https://www.grok.com/*",
+    "https://suno.com/*",
+    "https://www.suno.com/*",
+    "https://lovable.dev/*",
+    "https://www.lovable.dev/*",
+    "https://replit.com/*",
+    "https://www.replit.com/*",
+    "https://v0.dev/*",
+    "https://v0.app/*",
+    "https://perplexity.ai/*",
+    "https://www.perplexity.ai/*",
+    "https://hera.video/*",
+    "https://www.hera.video/*",
+    "https://labs.google/*",
+    "https://kimi.com/*",
+    "https://www.kimi.com/*",
+    "https://app.emergent.sh/*",
+    "https://emergent.sh/*",
+    "https://thinkvelocity.in/*",
+    "https://*.thinkvelocity.in/*",
+    "https://velocityenterprise.toteminteractive.in/*"
+  ],
+  "action": {
+    "default_title": "Open Velocity Side Panel",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "32": "assets/icon32.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "panel/bootstrap.html"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+V",
+        "mac": "Command+Shift+V"
+      },
+      "description": "Open Velocity Side Panel"
+    },
+    "enhance_selected_text": {
+      "suggested_key": {
+        "default": "Alt+Shift+E",
+        "mac": "Command+Shift+E"
+      },
+      "description": "Enhance selected text"
+    }
+  },
+  "icons": {
+    "16": "assets/icon16.png",
+    "32": "assets/icon32.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' https://thinkvelocity.in https://*.thinkvelocity.in data:; connect-src 'self' https://thinkvelocity.in/context-engine https://thinkvelocity.in/dev/test http://localhost:3005 http://localhost:8000 https://thinkvelocity.in/ https://*.thinkvelocity.in/ https://thinkvelocity.in https://api-js.mixpanel.com/ https://*.mixpanel.com/ https://us.i.posthog.com/ https://eu.i.posthog.com/ https://us-assets.i.posthog.com/ https://eu-assets.i.posthog.com/ data: https://fonts.gstatic.com https://velocityenterprise.toteminteractive.in; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "assets/*",
+        "assets/Velocity_logo.png",
+        "assets/extension-icons/*",
+        "assets/Extension icons/*",
+        "assets/Extension videos/*",
+        "panel/tutorial/tutorial.html",
+        "panel/tutorial/tutorial.css",
+        "panel/tutorial/tutorial.js"
+      ],
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://chat.mistral.ai/*",
+        "https://gamma.app/*",
+        "https://bolt.new/*",
+        "https://grok.com/*",
+        "https://www.grok.com/*",
+        "https://suno.com/*",
+        "https://www.suno.com/*",
+        "https://lovable.dev/*",
+        "https://www.lovable.dev/*",
+        "https://replit.com/*",
+        "https://www.replit.com/*",
+        "https://v0.dev/*",
+        "https://v0.app/*",
+        "https://perplexity.ai/*",
+        "https://www.perplexity.ai/*",
+        "https://hera.video/*",
+        "https://www.hera.video/*",
+        "https://labs.google/*",
+        "https://kimi.com/*",
+        "https://www.kimi.com/*",
+        "https://app.emergent.sh/*",
+        "https://emergent.sh/*",
+        "https://thinkvelocity.in/*",
+        "https://*.thinkvelocity.in/*"
+      ]
+    }
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://thinkvelocity.in/*",
+        "https://*.thinkvelocity.in/*",
+        "http://localhost:3002/*"
+      ],
+      "js": ["content/login-bridge.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://chat.mistral.ai/*",
+        "https://gamma.app/*",
+        "https://bolt.new/*",
+        "https://grok.com/*",
+        "https://www.grok.com/*",
+        "https://suno.com/*",
+        "https://www.suno.com/*",
+        "https://lovable.dev/*",
+        "https://www.lovable.dev/*",
+        "https://replit.com/*",
+        "https://www.replit.com/*",
+        "https://v0.dev/*",
+        "https://v0.app/*",
+        "https://perplexity.ai/*",
+        "https://www.perplexity.ai/*",
+        "https://hera.video/*",
+        "https://www.hera.video/*",
+        "https://labs.google/*",
+        "https://kimi.com/*",
+        "https://www.kimi.com/*",
+        "https://app.emergent.sh/*",
+        "https://emergent.sh/*"
+      ],
+      "js": [
+        "content/velocity-host-debug.js",
+        "platforms/host-platforms.js",
+        "features/thought-process-loader.js",
+        "features/injection-pro-theme.js",
+        "utils/prompt-format.js",
+        "panel/consumer/structured-prompt-dom.js",
+        "button/js/injection-popups.js",
+        "button/js/injection-modal.js",
+        "button/js/injection-button.js",
+        "button/js/side-panel-launcher.js",
+        "content/platform-injection.js"
+      ],
+      "css": [
+        "button/css/velocity-theme.css",
+        "button/css/injection-button.css",
+        "button/css/injection-modal.css",
+        "button/css/injection-popups.css",
+        "button/css/side-panel-launcher.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.openai.com/*", "https://chatgpt.com/*"],
+      "js": [
+        "content/velocity-host-debug.js",
+        "content/platform-conversation-extractor.js",
+        "content/essence-smart-trigger.js",
+        "content/chatgpt-extractor.js",
+        "content/essence-trigger.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.openai.com/*", "https://chatgpt.com/*"],
+      "js": ["content/context-engine-bridge.js"],
+      "world": "ISOLATED",
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": [
+        "content/velocity-host-debug.js",
+        "content/platform-conversation-extractor.js",
+        "content/essence-smart-trigger.js",
+        "content/claude-extractor.js",
+        "content/essence-trigger.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["content/context-engine-bridge.js"],
+      "world": "ISOLATED",
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": [
+        "content/velocity-host-debug.js",
+        "content/platform-conversation-extractor.js",
+        "content/essence-smart-trigger.js",
+        "content/gemini-extractor.js",
+        "content/essence-trigger.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": ["content/context-engine-bridge.js"],
+      "world": "ISOLATED",
+      "run_at": "document_idle"
+    }
+  ]
+}
