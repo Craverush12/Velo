@@ -174,7 +174,30 @@ function isHostPlatformContentScriptSender(sender) {
   const urlStr = sender.url || sender.tab?.url || "";
   try {
     const u = new URL(urlStr);
-    return u.protocol === "https:" || u.protocol === "http:";
+    if (u.protocol !== "https:") return false;
+    const host = u.hostname;
+    const allowed = [
+      "chat.openai.com",
+      "chatgpt.com",
+      "claude.ai",
+      "gemini.google.com",
+      "chat.mistral.ai",
+      "gamma.app",
+      "bolt.new",
+      "grok.com",
+      "suno.com",
+      "lovable.dev",
+      "replit.com",
+      "v0.dev",
+      "v0.app",
+      "perplexity.ai",
+      "hera.video",
+      "labs.google",
+      "kimi.com",
+      "app.emergent.sh",
+      "emergent.sh",
+    ];
+    return allowed.some((h) => host === h || host.endsWith("." + h));
   } catch (e) {
     return false;
   }
@@ -1665,6 +1688,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const SK = TV.STORAGE_KEYS;
         const expiresIn = Number(p.expiresIn) || 900;
         const user = p.user || {};
+        if (!p.accessToken || typeof p.accessToken !== "string" ||
+            !p.refreshToken || typeof p.refreshToken !== "string") {
+          reply(sendResponse, requestId, false, null, {
+            code: "ENT_LOGIN_INVALID_PAYLOAD",
+            message: "Login payload missing accessToken or refreshToken",
+            retryable: false,
+          });
+          return;
+        }
         await TV.chromeStorage.set({
           [SK.ENT_ACCESS_TOKEN]:  p.accessToken,
           [SK.ENT_REFRESH_TOKEN]: p.refreshToken,
@@ -1715,8 +1747,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         } catch (_) {}
         await TV.tokenManager.clearEnterpriseTokens();
         const conTokens = await TV.chromeStorage.get(["accessToken", "refreshToken"]);
-        const hasConsumer = Boolean(conTokens.accessToken || conTokens.refreshToken);
-        const newFlow = hasConsumer ? "consumer" : "consumer";
+        const newFlow = "consumer";
         await TV.chromeStorage.set({ [SK.SIDEBAR_FLOW]: newFlow });
         _activeMode = newFlow;
         if (TV.tokenManager) TV.tokenManager.getActiveMode = () => _activeMode;
@@ -1735,8 +1766,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (action === "TV_ENTERPRISE_MODE_SWITCH") {
     (async () => {
       try {
-        const targetFlow = message.payload && message.payload.flow === "consumer"
-          ? "consumer" : "enterprise";
+        const rawFlow = message.payload && message.payload.flow;
+        if (rawFlow !== "consumer" && rawFlow !== "enterprise") {
+          reply(sendResponse, requestId, false, null, {
+            code: "ENT_MODE_SWITCH_INVALID_FLOW",
+            message: "flow must be 'consumer' or 'enterprise'",
+            retryable: false,
+          });
+          return;
+        }
+        const targetFlow = rawFlow;
+        if (targetFlow === "enterprise") {
+          const entTokens = await TV.tokenManager.getEntStoredTokens();
+          if (!entTokens.accessToken && !entTokens.refreshToken) {
+            reply(sendResponse, requestId, false, null, {
+              code: "ENT_MODE_SWITCH_NO_TOKENS",
+              message: "Cannot switch to enterprise mode: no enterprise session found",
+              retryable: false,
+            });
+            return;
+          }
+        }
         await TV.chromeStorage.set({ [TV.STORAGE_KEYS.SIDEBAR_FLOW]: targetFlow });
         _activeMode = targetFlow;
         if (TV.tokenManager) TV.tokenManager.getActiveMode = () => _activeMode;
