@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<!--
+  Enterprise (B2B) panel — view state controller in sidebar.js.
+  Views: AUTH (login form) | MAIN (compose + enhance) | GUARDRAIL (overlay) | LOADING (spinner).
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Velocity — Enterprise</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="sidebar.css" />
+</head>
+<body data-sidebar-flow="enterprise">
+  <!-- LOADING VIEW -->
+  <div id="viewLoading" class="ent-view ent-view--loading" style="display:none">
+    <div class="ent-spinner"></div>
+    <p class="ent-spinner-label" id="loadingLabel">Loading…</p>
+  </div>
+
+  <!-- AUTH VIEW (mounted by enterprise-auth-view.js) -->
+  <div id="viewAuth" class="ent-view" style="display:none"></div>
+
+  <!-- MAIN VIEW -->
+  <div id="viewMain" class="ent-view" style="display:none">
+    <header class="ent-header">
+      <div class="ent-header-left">
+        <span class="ent-badge">Enterprise</span>
+        <span id="mainUserName" class="ent-user-name"></span>
+      </div>
+      <div class="ent-header-right">
+        <!-- Mode switcher: visible only when both sessions active -->
+        <button type="button" id="btnSwitchConsumer" class="ent-link ent-link--btn" style="display:none">
+          Consumer mode
+        </button>
+        <button type="button" id="btnLogout" class="ent-btn ent-btn--ghost ent-btn--sm">Logout</button>
+      </div>
+    </header>
+
+    <!-- Pending approval banner -->
+    <div id="pendingBanner" class="ent-banner ent-banner--info" style="display:none">
+      <span>⏳ A prompt is awaiting admin review.</span>
+      <button type="button" id="btnDismissPending" class="ent-banner-dismiss">✕</button>
+    </div>
+
+    <main class="ent-main">
+      <div class="ent-composer">
+        <textarea id="entPrompt" class="ent-textarea" rows="6"
+          placeholder="Enter your prompt here…"></textarea>
+        <button type="button" id="btnEnhance" class="ent-btn ent-btn--primary ent-btn--block">
+          Enhance
+        </button>
+      </div>
+
+      <!-- Output area (hidden until enhance completes) -->
+      <div id="outputArea" class="ent-output-area" style="display:none">
+        <div class="ent-output-header">
+          <span class="ent-output-label">Enhanced</span>
+          <button type="button" id="btnCopyOutput" class="ent-btn ent-btn--ghost ent-btn--sm">Copy</button>
+        </div>
+        <div id="outputText" class="ent-output-text"></div>
+        <button type="button" id="btnNewPrompt" class="ent-btn ent-btn--ghost ent-btn--block">
+          New prompt
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <!-- GUARDRAIL VIEW (mounted by enterprise-enhance-view.js) -->
+  <div id="viewGuardrail" class="ent-view" style="display:none"></div>
+
+  <script src="../../core/storage-keys.js"></script>
+  <script src="../../core/sidebar-flow.js"></script>
+  <script src="enterprise-auth-view.js"></script>
+  <script src="enterprise-enhance-view.js"></script>
+  <script src="sidebar.js"></script>
+</body>
+</html>
