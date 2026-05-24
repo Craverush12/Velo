@@ -248,41 +248,40 @@
   }
 
   async function ensureFreshEnterpriseToken() {
-    // Dedup concurrent callers — share the in-flight promise.
+    // Dedup: assign synchronously before any await so concurrent callers
+    // share this promise rather than each starting a new refresh cycle.
     if (_entRefreshPromise) return _entRefreshPromise;
 
-    const tokens = await getEntStoredTokens();
-    if (!tokens.refreshToken && !tokens.accessToken) {
-      throw new Error("ENT_NO_TOKENS");
-    }
+    _entRefreshPromise = (async () => {
+      const tokens = await getEntStoredTokens();
+      if (!tokens.refreshToken && !tokens.accessToken) {
+        throw new Error("ENT_NO_TOKENS");
+      }
 
-    // Still fresh with >60s buffer → return immediately.
-    if (tokens.accessToken && tokens.expiresAt) {
-      const remaining = Number(tokens.expiresAt) - Date.now();
-      if (remaining > ENT_ACCESS_BUFFER_MS) return tokens.accessToken;
-    }
+      // Still fresh with >60s buffer → return immediately.
+      if (tokens.accessToken && tokens.expiresAt) {
+        const remaining = Number(tokens.expiresAt) - Date.now();
+        if (remaining > ENT_ACCESS_BUFFER_MS) return tokens.accessToken;
+      }
 
-    if (!tokens.refreshToken) throw new Error("ENT_NO_REFRESH_TOKEN");
+      if (!tokens.refreshToken) throw new Error("ENT_NO_REFRESH_TOKEN");
 
-    _entRefreshPromise = doEnterpriseRefresh(tokens.refreshToken)
-      .then(async (json) => {
-        const SK = root.TV.STORAGE_KEYS;
-        const expiresIn = json.expiresIn || 900;
-        await root.TV.chromeStorage.set({
-          [SK.ENT_ACCESS_TOKEN]: json.accessToken,
-          [SK.ENT_ACCESS_EXP]: Date.now() + expiresIn * 1000,
-        });
-        return json.accessToken;
-      })
-      .catch((err) => {
-        // 401 = refresh token expired → clear enterprise session.
+      const json = await doEnterpriseRefresh(tokens.refreshToken);
+      const SK = root.TV.STORAGE_KEYS;
+      const expiresIn = json.expiresIn || 900;
+      const patch = {
+        [SK.ENT_ACCESS_TOKEN]: json.accessToken,
+        [SK.ENT_ACCESS_EXP]: Date.now() + expiresIn * 1000,
+      };
+      // Handle refresh token rotation if the server issues a new one.
+      if (json.refreshToken) patch[SK.ENT_REFRESH_TOKEN] = json.refreshToken;
+      await root.TV.chromeStorage.set(patch);
+      return json.accessToken;
+    })()
+      .catch(async (err) => {
+        // 401 = refresh token expired → clear full enterprise session.
         if (err.status === 401) {
-          const SK = root.TV.STORAGE_KEYS;
-          root.TV.chromeStorage.remove([
-            SK.ENT_ACCESS_TOKEN, SK.ENT_REFRESH_TOKEN, SK.ENT_ACCESS_EXP,
-            SK.ENT_USER_ID, SK.ENT_ENTERPRISE_ID, SK.ENT_USER_NAME,
-            SK.ENT_USER_EMAIL, SK.ENT_ROLE_TYPES,
-          ]).catch(() => {});
+          await clearEnterpriseTokens().catch(() => {});
         }
         throw err;
       })
