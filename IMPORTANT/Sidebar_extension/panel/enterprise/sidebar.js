@@ -134,52 +134,58 @@
   // ── Enhance flow ────────────────────────────────────────────────────────────
   async function runEnhance(promptText, opts) {
     showView("LOADING", "Checking policy…");
-    opts = opts || {};
-    const payload = Object.assign({ prompt: promptText }, opts);
-    const response = await new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: "TV_ENTERPRISE_ENHANCE", payload }, resolve);
-    });
+    try {
+      opts = opts || {};
+      const payload = Object.assign({ prompt: promptText }, opts);
+      const response = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: "TV_ENTERPRISE_ENHANCE", payload }, (r) => {
+          if (chrome.runtime.lastError) {
+            resolve({ success: false, error: { message: chrome.runtime.lastError.message } });
+            return;
+          }
+          resolve(r);
+        });
+      });
 
-    if (chrome.runtime.lastError) {
+      if (response && response.success) {
+        // Enhancement complete.
+        const data = response.data || {};
+        if (outputText) outputText.textContent = data.enhancedText || "";
+        if (outputArea) outputArea.style.display = "";
+        showView("MAIN");
+        return;
+      }
+
+      // Failure — check if it's a guardrail outcome.
+      const code = response && response.error && response.error.code;
+      const isGuardrail = code && code.startsWith("ENT_GUARDRAIL_");
+
+      if (!isGuardrail) {
+        alert(response && response.error ? response.error.message : "Enhancement failed.");
+        showMain(await readStorage());
+        return;
+      }
+
+      // Show guardrail overlay.
+      showView("GUARDRAIL");
+      const outcomeData = { code, guardrail: response.error && response.error.guardrail };
+      const userDecision = await TV.enterpriseEnhanceView.showOutcome(viewGuardrail, outcomeData);
+
+      if (userDecision.action === "cancel") {
+        showMain(await readStorage());
+        return;
+      }
+
+      // User chose to proceed.
+      if (code === "ENT_GUARDRAIL_WARN" || code === "ENT_GUARDRAIL_CONFIRM") {
+        await runEnhance(promptText, { skipGuardrail: true });
+      } else if (code === "ENT_GUARDRAIL_REDACT") {
+        await runEnhance(promptText, { skipGuardrail: true, useRedacted: userDecision.redactedPrompt });
+      }
+    } catch (err) {
+      console.error("[sidebar-enterprise] runEnhance error:", err);
       alert("Extension error. Please reload.");
       showMain(await readStorage());
-      return;
-    }
-
-    if (response && response.success) {
-      // Enhancement complete.
-      const data = response.data || {};
-      if (outputText) outputText.textContent = data.enhancedText || "";
-      if (outputArea) outputArea.style.display = "";
-      showView("MAIN");
-      return;
-    }
-
-    // Failure — check if it's a guardrail outcome.
-    const code = response && response.error && response.error.code;
-    const isGuardrail = code && code.startsWith("ENT_GUARDRAIL_");
-
-    if (!isGuardrail) {
-      alert(response && response.error ? response.error.message : "Enhancement failed.");
-      showMain(await readStorage());
-      return;
-    }
-
-    // Show guardrail overlay.
-    showView("GUARDRAIL");
-    const outcomeData = { code, guardrail: response.error && response.error.guardrail };
-    const userDecision = await TV.enterpriseEnhanceView.showOutcome(viewGuardrail, outcomeData);
-
-    if (userDecision.action === "cancel") {
-      showMain(await readStorage());
-      return;
-    }
-
-    // User chose to proceed.
-    if (code === "ENT_GUARDRAIL_WARN" || code === "ENT_GUARDRAIL_CONFIRM") {
-      await runEnhance(promptText, { skipGuardrail: true });
-    } else if (code === "ENT_GUARDRAIL_REDACT") {
-      await runEnhance(promptText, { skipGuardrail: true, useRedacted: userDecision.redactedPrompt });
     }
   }
 
