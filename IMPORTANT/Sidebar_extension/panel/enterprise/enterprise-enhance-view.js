@@ -21,9 +21,10 @@
    *   BLOCK and APPROVAL always resolve with action = "cancel" (terminal — no proceed).
    */
   function showOutcome(container, outcomeData) {
+    if (!container) return Promise.reject(new TypeError("container is required"));
     return new Promise((resolve) => {
       container.innerHTML = "";
-      const { code, guardrail } = outcomeData;
+      const { code, guardrail } = outcomeData || {};
       const g = guardrail || {};
       const violations = Array.isArray(g.violations) ? g.violations : [];
       const violationText = violations.length
