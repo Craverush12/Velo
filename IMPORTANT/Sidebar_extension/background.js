@@ -287,6 +287,7 @@ function reply(sendResponse, requestId, success, data, error) {
         code: error.code || "ERROR",
         message: error.message,
         retryable: Boolean(error.retryable),
+        guardrail: error.guardrail || null,
       };
     } else {
       out.error = {
@@ -1746,7 +1747,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         } catch (_) {}
         await TV.tokenManager.clearEnterpriseTokens();
-        const conTokens = await TV.chromeStorage.get(["accessToken", "refreshToken"]);
         const newFlow = "consumer";
         await TV.chromeStorage.set({ [SK.SIDEBAR_FLOW]: newFlow });
         _activeMode = newFlow;
