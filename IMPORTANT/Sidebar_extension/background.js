@@ -61,37 +61,40 @@ try {
 } catch (e) {
   console.error("[Sidebar_extension] side-panel-lifecycle.js failed to load:", e);
 }
+try {
+  importScripts("features/enterprise-enhance-flow.js");
+} catch (e) {
+  console.error("[Sidebar_extension] enterprise-enhance-flow.js failed to load:", e);
+}
+
+// ── Enterprise in-memory mode cache ─────────────────────────────────────────
+// Cached on service-worker boot to avoid async storage I/O on every API call.
+let _activeMode = "consumer";
+(function initActiveMode() {
+  const TV = globalThis.TV;
+  const key = TV && TV.STORAGE_KEYS && TV.STORAGE_KEYS.SIDEBAR_FLOW
+    ? TV.STORAGE_KEYS.SIDEBAR_FLOW : "velocity_sidebar_flow";
+  chrome.storage.local.get([key], (r) => {
+    if (chrome.runtime.lastError) return;
+    _activeMode =
+      TV && typeof TV.normalizeSidebarFlow === "function"
+        ? TV.normalizeSidebarFlow(r[key])
+        : (r[key] === "enterprise" ? "enterprise" : "consumer");
+    if (TV && TV.tokenManager) TV.tokenManager.getActiveMode = () => _activeMode;
+  });
+  if (TV && TV.tokenManager) TV.tokenManager.getActiveMode = () => _activeMode;
+})();
 
 /** Injected into the active tab; self-contained (aligned with Extension-new/background.js). */
 function pageContextExtractFn() {
-  const MAX = 80000;
   const url = location.href;
   const title = document.title || "";
-  let metaDesc = "";
-  const meta = document.querySelector('meta[name="description"]');
-  if (meta) metaDesc = (meta.getAttribute("content") || "").trim();
-  let main = "";
-  const article = document.querySelector("article");
-  if (article) {
-    main = (article.innerText || "").trim();
-  }
-  if (!main) {
-    const mainEl = document.querySelector("main");
-    if (mainEl) main = (mainEl.innerText || "").trim();
-  }
-  if (!main && document.body) {
-    main = (document.body.innerText || "").trim();
-  }
-  let extractedText = "";
-  if (metaDesc) extractedText += `${metaDesc}\n\n`;
-  extractedText += main;
-  if (extractedText.length > MAX) {
-    extractedText = `${extractedText.slice(0, MAX)}\n…[truncated]`;
-  }
+  const html = document.documentElement.outerHTML || "";
+  
   return {
     url,
     title,
-    extractedText,
+    html,
     language: document.documentElement.getAttribute("lang") || "",
     fetchedAt: new Date().toISOString(),
   };
@@ -166,36 +169,12 @@ function isAuthMessageSenderAllowed(sender) {
   return false;
 }
 
-/** Content scripts on supported AI chat hosts (injection button). */
 function isHostPlatformContentScriptSender(sender) {
   if (!sender || sender.id !== chrome.runtime.id) return false;
   const urlStr = sender.url || sender.tab?.url || "";
   try {
     const u = new URL(urlStr);
-    if (u.protocol !== "https:") return false;
-    const host = u.hostname;
-    const allowed = [
-      "chat.openai.com",
-      "chatgpt.com",
-      "claude.ai",
-      "gemini.google.com",
-      "chat.mistral.ai",
-      "gamma.app",
-      "bolt.new",
-      "grok.com",
-      "suno.com",
-      "lovable.dev",
-      "replit.com",
-      "v0.dev",
-      "v0.app",
-      "perplexity.ai",
-      "hera.video",
-      "labs.google",
-      "kimi.com",
-      "app.emergent.sh",
-      "emergent.sh",
-    ];
-    return allowed.some((h) => host === h || host.endsWith("." + h));
+    return u.protocol === "https:" || u.protocol === "http:";
   } catch (e) {
     return false;
   }
@@ -1274,11 +1253,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           });
           return;
         }
+        
+        const extractUrl = "https://api.thinkvelocity.in/extract/html";
+        
+        const response = await fetch(extractUrl, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({html: data.html || ""})
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to extract page context via API: ${response.statusText}`);
+        }
+        
+        const jsonResult = await response.json();
+        data.extractedText = jsonResult.markdown || "";
+        delete data.html; // remove HTML so we don't send huge payloads to the UI
+        
         reply(sendResponse, requestId, true, data, null);
       } catch (error) {
         reply(sendResponse, requestId, false, null, {
           code: "EXTRACT_FAILED",
-          message: error.message || String(error),
+          message: "try after sometime",
           retryable: true,
         });
       }
@@ -1534,7 +1530,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const result = await TV.consumerClarifyRefine.sendFeedback(
           payload.promptId,
           payload.feedback,
-          payload.mode
+          payload.mode,
+          payload.isRefine
         );
         if (result.success) {
           reply(sendResponse, requestId, true, result.data || {}, null);
@@ -1661,6 +1658,146 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (action === "TV_ENTERPRISE_LOGIN_SUCCESS") {
+    (async () => {
+      try {
+        const p = message.payload || {};
+        const SK = TV.STORAGE_KEYS;
+        const expiresIn = Number(p.expiresIn) || 900;
+        const user = p.user || {};
+        await TV.chromeStorage.set({
+          [SK.ENT_ACCESS_TOKEN]:  p.accessToken,
+          [SK.ENT_REFRESH_TOKEN]: p.refreshToken,
+          [SK.ENT_ACCESS_EXP]:    Date.now() + expiresIn * 1000,
+          [SK.ENT_USER_ID]:       user.id || "",
+          [SK.ENT_ENTERPRISE_ID]: user.enterpriseId || "",
+          [SK.ENT_USER_NAME]:     user.name || "",
+          [SK.ENT_USER_EMAIL]:    user.email || "",
+          [SK.ENT_ROLE_TYPES]:    user.roleTypes || [],
+          [SK.SIDEBAR_FLOW]:      "enterprise",
+        });
+        const conTokens = await TV.chromeStorage.get(["accessToken", "refreshToken"]);
+        const hasConsumer = Boolean(conTokens.accessToken || conTokens.refreshToken);
+        _activeMode = "enterprise";
+        if (TV.tokenManager) TV.tokenManager.getActiveMode = () => _activeMode;
+        const sessionState =
+          TV.computeSessionState && typeof TV.computeSessionState === "function"
+            ? TV.computeSessionState(hasConsumer, true)
+            : "enterprise_only";
+        reply(sendResponse, requestId, true, { sessionState }, null);
+      } catch (error) {
+        reply(sendResponse, requestId, false, null, {
+          code: "ENT_LOGIN_STORE_FAILED",
+          message: error.message || String(error),
+          retryable: false,
+        });
+      }
+    })();
+    return true;
+  }
+
+  if (action === "TV_ENTERPRISE_LOGOUT") {
+    (async () => {
+      try {
+        const SK = TV.STORAGE_KEYS;
+        try {
+          const stored = await TV.tokenManager.getEntStoredTokens();
+          if (stored.accessToken && stored.refreshToken) {
+            await fetch("https://velocityenterprise.toteminteractive.in/backend/auth/logout", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${stored.accessToken}`,
+              },
+              body: JSON.stringify({ refreshToken: stored.refreshToken }),
+            });
+          }
+        } catch (_) {}
+        await TV.tokenManager.clearEnterpriseTokens();
+        const conTokens = await TV.chromeStorage.get(["accessToken", "refreshToken"]);
+        const hasConsumer = Boolean(conTokens.accessToken || conTokens.refreshToken);
+        const newFlow = hasConsumer ? "consumer" : "consumer";
+        await TV.chromeStorage.set({ [SK.SIDEBAR_FLOW]: newFlow });
+        _activeMode = newFlow;
+        if (TV.tokenManager) TV.tokenManager.getActiveMode = () => _activeMode;
+        reply(sendResponse, requestId, true, { loggedOut: true, newFlow }, null);
+      } catch (error) {
+        reply(sendResponse, requestId, false, null, {
+          code: "ENT_LOGOUT_FAILED",
+          message: error.message || String(error),
+          retryable: false,
+        });
+      }
+    })();
+    return true;
+  }
+
+  if (action === "TV_ENTERPRISE_MODE_SWITCH") {
+    (async () => {
+      try {
+        const targetFlow = message.payload && message.payload.flow === "consumer"
+          ? "consumer" : "enterprise";
+        await TV.chromeStorage.set({ [TV.STORAGE_KEYS.SIDEBAR_FLOW]: targetFlow });
+        _activeMode = targetFlow;
+        if (TV.tokenManager) TV.tokenManager.getActiveMode = () => _activeMode;
+        reply(sendResponse, requestId, true, { flow: targetFlow }, null);
+      } catch (error) {
+        reply(sendResponse, requestId, false, null, {
+          code: "ENT_MODE_SWITCH_FAILED",
+          message: error.message || String(error),
+          retryable: false,
+        });
+      }
+    })();
+    return true;
+  }
+
+  if (action === "TV_ENTERPRISE_ENHANCE") {
+    (async () => {
+      try {
+        if (!TV.enterpriseEnhanceFlow || typeof TV.enterpriseEnhanceFlow.run !== "function") {
+          reply(sendResponse, requestId, false, null, {
+            code: "ENT_ENHANCE_MODULE_MISSING",
+            message: "Enterprise enhance module did not load. Reload the extension.",
+            retryable: false,
+          });
+          return;
+        }
+        const payload = message.payload || {};
+        const prompt = payload.prompt;
+        if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+          reply(sendResponse, requestId, false, null, {
+            code: "INVALID_PROMPT",
+            message: "Prompt is required",
+            retryable: false,
+          });
+          return;
+        }
+        const opts = {};
+        if (payload.skipGuardrail) opts.skipGuardrail = true;
+        if (typeof payload.useRedacted === "string") opts.useRedacted = payload.useRedacted;
+        const result = await TV.enterpriseEnhanceFlow.run(prompt.trim(), opts);
+        if (result.success) {
+          reply(sendResponse, requestId, true, result.data, null);
+        } else {
+          reply(sendResponse, requestId, false, null, {
+            code: result.code || "ENT_ENHANCE_FAILED",
+            message: result.error || "Enhancement failed",
+            guardrail: result.guardrail || null,
+            retryable: false,
+          });
+        }
+      } catch (error) {
+        reply(sendResponse, requestId, false, null, {
+          code: "ENT_ENHANCE_ERROR",
+          message: error.message || String(error),
+          retryable: true,
+        });
+      }
+    })();
+    return true;
+  }
+
   reply(sendResponse, requestId, false, null, {
     code: "UNKNOWN_ACTION",
     message: `Unknown action: ${action}`,
@@ -1668,3 +1805,61 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   });
   return false;
 });
+
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === 'enhance_selected_text') {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const activeTab = tabs[0];
+      if (!activeTab || !activeTab.id) return;
+      
+      const [{ result }] = await chrome.scripting.executeScript({
+        target: { tabId: activeTab.id },
+        func: () => window.getSelection().toString().trim()
+      });
+      
+      if (!result) return;
+
+      await chrome.scripting.executeScript({
+        target: { tabId: activeTab.id },
+        func: () => typeof globalThis.VelocityInjectionModal !== 'undefined'
+      }).then(async ([{ result: isLoaded }]) => {
+        if (!isLoaded) {
+          await chrome.scripting.insertCSS({
+            target: { tabId: activeTab.id },
+            files: [
+              'button/css/velocity-theme.css',
+              'button/css/injection-modal.css',
+              'button/css/injection-popups.css'
+            ]
+          });
+          await chrome.scripting.executeScript({
+            target: { tabId: activeTab.id },
+            files: [
+              'content/velocity-host-debug.js',
+              'features/thought-process-loader.js',
+              'features/injection-pro-theme.js',
+              'utils/prompt-format.js',
+              'panel/consumer/structured-prompt-dom.js',
+              'button/js/injection-popups.js',
+              'button/js/injection-modal.js'
+            ]
+          });
+        }
+        
+        await chrome.scripting.executeScript({
+          target: { tabId: activeTab.id },
+          func: (promptText) => {
+            if (globalThis.VelocityInjectionModal) {
+              globalThis.VelocityInjectionModal.open({ prompt: promptText });
+            }
+          },
+          args: [result]
+        });
+      });
+    } catch (err) {
+      console.warn('[Velocity] hotkey enhancement failed:', err);
+    }
+  }
+});
+
