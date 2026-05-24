@@ -16,14 +16,14 @@
    * @param {string} enterpriseId
    * @returns {Promise<{allowed,decision,queueId,violations,redactedPrompt}>}
    */
-  async function checkGuardrail(prompt, accessToken, enterpriseId) {
-    const res = await fetch(`${ENT_BASE}/backend/guardrail/check-prompt`, {
+  async function checkGuardrail(prompt, accessToken) {
+    const res = await fetch(`${ENT_BASE}/backend/guardrail/check`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ prompt, contentType: "CHAT_PROMPT", enterpriseId }),
+      body: JSON.stringify({ prompt, contentType: "CHAT_PROMPT" }),
     });
     if (!res.ok) {
       const msg = await res.text().catch(() => "");
@@ -41,7 +41,7 @@
    * @returns {Promise<string>} the full enhanced text
    */
   async function streamEnhance(prompt, accessToken, enterpriseId, userId) {
-    const res = await fetch(`${ENT_BASE}/prompt/enhance/stream`, {
+    const res = await fetch(`${ENT_BASE}/prompt/enhance/stream`, {  // no /backend prefix — different service mount
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -141,7 +141,7 @@
     if (!opts.skipGuardrail) {
       let guardrail;
       try {
-        guardrail = await checkGuardrail(prompt, accessToken, enterpriseId);
+        guardrail = await checkGuardrail(prompt, accessToken);
       } catch (err) {
         return { success: false, code: "ENT_GUARDRAIL_ERROR", error: err.message };
       }
