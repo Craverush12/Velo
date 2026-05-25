@@ -35,6 +35,7 @@
         <button type="button" id="btnSwitchConsumer" class="ent-link ent-link--btn" style="display:none">
           Consumer mode
         </button>
+        <button type="button" id="btnHistory" class="ent-link ent-link--btn">History</button>
         <button type="button" id="btnLogout" class="ent-btn ent-btn--ghost ent-btn--sm">Logout</button>
       </div>
     </header>
@@ -71,10 +72,14 @@
   <!-- GUARDRAIL VIEW (mounted by enterprise-enhance-view.js) -->
   <div id="viewGuardrail" class="ent-view" style="display:none"></div>
 
+  <!-- HISTORY VIEW (mounted by enterprise-history-view.js) -->
+  <div id="viewHistory" class="ent-view" style="display:none"></div>
+
   <script src="../../core/storage-keys.js"></script>
   <script src="../../core/sidebar-flow.js"></script>
   <script src="enterprise-auth-view.js"></script>
   <script src="enterprise-enhance-view.js"></script>
+  <script src="enterprise-history-view.js"></script>
   <script src="sidebar.js"></script>
 </body>
 </html>

@@ -18,6 +18,8 @@
   const viewAuth       = document.getElementById("viewAuth");
   const viewMain       = document.getElementById("viewMain");
   const viewGuardrail  = document.getElementById("viewGuardrail");
+  const viewHistory    = document.getElementById("viewHistory");
+  const btnHistory     = document.getElementById("btnHistory");
   const loadingLabel   = document.getElementById("loadingLabel");
 
   const mainUserName      = document.getElementById("mainUserName");
@@ -38,10 +40,10 @@
 
   // ── View switching ──────────────────────────────────────────────────────────
   function showView(name, label) {
-    [viewLoading, viewAuth, viewMain, viewGuardrail].forEach((v) => {
+    [viewLoading, viewAuth, viewMain, viewGuardrail, viewHistory].forEach((v) => {
       if (v) v.style.display = "none";
     });
-    const map = { LOADING: viewLoading, AUTH: viewAuth, MAIN: viewMain, GUARDRAIL: viewGuardrail };
+    const map = { LOADING: viewLoading, AUTH: viewAuth, MAIN: viewMain, GUARDRAIL: viewGuardrail, HISTORY: viewHistory };
     const el = map[name];
     if (el) el.style.display = "";
     if (name === "LOADING" && loadingLabel && label) loadingLabel.textContent = label;
@@ -254,6 +256,20 @@
     btnDismissPending.addEventListener("click", () => {
       chrome.storage.local.remove(SK.ENT_PENDING_APPROVAL);
       if (pendingBanner) pendingBanner.style.display = "none";
+    });
+  }
+
+  if (btnHistory) {
+    btnHistory.addEventListener("click", () => {
+      if (!TV.enterpriseHistoryView) return;
+      showView("HISTORY");
+      TV.enterpriseHistoryView.mount(viewHistory, {
+        onBack: () => showMain({}),
+        onSelectPrompt: (text) => {
+          if (entPrompt) entPrompt.value = text;
+          showMain({});
+        },
+      });
     });
   }
 
