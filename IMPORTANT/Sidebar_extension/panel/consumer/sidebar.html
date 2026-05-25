@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<!--
+  Consumer-only side panel (B2C). Matches the Velocity consumer reference:
+  scrollable hero/cards + bottom-docked composer + right icon rail.
+  Enterprise UI lives under panel/enterprise/ and is intentionally different.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Velocity — Consumer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="sidebar.css" />
+  <script src="light-mode-init.js"></script>
+</head>
+<body data-sidebar-flow="consumer">
+  <div id="appShell" class="app-shell">
+    <button
+      type="button"
+      id="sidebarExpandBtn"
+      class="sidebar-expand-btn"
+      hidden
+      aria-controls="iconRail"
+      aria-expanded="false"
+      aria-label="Show sidebar"
+      title="Show sidebar"
+    >
+      <svg
+        class="sidebar-expand-icon"
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M4 6h16M4 12h16M4 18h16"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </svg>
+    </button>
+    <div id="mainStage" class="main-stage">
+      <div class="main-stage-body">
+
+        <!-- Tab bar — hidden until a session starts (first enhance) -->
+        <div id="tabBar" class="tab-bar" hidden role="tablist" aria-label="Result tabs">
+          <button class="tab-btn tab-btn--active" data-tab="output" role="tab" aria-selected="true">Output</button>
+          <button class="tab-btn" data-tab="suggestions" role="tab" aria-selected="false">Suggestions</button>
+          <button class="tab-btn" data-tab="context" role="tab" aria-selected="false">Context</button>
+          <button class="tab-btn" data-tab="versions" role="tab" aria-selected="false">Versions</button>
+        </div>
+
+        <!-- Login gate (default when signed out) -->
+        <section id="viewLogin" class="view-surface view-login-surface view-surface--active" aria-label="Sign in to Velocity">
+          <!-- CTA state (default) -->
+          <div class="welcome-stage" id="welcomeStage" data-state="cta">
+
+            <div class="welcome-cta-block" id="welcomeCtaBlock">
+              <div class="welcome-hero">
+                <div class="welcome-logo" aria-hidden="true">
+                  <img
+                    class="welcome-logo-img"
+                    src="../../assets/Velocity_logo.png"
+                    width="120"
+                    height="120"
+                    alt=""
+                    decoding="async"
+                  />
+                </div>
+                <h1 class="welcome-title">Welcome to Velocity</h1>
+                <p class="welcome-sub" id="welcomeLoginSub">Your AI prompt copilot, working inside ChatGPT, Claude, Gemini and more.</p>
+              </div>
+
+              <ul class="welcome-perks" aria-label="What you get with Velocity">
+                <li class="welcome-perk">
+                  <span class="welcome-perk-icon" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                  <span>One-tap enhanced prompts on any AI chat</span>
+                </li>
+                <li class="welcome-perk">
+                  <span class="welcome-perk-icon" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                  <span>A growing library of expert prompts</span>
+                </li>
+                <li class="welcome-perk">
+                  <span class="welcome-perk-icon" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                  <span>Refine, version &amp; reuse your best prompts</span>
+                </li>
+              </ul>
+
+              <p class="welcome-status" id="welcomeLoginStatus" aria-live="polite"></p>
+
+              <div class="welcome-actions">
+                <button type="button" id="welcomeSignupBtn" class="welcome-btn primary">
+                  <span>Sign up &amp; start free</span>
+                </button>
+                <button type="button" id="welcomeLoginBtn" class="welcome-btn outline">
+                  <span>I already have an account</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ── HOME VIEWS ─────────────────────────────────────── -->
+        <section id="viewHome" class="view-surface" hidden aria-label="Home">
+          <div class="main-scroll">
+            <div class="home-scroll-inner">
+              <header class="home-hero">
+                <div class="brand-mark" aria-hidden="true">
+                  <img
+                    class="brand-logo-img"
+                    src="../../assets/Velocity_logo.png"
+                    width="56"
+                    height="56"
+                    alt=""
+                    decoding="async"
+                  />
+                </div>
+                <h1 class="hero-title">
+                  <span class="hero-greeting">Hi <span id="heroGreetingName">there</span>,</span>
+                  <span class="hero-tagline">let's <span class="hero-rotating-word" aria-live="polite"><span id="heroRotatingWord" class="hero-rotating-word-item">build</span></span> something brilliant</span>
+                </h1>
+
+              </header>
+
+              <div id="homeFeaturedCards" class="cards-row" aria-label="Featured prompts from library"></div>
+
+              <div class="home-actions">
+                <button type="button" id="btnShufflePrompts" class="home-action-btn home-action-btn--shuffle" title="Shuffle starter prompts">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="16 3 21 3 21 8"/>
+                    <line x1="4" y1="20" x2="21" y2="3"/>
+                    <polyline points="21 16 21 21 16 21"/>
+                    <line x1="15" y1="15" x2="21" y2="21"/>
+                    <line x1="4" y1="4" x2="9" y2="9"/>
+                  </svg>
+                  <span>Shuffle</span>
+                </button>
+                <button type="button" id="btnShowMorePrompts" class="home-action-btn home-action-btn--more" title="Open the prompt library">
+                  <span>View more</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="viewPromptLibrary" class="view-surface view-surface--stack" hidden aria-label="Prompt library">
+          <header class="view-page-header view-page-header--library">
+            <h2 class="view-page-title">Prompt Library</h2>
+            <p class="view-page-sub">Browse and insert prompts from the collection</p>
+          </header>
+          <div id="libraryScroll" class="view-scroll view-scroll--library">
+            <div class="library-search-wrap">
+              <svg class="library-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
+              <input type="search" id="librarySearch" class="library-search-input" placeholder="Search Collection…" autocomplete="off" />
+            </div>
+            <div id="libraryFilterRow" class="library-filter-row" role="tablist" aria-label="Categories"></div>
+            <div id="libraryList" class="library-card-list"></div>
+            <button type="button" id="btnLibraryViewMore" class="load-more view-more-footer" hidden>
+              View more
+            </button>
+            <p id="libraryStatus" class="view-status-bar" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <section id="viewCollections" class="view-surface view-surface--stack" hidden aria-label="Collections">
+          <div id="collectionsScroll" class="view-scroll">
+            <header class="view-page-header">
+              <h2 class="view-page-title">Collections</h2>
+              <p class="view-page-sub">Your collection of enhanced prompts</p>
+            </header>
+            <div class="view-search-wrap">
+              <svg class="view-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
+              <input type="search" id="collectionSearch" class="view-search-input" placeholder="Search Collection…" autocomplete="off" />
+            </div>
+            <section class="feed-block" aria-labelledby="feedHeading">
+              <h3 id="feedHeading" class="view-section-title">Your Feed</h3>
+              <p class="view-section-sub">Automatic collections based on platforms you use.</p>
+              <div id="feedCards" class="feed-cards" aria-live="polite"></div>
+            </section>
+            <div class="new-collection-cta" hidden aria-hidden="true">
+              <p class="new-collection-copy">Create a collection to organize saved prompts into themed categories</p>
+              <button type="button" id="btnNewCollection" class="btn-outline-cyan" tabindex="-1">+ NEW COLLECTION</button>
+            </div>
+            <div id="collectionsList" class="collections-list" aria-live="polite"></div>
+            <section class="prompt-book-block" aria-labelledby="promptBookHeading">
+              <h3 id="promptBookHeading" class="view-section-title">Prompt Book</h3>
+              <p class="view-section-sub">Your history of enhanced prompts.</p>
+              <div id="promptBookList" class="prompt-book-list"></div>
+              <button type="button" id="btnCollectionsViewMore" class="load-more view-more-footer" hidden>
+                View more
+              </button>
+              <p id="promptBookStatus" class="view-status-bar" aria-live="polite"></p>
+            </section>
+          </div>
+        </section>
+
+        <section id="viewMemory" class="view-surface view-surface--stack" hidden aria-label="Memory">
+          <div id="memoryScroll" class="view-scroll">
+            <header class="view-page-header">
+              <h2 class="view-page-title">Memory</h2>
+              <p class="view-page-sub">Unified AI memory across your chats</p>
+            </header>
+            <div id="memoryEmpty" class="memory-empty">
+              <div class="memory-empty-icon" aria-hidden="true">
+                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--vel-accent)" stroke-width="1.2">
+                  <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
+                  <path d="M8 17l4-4 4 4M12 13v8" />
+                </svg>
+              </div>
+              <h3 class="memory-empty-title">No saved memories yet</h3>
+              <p class="memory-empty-sub">Your saved memories will appear here.</p>
+              <button type="button" id="btnAddMemory" class="btn-outline-cyan">+ ADD MEMORY</button>
+            </div>
+            <div id="memoryList" class="memory-list" hidden></div>
+            <button type="button" id="btnMemoryViewMore" class="load-more view-more-footer" hidden>
+              View more
+            </button>
+            <p id="memoryStatus" class="view-status-bar" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <!-- ── SESSION VIEWS ──────────────────────────────────── -->
+
+        <!-- Thought process loader (shown while enhance is running) -->
+        <section id="viewThoughtProcess" class="view-surface view-surface--stack" hidden aria-label="Thought process">
+          <div class="thought-process-panel">
+            <div class="thought-process-heading">
+              <div class="thought-process-dot" aria-hidden="true"></div>
+              <h2 class="thought-process-title">Velocity Thought Process</h2>
+            </div>
+            <div id="thoughtStepsList" class="thought-steps-list"></div>
+          </div>
+          <!-- Action row — shown below steps, disabled while loading -->
+          <div class="tp-action-row">
+            <div class="out-thumbs">
+              <button type="button" class="thumb-btn" id="tpThumbUp" disabled aria-label="Helpful">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+              </button>
+              <button type="button" class="thumb-btn" id="tpThumbDown" disabled aria-label="Not helpful">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+              </button>
+            </div>
+            <div class="out-action-right">
+              <button type="button" class="out-text-btn" disabled>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                <span>Edit</span>
+              </button>
+              <button type="button" class="out-text-btn out-text-btn--refine" disabled>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <span>Refine</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Output tab -->
+        <section id="viewOutput" class="view-surface" hidden aria-label="Output">
+          <div class="output-scroll">
+            <div id="outputCards" class="output-cards-list"></div>
+          </div>
+        </section>
+
+        <!-- Suggestions tab -->
+        <section id="viewSuggestions" class="view-surface" hidden aria-label="Suggestions">
+          <!-- History scroll: ORIGINAL collapsible only -->
+          <div class="suggestions-scroll" id="suggestionsScroll"></div>
+          <!-- Active Q panel: answer toast + current Q card — pinned above composer -->
+          <div id="suggestionsActivePanel" class="sug-active-panel"></div>
+        </section>
+
+        <!-- Context tab -->
+        <section id="viewContext" class="view-surface" hidden aria-label="Context">
+          <div class="context-scroll" id="contextScroll">
+            <!-- populated by context-view.js -->
+          </div>
+        </section>
+
+        <!-- Versions tab -->
+        <section id="viewVersions" class="view-surface view-surface--stack" hidden aria-label="Versions">
+          <div class="versions-scroll" id="versionsScroll">
+            <!-- populated by versions-view.js -->
+          </div>
+        </section>
+
+      </div><!-- /main-stage-body -->
+
+      <footer class="output-actions-dock" id="outputActionsDock" hidden role="region" aria-label="Output Actions">
+        <button type="button" id="btnOutputDockImprove" class="out-dock-btn out-dock-btn--improve">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3 14.5 9.5 21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></svg>
+          <span>Improve</span>
+        </button>
+        <button type="button" id="btnOutputDockUse" class="out-dock-btn out-dock-btn--use">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5V20"/></svg>
+          <span>Use</span>
+        </button>
+      </footer>
+
+      <footer class="composer-dock" role="region" aria-label="Composer">
+        <div id="authHint" class="auth-hint" hidden>
+          <span id="authHintText" class="auth-hint-text"></span>
+          <div class="auth-hint-actions">
+            <button type="button" id="btnLogin" class="btn btn-primary btn-compact">Open login</button>
+            <button type="button" id="btnRefresh" class="btn btn-secondary btn-compact">Refresh</button>
+          </div>
+        </div>
+
+        <div id="usageLimitBanner" class="usage-limit-banner" hidden role="status" aria-live="polite">
+          <p class="usage-limit-banner__text">You have run out of free prompts</p>
+          <button type="button" id="usageLimitBannerUpgrade" class="usage-limit-banner__cta">
+            Upgrade to Pro →
+          </button>
+        </div>
+
+        <select id="enhanceMode" class="vel-hidden-select" aria-label="Enhancement mode value" tabindex="-1">
+          <option value="standard">standard</option>
+          <option value="build">build</option>
+          <option value="media">media</option>
+          <option value="research">research</option>
+        </select>
+
+        <!-- hidden file inputs -->
+        <input type="file" id="contextFileInput" class="vel-hidden-select" multiple aria-hidden="true" tabindex="-1" />
+
+        <div class="composer-prompt-shell">
+          <!-- Attachment preview row (shown when file attached) -->
+          <div id="attachedFilesRow" class="attached-files-row" style="display:none" aria-label="Attachments"></div>
+
+          <div id="composerImproveSlot" class="composer-improve-slot" hidden>
+            <button type="button" id="btnComposerImprove" class="composer-improve-btn" aria-label="Improve prompt with refine questions">
+              <img class="composer-improve-icon" src="../../assets/Extension icons/improve.png" alt="" aria-hidden="true" decoding="async" />
+              <span>Improve Prompt</span>
+            </button>
+          </div>
+
+          <!-- Textarea -->
+          <textarea
+            id="promptInput"
+            class="composer-input sb-main-input"
+            rows="1"
+            placeholder="Write or paste your prompt..."
+          ></textarea>
+
+          <!-- Absolute-positioned bottom toolbar — matches v-chat layout -->
+          <div class="composer-abs-toolbar" id="originalSendControls" data-mode="voice">
+            <!-- Left: Attach + Mode dropdown -->
+            <div class="composer-toolbar-left">
+
+              <!-- Attach (first, leftmost) -->
+              <div class="attach-menu" id="attachMenu">
+                <button type="button" class="attach-circle-btn" id="attachMenuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="attachMenuPanel" title="Attach file">
+                  <img class="attach-icon-img" src="../../assets/Extension icons/attachments.png" alt="" aria-hidden="true" decoding="async" />
+                </button>
+                <div class="attach-menu-panel" id="attachMenuPanel" role="menu" hidden>
+                  <button type="button" class="attach-menu-item" id="attachMenuFiles" role="menuitem">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                    Add files or photos
+                  </button>
+
+                  <button type="button" class="attach-menu-item" id="attachMenuExtract" role="menuitem">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    Extract page
+                  </button>
+                </div>
+              </div>
+
+              <!-- Mode dropdown (after attach) -->
+              <div class="sb-mode-dropdown" id="sbModeDropdown" data-user-tier="free">
+                <button type="button" class="sb-mode-btn" id="sbModeBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="sbModeMenu">
+                  <span id="sbModeIcon" class="sb-mode-icon" data-icon="zap" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                  </span>
+                  <span id="sbModeLabel">Quick</span>
+                  <svg class="sb-mode-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="sb-mode-menu" id="sbModeMenu" role="listbox" hidden>
+                  <button type="button" class="sb-mode-option" role="option" data-api-value="standard" data-label="Quick" data-icon="zap">
+                    <span class="sb-mode-option-icon" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    </span>
+                    <div class="sb-mode-option-content">
+                      <span class="sb-mode-option-text">Quick</span>
+                      <span class="sb-mode-option-desc">Fast responses, no extra enhancement forms</span>
+                    </div>
+                  </button>
+                  <button type="button" class="sb-mode-option" role="option" data-api-value="build" data-label="Build" data-requires-pro="true" data-icon="hammer">
+                    <span class="sb-mode-option-icon" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 12-8.373 8.373a1 1 0 1 1-3-3L12 9"/><path d="m18 15 4-4"/><path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5"/></svg>
+                    </span>
+                    <div class="sb-mode-option-content">
+                      <span class="sb-mode-option-text">Build</span>
+                      <span class="sb-mode-option-desc">Comprehensive coding</span>
+                    </div>
+                  </button>
+                  <button type="button" class="sb-mode-option" role="option" data-api-value="media" data-label="Media" data-requires-pro="true" data-icon="clapperboard">
+                    <span class="sb-mode-option-icon" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z"/><path d="m6.2 5.3 3.1 3.9"/><path d="m12.4 3.4 3.1 4"/><path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>
+                    </span>
+                    <div class="sb-mode-option-content">
+                      <span class="sb-mode-option-text">Media</span>
+                      <span class="sb-mode-option-desc">Creative &amp; media generation</span>
+                    </div>
+                  </button>
+                  <button type="button" class="sb-mode-option" role="option" data-api-value="research" data-label="Research" data-requires-pro="true" data-icon="book-open">
+                    <span class="sb-mode-option-icon" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    </span>
+                    <div class="sb-mode-option-content">
+                      <span class="sb-mode-option-text">Research</span>
+                      <span class="sb-mode-option-desc">Deep dives &amp; fact finding</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <span id="enhanceStatus" class="enhance-status enhance-status--footer" aria-live="polite"></span>
+            </div>
+
+            <!-- Right: mic OR send in one slot (typing state) -->
+            <div class="composer-toolbar-right">
+              <div id="composerPrimaryAction" class="composer-primary-action" data-mode="voice">
+                <button type="button" class="voice-mic-btn action-switch-btn is-visible" id="voiceMicBtn" aria-label="Voice input" title="Voice input">
+                  <img class="voice-mic-img" src="../../assets/Extension icons/mic.png" alt="" aria-hidden="true" decoding="async" />
+                </button>
+                <button type="button" id="btnComposerSend" class="send-btn original-section action-switch-btn is-hidden" aria-label="Enhance prompt" title="Enhance prompt" disabled>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="22" y1="2" x2="11" y2="13"/>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </footer>
+    </div>
+
+    <aside id="iconRail" class="icon-rail" aria-label="Sidebar navigation">
+      <button type="button" id="railToggle" class="rail-btn rail-btn-toggle" title="Hide sidebar" aria-expanded="true" aria-controls="iconRail">
+        <img class="rail-icon-img rail-toggle-icon" src="../../assets/Extension icons/sidebar_icon.png" alt="" aria-hidden="true" decoding="async" />
+      </button>
+
+      <!-- New chat — "+" glyph in the Velocity cyan family, matching the
+           v-chat sidebar "+ New" button. Icon-only (no chip background) so the
+           rail reads as a row of cyan glyphs. -->
+      <button type="button" id="railNewChat" class="rail-btn rail-btn-cyan-icon" title="New chat" data-rail="new-chat">
+        <svg class="rail-newchat-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+
+      <!-- Prompt Library → v-chat "Prompt Book" icon, recoloured cyan via mask. -->
+      <button type="button" id="railLibrary" class="rail-btn rail-btn-cyan-icon" title="Prompt library" data-rail="library">
+        <span class="rail-mask-icon rail-mask-icon--promptbook" aria-hidden="true"></span>
+      </button>
+
+    <!-- Enterprise mode — shown only when enterprise tokens exist -->
+    <button type="button" id="railEnterprise" class="rail-btn rail-btn-cyan-icon"
+            title="Switch to Enterprise" style="display:none" aria-label="Switch to Enterprise mode">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="2" y="7" width="20" height="14" rx="2"/>
+        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+        <line x1="12" y1="12" x2="12" y2="16"/>
+        <line x1="10" y1="14" x2="14" y2="14"/>
+      </svg>
+    </button>
+
+      <div class="rail-spacer" aria-hidden="true"></div>
+
+      <!-- Theme toggle -->
+      <button type="button" id="railThemeToggle" class="rail-btn rail-btn-cyan-icon" title="Toggle theme" aria-label="Toggle theme">
+        <span class="rail-theme-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Default to moon for dark mode, logic will update to sun for light mode -->
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+          </svg>
+        </span>
+      </button>
+
+      <!-- Profile initials — cyan text on the rail's transparent surface. -->
+      <button type="button" id="railProfile" class="rail-btn rail-btn-profile" title="Profile">
+        <span id="profileInitials" class="profile-initials">?</span>
+      </button>
+    </aside>
+  </div>
+
+  <!-- Dislike feedback popup (overlays the side panel) -->
+  <div id="feedbackPopup" class="feedback-popup" role="dialog" aria-modal="true" aria-labelledby="feedbackPopupTitle" hidden>
+    <div class="feedback-popup__backdrop" data-feedback-dismiss="true"></div>
+    <div class="feedback-popup__card" role="document">
+      <button type="button" class="feedback-popup__close" id="feedbackPopupClose" aria-label="Close">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      <h3 class="feedback-popup__title" id="feedbackPopupTitle">What felt off?</h3>
+      <p class="feedback-popup__subtitle">Help us improve future enhancements</p>
+      <textarea id="feedbackPopupText" class="feedback-popup__textarea" rows="3" maxlength="1000" placeholder="Describe how this enhancement could have been more effective..."></textarea>
+      <p id="feedbackPopupStatus" class="feedback-popup__status" aria-live="polite"></p>
+      <div class="feedback-popup__actions">
+        <button type="button" class="feedback-popup__btn feedback-popup__btn--ghost" id="feedbackPopupDismiss">Dismiss</button>
+        <button type="button" class="feedback-popup__btn feedback-popup__btn--primary" id="feedbackPopupSend" disabled>
+          <span>Send Feedback</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Preview Popup (overlays the side panel) -->
+  <div id="contextPreviewPopup" class="feedback-popup" role="dialog" aria-modal="true" aria-labelledby="contextPreviewTitle" hidden>
+    <div class="feedback-popup__backdrop" data-context-dismiss="true"></div>
+    <div class="feedback-popup__card" role="document">
+      <button type="button" class="feedback-popup__close" id="contextPreviewClose" aria-label="Close">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      <h3 class="feedback-popup__title" id="contextPreviewTitle">Context Preview</h3>
+      <div id="contextPreviewBody" class="prompt-book-detail__scroll-box" style="margin-top: 1rem; max-height: 60vh; text-align: left;"></div>
+    </div>
+  </div>
+
+  <script src="../../core/storage-keys.js"></script>
+  <script src="../../core/sidebar-flow.js"></script>
+  <script src="../../utils/chrome-storage.js"></script>
+  <script src="../../utils/local-storage-sync-lite.js"></script>
+  <script src="../../utils/token-manager.js"></script>
+  <script src="../../utils/thinkvelocity-urls.js"></script>
+  <script src="../../utils/subscription-access.js"></script>
+  <script src="../../utils/host-context.js"></script>
+  <script src="../../utils/prompt-display-title.js"></script>
+  <script src="../../utils/prompt-markdown.js"></script>
+  <script src="../../utils/usage-access.js"></script>
+  <script src="../../state/sidebar-auth-state.js"></script>
+  <script src="../../state/sidebar-view-state.js"></script>
+  <script src="sidebar-hosted-nav.js"></script>
+  <script src="copy-button-feedback.js"></script>
+  <script src="prompt-book-detail-view.js"></script>
+  <script src="memory-editor-view.js"></script>
+  <script src="collection-memory-views.js"></script>
+  <script src="prompt-library-view.js"></script>
+  <script src="../../features/thought-process-loader.js"></script>
+  <script src="thought-process.js"></script>
+  <script src="../../utils/prompt-format.js"></script>
+  <script src="structured-prompt-dom.js"></script>
+  <script src="../../utils/platform-prompt-actions.js"></script>
+  <script src="output-view.js"></script>
+  <script src="context-view.js"></script>
+  <script src="versions-view.js"></script>
+  <script src="suggestions-view.js"></script>
+  <script src="consumer-voice-transcribe.js"></script>
+  <script src="voice-mode-overlay.js"></script>
+  <script src="composer-bar.js"></script>
+  <script src="usage-limit-banner.js"></script>
+  <script src="subscription-theme.js"></script>
+  <script src="feedback-popup.js"></script>
+  <script src="sidebar.js"></script>
+  <script src="light-mode.js"></script>
+
+</body>
+</html>
