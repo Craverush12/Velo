@@ -132,8 +132,8 @@
     // Restore pending prompt if returning from a re-auth redirect.
     if (entPrompt) {
       entPrompt.value = _pendingPromptAfterReauth || "";
-      _pendingPromptAfterReauth = null;
     }
+    _pendingPromptAfterReauth = null;
 
     showView("MAIN");
   }
@@ -232,7 +232,6 @@
   if (btnNewPrompt) {
     btnNewPrompt.addEventListener("click", async () => {
       if (outputArea) outputArea.style.display = "none";
-      if (entPrompt) entPrompt.value = "";
       showMain(await readStorage());
     });
   }
