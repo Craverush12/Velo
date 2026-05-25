@@ -246,50 +246,54 @@
       let accumulated = "";
       let buffer = "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop();
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data:")) continue;
-          const jsonPart = trimmed.slice(5).trimStart();
-          if (!jsonPart || jsonPart === "[DONE]") continue;
-          try {
-            const data = JSON.parse(jsonPart);
-            if (data.type === "content" && data.chunk) {
-              accumulated += data.chunk;
-              if (outputText) outputText.textContent = accumulated;
-            }
-            if (data.type === "complete" && data.enhanced_prompt) {
-              accumulated = data.enhanced_prompt;
-              if (outputText) outputText.textContent = accumulated;
-            }
-          } catch (_) {}
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop();
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("data:")) continue;
+            const jsonPart = trimmed.slice(5).trimStart();
+            if (!jsonPart || jsonPart === "[DONE]") continue;
+            try {
+              const data = JSON.parse(jsonPart);
+              if (data.type === "content" && data.chunk) {
+                accumulated += data.chunk;
+                if (outputText) outputText.textContent = accumulated;
+              }
+              if (data.type === "complete" && data.enhanced_prompt) {
+                accumulated = data.enhanced_prompt;
+                if (outputText) outputText.textContent = accumulated;
+              }
+            } catch (_) {}
+          }
         }
-      }
-      // Flush residual buffer.
-      buffer += decoder.decode();
-      if (buffer.trim()) {
-        for (const line of buffer.split("\n")) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data:")) continue;
-          const jsonPart = trimmed.slice(5).trimStart();
-          if (!jsonPart || jsonPart === "[DONE]") continue;
-          try {
-            const data = JSON.parse(jsonPart);
-            if (data.type === "content" && data.chunk) {
-              accumulated += data.chunk;
-              if (outputText) outputText.textContent = accumulated;
-            }
-            if (data.type === "complete" && data.enhanced_prompt) {
-              accumulated = data.enhanced_prompt;
-              if (outputText) outputText.textContent = accumulated;
-            }
-          } catch (_) {}
+        // Flush residual buffer.
+        buffer += decoder.decode();
+        if (buffer.trim()) {
+          for (const line of buffer.split("\n")) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("data:")) continue;
+            const jsonPart = trimmed.slice(5).trimStart();
+            if (!jsonPart || jsonPart === "[DONE]") continue;
+            try {
+              const data = JSON.parse(jsonPart);
+              if (data.type === "content" && data.chunk) {
+                accumulated += data.chunk;
+                if (outputText) outputText.textContent = accumulated;
+              }
+              if (data.type === "complete" && data.enhanced_prompt) {
+                accumulated = data.enhanced_prompt;
+                if (outputText) outputText.textContent = accumulated;
+              }
+            } catch (_) {}
+          }
         }
+      } finally {
+        reader.cancel().catch(() => {});
       }
 
       if (!accumulated.trim()) throw new Error("Empty enhancement response");
