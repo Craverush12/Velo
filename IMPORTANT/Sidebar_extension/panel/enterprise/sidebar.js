@@ -33,6 +33,9 @@
   const btnCopyOutput  = document.getElementById("btnCopyOutput");
   const btnNewPrompt   = document.getElementById("btnNewPrompt");
 
+  // Prompt to restore after re-authentication (set when ENT_NO_TOKENS is hit mid-session).
+  let _pendingPromptAfterReauth = null;
+
   // ── View switching ──────────────────────────────────────────────────────────
   function showView(name, label) {
     [viewLoading, viewAuth, viewMain, viewGuardrail].forEach((v) => {
@@ -126,7 +129,11 @@
     // Reset output area.
     if (outputArea) outputArea.style.display = "none";
     if (outputText) outputText.textContent = "";
-    if (entPrompt) entPrompt.value = "";
+    // Restore pending prompt if returning from a re-auth redirect.
+    if (entPrompt) {
+      entPrompt.value = _pendingPromptAfterReauth || "";
+      _pendingPromptAfterReauth = null;
+    }
 
     showView("MAIN");
   }
@@ -161,6 +168,12 @@
       const isGuardrail = code && code.startsWith("ENT_GUARDRAIL_");
 
       if (!isGuardrail) {
+        if (code === "ENT_NO_TOKENS") {
+          // Tokens expired — save the prompt and route to login.
+          _pendingPromptAfterReauth = promptText;
+          showAuth();
+          return;
+        }
         alert(response && response.error ? response.error.message : "Enhancement failed.");
         showMain(await readStorage());
         return;
