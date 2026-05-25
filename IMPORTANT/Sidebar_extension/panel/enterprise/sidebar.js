@@ -141,14 +141,16 @@
     showView("MAIN");
   }
 
-  // ── Enhance flow ────────────────────────────────────────────────────────────
+  // ── Enhance flow (streaming) ────────────────────────────────────────────────
   async function runEnhance(promptText, opts) {
     showView("LOADING", "Checking policy…");
     try {
       opts = opts || {};
-      const payload = Object.assign({ prompt: promptText }, opts);
-      const response = await new Promise((resolve) => {
-        chrome.runtime.sendMessage({ action: "TV_ENTERPRISE_ENHANCE", payload }, (r) => {
+
+      // Phase 1 — guardrail check through background (handles token refresh, storage).
+      const grPayload = Object.assign({ prompt: promptText, guardrailOnly: true }, opts);
+      const grResponse = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: "TV_ENTERPRISE_ENHANCE", payload: grPayload }, (r) => {
           if (chrome.runtime.lastError) {
             resolve({ success: false, error: { message: chrome.runtime.lastError.message } });
             return;
@@ -157,51 +159,147 @@
         });
       });
 
-      if (response && response.success) {
-        // Enhancement complete.
-        const data = response.data || {};
-        if (outputText) outputText.textContent = data.enhancedText || "";
-        if (outputArea) outputArea.style.display = "";
-        showView("MAIN");
+      if (!grResponse || !grResponse.success) {
+        const code = grResponse && grResponse.error && grResponse.error.code;
+        const isGuardrail = code && code.startsWith("ENT_GUARDRAIL_");
+
+        if (!isGuardrail) {
+          if (code === "ENT_NO_TOKENS") {
+            _pendingPromptAfterReauth = promptText;
+            showAuth();
+            return;
+          }
+          alert(grResponse && grResponse.error ? grResponse.error.message : "Enhancement failed.");
+          showMain(await readStorage());
+          return;
+        }
+
+        // Show guardrail overlay.
+        showView("GUARDRAIL");
+        const outcomeData = { code, guardrail: grResponse.error && grResponse.error.guardrail };
+        const userDecision = await TV.enterpriseEnhanceView.showOutcome(viewGuardrail, outcomeData);
+
+        if (userDecision.action === "cancel") {
+          showMain(await readStorage());
+          return;
+        }
+        if (code === "ENT_GUARDRAIL_WARN" || code === "ENT_GUARDRAIL_CONFIRM") {
+          await runEnhance(promptText, { skipGuardrail: true });
+        } else if (code === "ENT_GUARDRAIL_REDACT") {
+          await runEnhance(promptText, { skipGuardrail: true, useRedacted: userDecision.redactedPrompt });
+        }
         return;
       }
 
-      // Failure — check if it's a guardrail outcome.
-      const code = response && response.error && response.error.code;
-      const isGuardrail = code && code.startsWith("ENT_GUARDRAIL_");
+      // Phase 2 — guardrail passed. Get a fresh token and stream SSE directly.
+      const tokenResponse = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: "TV_ENTERPRISE_GET_TOKEN" }, (r) => {
+          if (chrome.runtime.lastError) {
+            resolve({ success: false, error: { message: chrome.runtime.lastError.message } });
+            return;
+          }
+          resolve(r);
+        });
+      });
 
-      if (!isGuardrail) {
-        if (code === "ENT_NO_TOKENS") {
-          // Tokens expired — save the prompt and route to login.
+      if (!tokenResponse || !tokenResponse.success) {
+        const tCode = tokenResponse && tokenResponse.error && tokenResponse.error.code;
+        if (tCode === "ENT_NO_TOKENS") {
           _pendingPromptAfterReauth = promptText;
           showAuth();
           return;
         }
-        alert(response && response.error ? response.error.message : "Enhancement failed.");
+        alert("Could not get session token. Please reload.");
         showMain(await readStorage());
         return;
       }
 
-      // Show guardrail overlay.
-      showView("GUARDRAIL");
-      const outcomeData = { code, guardrail: response.error && response.error.guardrail };
-      const userDecision = await TV.enterpriseEnhanceView.showOutcome(viewGuardrail, outcomeData);
+      const { accessToken, enterpriseId, userId } = tokenResponse.data;
+      const promptToEnhance =
+        typeof opts.useRedacted === "string" && opts.useRedacted.trim()
+          ? opts.useRedacted.trim()
+          : promptText;
 
-      if (userDecision.action === "cancel") {
-        showMain(await readStorage());
-        return;
+      // Show MAIN view immediately with empty output (stream chunks as they arrive).
+      if (outputText)  outputText.textContent = "";
+      if (outputArea)  outputArea.style.display = "";
+      if (btnEnhance)  btnEnhance.disabled = true;
+      showView("MAIN");
+
+      const res = await fetch("https://velocityenterprise.toteminteractive.in/prompt/enhance/stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ prompt: promptToEnhance, enterpriseId, userId }),
+      });
+
+      if (!res.ok) {
+        const msg = await res.text().catch(() => "");
+        throw new Error(`Enhance failed: ${res.status} ${msg}`);
+      }
+      if (!res.body) throw new Error("No response body from enhance endpoint");
+
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+          const jsonPart = trimmed.slice(5).trimStart();
+          if (!jsonPart || jsonPart === "[DONE]") continue;
+          try {
+            const data = JSON.parse(jsonPart);
+            if (data.type === "content" && data.chunk) {
+              accumulated += data.chunk;
+              if (outputText) outputText.textContent = accumulated;
+            }
+            if (data.type === "complete" && data.enhanced_prompt) {
+              accumulated = data.enhanced_prompt;
+              if (outputText) outputText.textContent = accumulated;
+            }
+          } catch (_) {}
+        }
+      }
+      // Flush residual buffer.
+      buffer += decoder.decode();
+      if (buffer.trim()) {
+        for (const line of buffer.split("\n")) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+          const jsonPart = trimmed.slice(5).trimStart();
+          if (!jsonPart || jsonPart === "[DONE]") continue;
+          try {
+            const data = JSON.parse(jsonPart);
+            if (data.type === "content" && data.chunk) {
+              accumulated += data.chunk;
+              if (outputText) outputText.textContent = accumulated;
+            }
+            if (data.type === "complete" && data.enhanced_prompt) {
+              accumulated = data.enhanced_prompt;
+              if (outputText) outputText.textContent = accumulated;
+            }
+          } catch (_) {}
+        }
       }
 
-      // User chose to proceed.
-      if (code === "ENT_GUARDRAIL_WARN" || code === "ENT_GUARDRAIL_CONFIRM") {
-        await runEnhance(promptText, { skipGuardrail: true });
-      } else if (code === "ENT_GUARDRAIL_REDACT") {
-        await runEnhance(promptText, { skipGuardrail: true, useRedacted: userDecision.redactedPrompt });
-      }
+      if (!accumulated.trim()) throw new Error("Empty enhancement response");
+
     } catch (err) {
       console.error("[sidebar-enterprise] runEnhance error:", err);
-      alert("Extension error. Please reload.");
+      alert("Enhancement failed: " + (err.message || String(err)));
       showMain(await readStorage());
+    } finally {
+      if (btnEnhance) btnEnhance.disabled = false;
     }
   }
 

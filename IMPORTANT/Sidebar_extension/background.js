@@ -1930,6 +1930,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const opts = {};
         if (payload.skipGuardrail) opts.skipGuardrail = true;
         if (typeof payload.useRedacted === "string") opts.useRedacted = payload.useRedacted;
+
+        // guardrailOnly: skip SSE, return guardrail decision only (panel streams directly).
+        if (payload.guardrailOnly) {
+          if (typeof TV.enterpriseEnhanceFlow.runGuardrailOnly !== "function") {
+            reply(sendResponse, requestId, false, null, {
+              code: "ENT_ENHANCE_MODULE_MISSING",
+              message: "runGuardrailOnly not available. Reload extension.",
+              retryable: false,
+            });
+            return;
+          }
+          const grResult = await TV.enterpriseEnhanceFlow.runGuardrailOnly(prompt.trim(), opts);
+          if (grResult.success) {
+            reply(sendResponse, requestId, true, { guardrailPassed: true }, null);
+          } else {
+            reply(sendResponse, requestId, false, null, {
+              code:      grResult.code || "ENT_ENHANCE_FAILED",
+              message:   grResult.error || "Enhancement failed",
+              guardrail: grResult.guardrail || null,
+              retryable: false,
+            });
+          }
+          return;
+        }
+
         const result = await TV.enterpriseEnhanceFlow.run(prompt.trim(), opts);
         if (result.success) {
           reply(sendResponse, requestId, true, result.data, null);

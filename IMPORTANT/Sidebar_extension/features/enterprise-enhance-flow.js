@@ -183,5 +183,51 @@
     }
   }
 
-  root.TV.enterpriseEnhanceFlow = { run };
+  /**
+   * Run only the guardrail check step (no enhance).
+   * Returns the same shape as run() but never reaches the SSE step.
+   * Used by the panel when it wants to stream SSE directly.
+   */
+  async function runGuardrailOnly(prompt, opts) {
+    const TV = root.TV;
+    opts = opts || {};
+
+    let accessToken;
+    try {
+      accessToken = await TV.tokenManager.ensureFreshEnterpriseToken();
+    } catch (err) {
+      return { success: false, code: "ENT_NO_TOKENS", error: err.message };
+    }
+
+    if (opts.skipGuardrail) {
+      // Caller already acknowledged — signal ALLOW.
+      return { success: true, code: "ENT_GUARDRAIL_ALLOW" };
+    }
+
+    try {
+      const guardrail = await checkGuardrail(prompt, accessToken);
+      const decision = (guardrail.decision || "ALLOW").toUpperCase();
+      if (decision === "WARN")               return { success: false, code: "ENT_GUARDRAIL_WARN",     guardrail };
+      if (decision === "REQUIRE_CONFIRMATION") return { success: false, code: "ENT_GUARDRAIL_CONFIRM",  guardrail };
+      if (decision === "REDACT")             return { success: false, code: "ENT_GUARDRAIL_REDACT",   guardrail };
+      if (decision === "BLOCK")              return { success: false, code: "ENT_GUARDRAIL_BLOCK",    guardrail };
+      if (decision === "REQUIRE_APPROVAL") {
+        const SK = TV.STORAGE_KEYS;
+        await TV.chromeStorage.set({
+          [SK.ENT_PENDING_APPROVAL]: {
+            queueId:       guardrail.queueId || null,
+            promptExcerpt: prompt.slice(0, 120),
+            submittedAt:   Date.now(),
+          },
+        });
+        return { success: false, code: "ENT_GUARDRAIL_APPROVAL", guardrail };
+      }
+      // ALLOW
+      return { success: true, code: "ENT_GUARDRAIL_ALLOW" };
+    } catch (err) {
+      return { success: false, code: "ENT_GUARDRAIL_ERROR", error: err.message };
+    }
+  }
+
+  root.TV.enterpriseEnhanceFlow = { run, runGuardrailOnly };
 })();
