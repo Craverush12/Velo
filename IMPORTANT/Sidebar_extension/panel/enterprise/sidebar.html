@@ -43,7 +43,10 @@
     <!-- Pending approval banner -->
     <div id="pendingBanner" class="ent-banner ent-banner--info" style="display:none">
       <span>⏳ A prompt is awaiting admin review.</span>
-      <button type="button" id="btnDismissPending" class="ent-banner-dismiss">✕</button>
+      <div class="ent-banner-actions">
+        <button type="button" id="btnCheckApproval" class="ent-link ent-link--btn" style="font-size:12px">Check status</button>
+        <button type="button" id="btnDismissPending" class="ent-banner-dismiss">✕</button>
+      </div>
     </div>
 
     <main class="ent-main">

@@ -27,6 +27,7 @@
   const btnLogout         = document.getElementById("btnLogout");
   const pendingBanner     = document.getElementById("pendingBanner");
   const btnDismissPending = document.getElementById("btnDismissPending");
+  const btnCheckApproval  = document.getElementById("btnCheckApproval");
 
   const entPrompt      = document.getElementById("entPrompt");
   const btnEnhance     = document.getElementById("btnEnhance");
@@ -256,6 +257,38 @@
     btnDismissPending.addEventListener("click", () => {
       chrome.storage.local.remove(SK.ENT_PENDING_APPROVAL);
       if (pendingBanner) pendingBanner.style.display = "none";
+    });
+  }
+
+  if (btnCheckApproval) {
+    btnCheckApproval.addEventListener("click", () => {
+      btnCheckApproval.textContent = "Checking…";
+      btnCheckApproval.disabled = true;
+      chrome.runtime.sendMessage({ action: "TV_ENTERPRISE_CHECK_APPROVAL" }, (response) => {
+        btnCheckApproval.disabled = false;
+        if (chrome.runtime.lastError || !response || !response.success) {
+          btnCheckApproval.textContent = "Check status";
+          alert("Could not check approval status. Try again.");
+          return;
+        }
+        const status = response.data && response.data.status;
+        if (status === "APPROVED") {
+          if (pendingBanner) pendingBanner.style.display = "none";
+          const original = response.data.originalPrompt || "";
+          if (original && entPrompt) entPrompt.value = original;
+          alert("✅ Your prompt was approved! The text has been restored — enhance it now.");
+        } else if (status === "REJECTED") {
+          if (pendingBanner) pendingBanner.style.display = "none";
+          alert("❌ Your prompt was rejected by the admin.");
+        } else if (status === "NONE") {
+          if (pendingBanner) pendingBanner.style.display = "none";
+          btnCheckApproval.textContent = "Check status";
+        } else {
+          // Still PENDING.
+          btnCheckApproval.textContent = "Still pending…";
+          setTimeout(() => { btnCheckApproval.textContent = "Check status"; }, 3000);
+        }
+      });
     });
   }
 

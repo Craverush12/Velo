@@ -318,3 +318,6 @@ body::-webkit-scrollbar {
 .ent-history-item:hover { background: rgba(25,216,230,0.05); }
 .ent-history-item-text { font-size: 13px; color: #e0e0e0; line-height: 1.4; }
 .ent-history-item-date { font-size: 11px; color: var(--ent-muted); }
+
+/* ── Banner actions row ──────────────────────────────────────────── */
+.ent-banner-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
