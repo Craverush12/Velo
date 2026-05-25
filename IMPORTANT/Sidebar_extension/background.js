@@ -1802,6 +1802,110 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (action === "TV_ENTERPRISE_GET_TOKEN") {
+    (async () => {
+      try {
+        const accessToken = await TV.tokenManager.ensureFreshEnterpriseToken();
+        const SK = TV.STORAGE_KEYS;
+        const stored = await TV.chromeStorage.get([SK.ENT_ENTERPRISE_ID, SK.ENT_USER_ID]);
+        reply(sendResponse, requestId, true, {
+          accessToken,
+          enterpriseId: stored[SK.ENT_ENTERPRISE_ID] || "",
+          userId:       stored[SK.ENT_USER_ID]       || "",
+        }, null);
+      } catch (err) {
+        reply(sendResponse, requestId, false, null, {
+          code:      err.message === "ENT_NO_TOKENS" ? "ENT_NO_TOKENS" : "ENT_TOKEN_ERROR",
+          message:   err.message || "Failed to get enterprise token",
+          retryable: false,
+        });
+      }
+    })();
+    return true;
+  }
+
+  if (action === "TV_ENTERPRISE_GET_HISTORY") {
+    (async () => {
+      try {
+        const accessToken = await TV.tokenManager.ensureFreshEnterpriseToken();
+        const SK = TV.STORAGE_KEYS;
+        const stored = await TV.chromeStorage.get([SK.ENT_USER_ID]);
+        const userId = stored[SK.ENT_USER_ID] || "";
+        if (!userId) {
+          reply(sendResponse, requestId, false, null, {
+            code: "ENT_NO_USER_ID", message: "No user ID in storage", retryable: false,
+          });
+          return;
+        }
+        const res = await fetch(
+          `https://velocityenterprise.toteminteractive.in/backend/prompt/enhanced-prompts/user/${encodeURIComponent(userId)}?limit=20`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        if (!res.ok) {
+          const msg = await res.text().catch(() => "");
+          reply(sendResponse, requestId, false, null, {
+            code: "ENT_HISTORY_FAILED", message: `${res.status} ${msg}`, retryable: res.status >= 500,
+          });
+          return;
+        }
+        const body = await res.json();
+        const prompts = Array.isArray(body) ? body : (body.data || body.prompts || []);
+        reply(sendResponse, requestId, true, { prompts }, null);
+      } catch (err) {
+        reply(sendResponse, requestId, false, null, {
+          code: "ENT_HISTORY_ERROR", message: err.message || String(err), retryable: true,
+        });
+      }
+    })();
+    return true;
+  }
+
+  if (action === "TV_ENTERPRISE_CHECK_APPROVAL") {
+    (async () => {
+      try {
+        const SK = TV.STORAGE_KEYS;
+        const stored = await TV.chromeStorage.get([SK.ENT_PENDING_APPROVAL]);
+        const pending = stored[SK.ENT_PENDING_APPROVAL];
+        if (!pending) {
+          reply(sendResponse, requestId, true, { status: "NONE" }, null);
+          return;
+        }
+        if (!pending.queueId) {
+          // Stored without a queueId — cannot check; report as pending.
+          reply(sendResponse, requestId, true, { status: "PENDING" }, null);
+          return;
+        }
+        const accessToken = await TV.tokenManager.ensureFreshEnterpriseToken();
+        const res = await fetch(
+          `https://velocityenterprise.toteminteractive.in/backend/guardrail/approvals/${encodeURIComponent(pending.queueId)}`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        if (!res.ok) {
+          const msg = await res.text().catch(() => "");
+          reply(sendResponse, requestId, false, null, {
+            code: "ENT_APPROVAL_CHECK_FAILED", message: `${res.status} ${msg}`, retryable: true,
+          });
+          return;
+        }
+        const data = await res.json();
+        const status = (data.status || "PENDING").toUpperCase();
+        // Clear storage when the decision is final.
+        if (status === "APPROVED" || status === "REJECTED") {
+          await TV.chromeStorage.remove(SK.ENT_PENDING_APPROVAL);
+        }
+        reply(sendResponse, requestId, true, {
+          status,
+          originalPrompt: pending.promptExcerpt || "",
+        }, null);
+      } catch (err) {
+        reply(sendResponse, requestId, false, null, {
+          code: "ENT_APPROVAL_CHECK_ERROR", message: err.message || String(err), retryable: true,
+        });
+      }
+    })();
+    return true;
+  }
+
   if (action === "TV_ENTERPRISE_ENHANCE") {
     (async () => {
       try {
