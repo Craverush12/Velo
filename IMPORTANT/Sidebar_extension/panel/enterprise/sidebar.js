@@ -264,10 +264,10 @@
       if (!TV.enterpriseHistoryView) return;
       showView("HISTORY");
       TV.enterpriseHistoryView.mount(viewHistory, {
-        onBack: () => showMain({}),
-        onSelectPrompt: (text) => {
+        onBack: async () => showMain(await readStorage()),
+        onSelectPrompt: async (text) => {
           if (entPrompt) entPrompt.value = text;
-          showMain({});
+          showMain(await readStorage());
         },
       });
     });
