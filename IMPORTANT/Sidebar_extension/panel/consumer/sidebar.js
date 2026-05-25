@@ -1771,6 +1771,7 @@
     });
     railEnterprise.addEventListener("click", () => {
       chrome.storage.local.set({ [SK.SIDEBAR_FLOW]: "enterprise" }, () => {
+        if (chrome.runtime.lastError) return;
         window.location.replace(chrome.runtime.getURL("panel/bootstrap.html"));
       });
     });
