@@ -663,14 +663,15 @@
       const data = await api("/dashboard");
       const metrics = data.metrics || {};
       const cards = [
-        ["Users", metrics.users],
+        ["Total Users", metrics.users],
+        ["Active Subscriptions", metrics.active_subscriptions],
         ["Prompt Activity", metrics.prompt_activity],
         ["Uploads", metrics.uploads],
         ["Evaluations", metrics.evaluations],
         ["Audit Logs", metrics.audit_logs]
       ];
       $("metricGrid").innerHTML = cards.map(([label, value]) => `<div class="card"><div class="metric-label">${label}</div><div class="metric-value">${value ?? 0}</div></div>`).join("");
-      $("recentUsers").innerHTML = renderSimpleTable(data.recent_users || [], ["user_id", "enhancement_count", "updated_at"]);
+      $("recentUsers").innerHTML = renderSimpleTable(data.recent_users || [], ["user_id", "name", "email", "subscription_status", "created_at"]);
       $("recentAudit").innerHTML = renderSimpleTable(data.recent_audit_logs || [], ["action", "actor_email", "created_at"]);
     }
     async function loadUsers() {
@@ -678,14 +679,15 @@
       const data = await api(`/users?search=${encodeURIComponent($("userSearch").value)}`);
       state.users = data.items || [];
       if (!state.users.length) return showState("usersTable", "No users found");
-      $("usersTable").innerHTML = `<table><thead><tr><th>User</th><th>Domains</th><th>Enhancements</th><th>Last Summary</th><th>Updated</th><th></th></tr></thead><tbody>${state.users.map((u) => `
+      $("usersTable").innerHTML = `<table><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Plan</th><th>Verified</th><th>Joined</th><th></th></tr></thead><tbody>${state.users.map((u) => `
         <tr>
           <td>${escapeHtml(u.user_id)}</td>
-          <td>${escapeHtml((u.domains || []).join(", "))}</td>
-          <td>${u.enhancement_count || 0}</td>
-          <td>${escapeHtml(u.last_summary || "")}</td>
-          <td>${escapeHtml(u.updated_at || "")}</td>
-          <td class="actions"><button data-action="viewUser" data-id="${escapeHtml(u.user_id)}">Open</button><button class="danger" data-action="resetUser" data-id="${escapeHtml(u.user_id)}">Reset</button></td>
+          <td>${escapeHtml(u.name || "—")}</td>
+          <td>${escapeHtml(u.email || "—")}</td>
+          <td>${status(u.subscription_status || "free")}</td>
+          <td>${u.email_verified ? "✓" : "—"}</td>
+          <td>${escapeHtml((u.created_at || "").slice(0, 10))}</td>
+          <td class="actions"><button data-action="viewUser" data-id="${escapeHtml(u.user_id)}">Open</button></td>
         </tr>`).join("")}</tbody></table>`;
     }
     async function loadEntities() {
@@ -853,23 +855,19 @@
       });
     }
     function userModal(user) {
-      openModal(`User ${user.user_id}`, `
-        <form id="userForm" class="form-grid">
-          <div class="span"><label>Personalization Notes</label><textarea id="userNotes">${escapeHtml(user.personalization_notes || "")}</textarea></div>
-          <div class="span"><label>Preferences JSON</label><textarea id="userPrefs">${escapeHtml(JSON.stringify(user.preferences || {}, null, 2))}</textarea></div>
-          <div class="span"><pre>${escapeHtml(JSON.stringify({ domains: user.domains, recent_context: user.recent_context }, null, 2))}</pre></div>
-          <div class="span actions"><button class="primary" type="submit">Save</button></div>
-        </form>`);
-      $("userForm").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        await api(`/users/${encodeURIComponent(user.user_id)}`, {
-          method: "PATCH",
-          body: { personalization_notes: $("userNotes").value, preferences: JSON.parse($("userPrefs").value || "{}") }
-        });
-        closeModal();
-        toast("User saved");
-        await loadUsers();
-      });
+      openModal(`User #${user.user_id} — ${escapeHtml(user.name || user.email || "")}`, `
+        <div class="form-grid">
+          <div><label>Name</label><input value="${escapeHtml(user.name || "")}" disabled /></div>
+          <div><label>Email</label><input value="${escapeHtml(user.email || "")}" disabled /></div>
+          <div><label>Plan</label><input value="${escapeHtml(user.subscription_status || "free")}" disabled /></div>
+          <div><label>Email Verified</label><input value="${user.email_verified ? "Yes" : "No"}" disabled /></div>
+          <div><label>Occupation</label><input value="${escapeHtml(user.occupation || "—")}" disabled /></div>
+          <div><label>Platform</label><input value="${escapeHtml(user.llm_platform || "—")}" disabled /></div>
+          <div><label>Onboarding</label><input value="${user.onboarding_completed ? "Done" : "Pending"}" disabled /></div>
+          <div><label>Sub Expires</label><input value="${escapeHtml(user.subscription_end ? user.subscription_end.slice(0,10) : "—")}" disabled /></div>
+          <div><label>Joined</label><input value="${escapeHtml((user.created_at || "").slice(0,10))}" disabled /></div>
+          <div><label>User ID</label><input value="${escapeHtml(user.user_id)}" disabled /></div>
+        </div>`);
     }
     function adminModal(admin = null) {
       openModal(admin ? "Edit Admin" : "New Admin", `

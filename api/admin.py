@@ -8,6 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import create_engine, text as sql_text
 
 from core import admin_auth
 from core.connectors_catalog import connector_catalog_summary
@@ -16,6 +17,21 @@ from core.prompt_modes import prompt_versions
 from core.source_catalog import load_source_catalog
 from storage import store as velocity_store
 from storage.admin_store import AdminStore, get_default_store
+from storage.db import normalize_database_url
+
+_PROD_ENGINE = None
+
+
+def _prod_engine():
+    global _PROD_ENGINE
+    if _PROD_ENGINE is None:
+        url = os.getenv("ADMIN_DATABASE_URL", "").strip() or os.getenv("DATABASE_URL", "").strip()
+        if url:
+            try:
+                _PROD_ENGINE = create_engine(normalize_database_url(url), pool_pre_ping=True, future=True)
+            except Exception:
+                pass
+    return _PROD_ENGINE
 
 
 router = APIRouter(prefix="/admin/api", tags=["admin"])
@@ -227,21 +243,48 @@ def dashboard(
     store: AdminStore = Depends(get_admin_store),
     current: dict[str, Any] = Depends(require_admin("dashboard:view")),
 ):
-    users = _list_user_summaries()
-    upload_count = _count_uploads()
-    evaluation_count = _count_evaluations()
-    prompt_activity = sum(user.get("recent_context_count", 0) for user in users)
+    total_users = 0
+    active_subs = 0
+    recent_users: list[dict[str, Any]] = []
+    engine = _prod_engine()
+    if engine:
+        try:
+            with engine.connect() as conn:
+                total_users = conn.execute(sql_text("SELECT COUNT(*) FROM usertable")).scalar() or 0
+                active_subs = conn.execute(
+                    sql_text("SELECT COUNT(*) FROM subscriptions WHERE status='active'")
+                ).scalar() or 0
+                rows = conn.execute(sql_text("""
+                    SELECT u.user_id, u.name, u.email, u.created_at,
+                           s.status AS sub_status
+                    FROM usertable u
+                    LEFT JOIN subscriptions s ON s.user_id = u.user_id AND s.status = 'active'
+                    ORDER BY u.created_at DESC LIMIT 8
+                """)).mappings().all()
+                recent_users = [
+                    {
+                        "user_id": str(r["user_id"]),
+                        "name": r["name"] or "",
+                        "email": r["email"] or "",
+                        "created_at": r["created_at"].isoformat() if r["created_at"] else "",
+                        "subscription_status": r["sub_status"] or "free",
+                    }
+                    for r in rows
+                ]
+        except Exception:
+            pass
     return {
         "metrics": {
-            "users": len(users),
-            "prompt_activity": prompt_activity,
-            "uploads": upload_count,
-            "evaluations": evaluation_count,
+            "users": total_users,
+            "active_subscriptions": active_subs,
+            "prompt_activity": 0,
+            "uploads": _count_uploads(),
+            "evaluations": _count_evaluations(),
             "admin_users": store.list_admin_users()["total"],
             "audit_logs": store.list_audit_logs(page_size=1)["total"],
             "storage": velocity_store.storage_healthcheck(),
         },
-        "recent_users": users[:8],
+        "recent_users": recent_users,
         "recent_audit_logs": store.list_audit_logs(page_size=8)["items"],
         "prompt_metadata": prompt_metadata(),
     }
@@ -265,16 +308,77 @@ def list_users(
     page_size: int = 25,
     current: dict[str, Any] = Depends(require_admin("users:view")),
 ):
-    rows = _list_user_summaries(search=search)
-    return _paginate(rows, page=page, page_size=page_size)
+    engine = _prod_engine()
+    if engine:
+        try:
+            needle = search.strip().lower()
+            where = "WHERE (LOWER(u.name) LIKE :q OR LOWER(u.email) LIKE :q OR CAST(u.user_id AS TEXT) = :exact)" if needle else ""
+            params: dict[str, Any] = {"limit": page_size, "offset": (page - 1) * page_size}
+            if needle:
+                params["q"] = f"%{needle}%"
+                params["exact"] = needle
+            with engine.connect() as conn:
+                total = conn.execute(sql_text(f"SELECT COUNT(*) FROM usertable u {where}"), params).scalar() or 0
+                rows = conn.execute(sql_text(f"""
+                    SELECT u.user_id, u.name, u.email, u.created_at, u.updated_at,
+                           u.email_verified, s.status AS sub_status
+                    FROM usertable u
+                    LEFT JOIN subscriptions s ON s.user_id = u.user_id AND s.status = 'active'
+                    {where}
+                    ORDER BY u.created_at DESC
+                    LIMIT :limit OFFSET :offset
+                """), params).mappings().all()
+            items = [
+                {
+                    "user_id": str(r["user_id"]),
+                    "name": r["name"] or "",
+                    "email": r["email"] or "",
+                    "email_verified": bool(r["email_verified"]),
+                    "subscription_status": r["sub_status"] or "free",
+                    "created_at": r["created_at"].isoformat() if r["created_at"] else "",
+                    "updated_at": r["updated_at"].isoformat() if r["updated_at"] else "",
+                }
+                for r in rows
+            ]
+            return {"items": items, "total": total, "page": page, "page_size": page_size, "pages": max(1, -(-total // page_size))}
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+    return {"items": [], "total": 0, "page": page, "page_size": page_size, "pages": 0}
 
 
 @router.get("/users/{user_id}")
 def get_user(user_id: str, current: dict[str, Any] = Depends(require_admin("users:view"))):
-    try:
-        return velocity_store.get_user_context(user_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    engine = _prod_engine()
+    if engine:
+        try:
+            with engine.connect() as conn:
+                row = conn.execute(sql_text("""
+                    SELECT u.user_id, u.name, u.email, u.created_at, u.updated_at,
+                           u.email_verified, u.google_id, u.onboarding_completed,
+                           u.occupation, u.llm_platform,
+                           s.status AS sub_status, s.current_period_end
+                    FROM usertable u
+                    LEFT JOIN subscriptions s ON s.user_id = u.user_id AND s.status = 'active'
+                    WHERE u.user_id = :uid
+                """), {"uid": int(user_id) if user_id.isdigit() else -1}).mappings().first()
+                if row:
+                    return {
+                        "user_id": str(row["user_id"]),
+                        "name": row["name"] or "",
+                        "email": row["email"] or "",
+                        "email_verified": bool(row["email_verified"]),
+                        "google_id": row["google_id"] or "",
+                        "onboarding_completed": bool(row["onboarding_completed"]),
+                        "occupation": row["occupation"] or "",
+                        "llm_platform": row["llm_platform"] or "",
+                        "subscription_status": row["sub_status"] or "free",
+                        "subscription_end": row["current_period_end"].isoformat() if row["current_period_end"] else None,
+                        "created_at": row["created_at"].isoformat() if row["created_at"] else "",
+                        "updated_at": row["updated_at"].isoformat() if row["updated_at"] else "",
+                    }
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+    raise HTTPException(status_code=404, detail="User not found")
 
 
 @router.patch("/users/{user_id}")
