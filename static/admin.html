@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ThinkVelocity Admin</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080a0f;
+      --panel: #111722;
+      --panel-2: #151d2a;
+      --line: rgba(160, 174, 192, 0.16);
+      --text: #eef3ff;
+      --muted: #96a3b8;
+      --accent: #58d6b4;
+      --accent-2: #7c9cff;
+      --bad: #ff6b7a;
+      --warn: #f4bf75;
+      --ok: #72e0a1;
+      --shadow: 0 20px 80px rgba(0,0,0,0.35);
+      --radius: 8px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      letter-spacing: 0;
+    }
+    button, input, select, textarea {
+      font: inherit;
+    }
+    button {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 7px;
+      padding: 9px 12px;
+      cursor: pointer;
+      min-height: 38px;
+    }
+    button:hover { border-color: rgba(88,214,180,0.48); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .primary {
+      background: linear-gradient(180deg, rgba(88,214,180,0.22), rgba(88,214,180,0.12));
+      border-color: rgba(88,214,180,0.48);
+    }
+    .danger {
+      border-color: rgba(255,107,122,0.38);
+      color: #ffdbe0;
+    }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #0c111a;
+      color: var(--text);
+      border-radius: 7px;
+      padding: 10px 11px;
+      outline: none;
+    }
+    textarea {
+      min-height: 130px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .login-shell {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .login-card {
+      width: min(420px, 100%);
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.1;
+    }
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .app {
+      display: none;
+      min-height: 100vh;
+      grid-template-columns: 230px minmax(0, 1fr);
+    }
+    .sidebar {
+      border-right: 1px solid var(--line);
+      background: #0b1018;
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+    }
+    .nav-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .nav-title strong { font-size: 15px; }
+    .nav {
+      display: grid;
+      gap: 6px;
+    }
+    .nav button {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border-color: transparent;
+      color: var(--muted);
+    }
+    .nav button.active {
+      background: var(--panel);
+      border-color: var(--line);
+      color: var(--text);
+    }
+    .main {
+      min-width: 0;
+      padding: 22px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .topbar h2 {
+      margin: 0;
+      font-size: 24px;
+    }
+    .top-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      color: var(--muted);
+      font-size: 13px;
+      align-items: center;
+    }
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+    .metrics {
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+    }
+    .card {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .metric-value {
+      margin-top: 8px;
+      font-size: 26px;
+      font-weight: 700;
+    }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .toolbar-left, .toolbar-right {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .toolbar input, .toolbar select { width: 220px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 11px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    tr:hover td { background: rgba(255,255,255,0.025); }
+    .actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .actions button {
+      min-height: 31px;
+      padding: 5px 8px;
+      font-size: 12px;
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .status.active .dot, .status.published .dot { background: var(--ok); }
+    .status.draft .dot { background: var(--warn); }
+    .status.hidden .dot, .status.disabled .dot, .status.inactive .dot { background: var(--bad); }
+    .tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .tabs button.active {
+      border-color: rgba(124,156,255,0.55);
+      color: #dfe6ff;
+    }
+    .state {
+      padding: 26px;
+      color: var(--muted);
+      text-align: center;
+      border: 1px dashed var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.02);
+    }
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.62);
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+      padding: 20px;
+    }
+    .modal {
+      width: min(780px, 100%);
+      max-height: 90vh;
+      overflow: auto;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .modal-head h3 { margin: 0; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .form-grid .span { grid-column: 1 / -1; }
+    .toast-wrap {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      display: grid;
+      gap: 8px;
+      z-index: 60;
+    }
+    .toast {
+      width: min(380px, calc(100vw - 36px));
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: var(--radius);
+      padding: 11px 12px;
+      box-shadow: var(--shadow);
+      color: var(--text);
+      font-size: 13px;
+    }
+    .toast.error { border-color: rgba(255,107,122,0.52); }
+    .toast.ok { border-color: rgba(114,224,161,0.52); }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+      color: #d8e2ff;
+      font-size: 12px;
+      line-height: 1.45;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .muted { color: var(--muted); }
+    .section { display: none; }
+    .section.active { display: block; }
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 680px) {
+      .main { padding: 14px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .toolbar input, .toolbar select { width: 100%; }
+      .toolbar-left, .toolbar-right { width: 100%; }
+      .form-grid { grid-template-columns: 1fr; }
+      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-shell" id="loginShell">
+    <form class="login-card" id="loginForm">
+      <div class="brand">
+        <h1>ThinkVelocity Admin</h1>
+        <span class="pill">Internal</span>
+      </div>
+      <div class="grid">
+        <div>
+          <label for="loginEmail">Email</label>
+          <input id="loginEmail" type="email" autocomplete="username" required />
+        </div>
+        <div>
+          <label for="loginPassword">Password</label>
+          <input id="loginPassword" type="password" autocomplete="current-password" required />
+        </div>
+        <button class="primary" type="submit" id="loginBtn">Sign in</button>
+        <div class="state" id="loginState" style="display:none"></div>
+      </div>
+    </form>
+  </div>
+
+  <div class="app" id="appShell">
+    <aside class="sidebar">
+      <div class="nav-title">
+        <strong>ThinkVelocity</strong>
+        <span class="pill" id="rolePill">Admin</span>
+      </div>
+      <nav class="nav" id="nav">
+        <button data-section="dashboard" class="active">Dashboard</button>
+        <button data-section="users">Users</button>
+        <button data-section="content">Content</button>
+        <button data-section="config">Config</button>
+        <button data-section="admins">Admins</button>
+        <button data-section="audit">Audit</button>
+        <button data-section="ops">Ops</button>
+      </nav>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <h2 id="sectionTitle">Dashboard</h2>
+        <div class="top-actions">
+          <span id="adminIdentity"></span>
+          <button id="refreshBtn">Refresh</button>
+          <button id="logoutBtn">Logout</button>
+        </div>
+      </div>
+
+      <section class="section active" id="section-dashboard">
+        <div class="grid metrics" id="metricGrid"></div>
+        <div class="grid" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr); margin-top:14px">
+          <div class="card">
+            <div class="toolbar"><strong>Recent Users</strong></div>
+            <div id="recentUsers"></div>
+          </div>
+          <div class="card">
+            <div class="toolbar"><strong>Recent Audit</strong></div>
+            <div id="recentAudit"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="section-users">
+        <div class="card">
+          <div class="toolbar">
+            <div class="toolbar-left"><input id="userSearch" placeholder="Search users" /></div>
+            <div class="toolbar-right"><button data-action="loadUsers">Search</button></div>
+          </div>
+          <div id="usersTable"></div>
+        </div>
+      </section>
+
+      <section class="section" id="section-content">
+        <div class="card">
+          <div class="tabs" id="entityTabs"></div>
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <input id="entitySearch" placeholder="Search content" />
+              <select id="entityStatus">
+                <option value="">All statuses</option>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="hidden">Hidden</option>
+              </select>
+            </div>
+            <div class="toolbar-right">
+              <button data-action="loadEntities">Filter</button>
+              <button class="primary" data-action="newEntity">New</button>
+            </div>
+          </div>
+          <div id="entitiesTable"></div>
+        </div>
+      </section>
+
+      <section class="section" id="section-config">
+        <div class="grid" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr)">
+          <div class="card">
+            <div class="toolbar"><strong>Runtime Config</strong><button class="primary" data-action="saveConfig">Save</button></div>
+            <textarea id="configJson">{}</textarea>
+          </div>
+          <div class="card">
+            <div class="toolbar"><strong>Runtime Prompts</strong><button data-action="loadConfig">Reload</button></div>
+            <div id="runtimePrompts"></div>
+          </div>
+          <div class="card">
+            <div class="toolbar"><strong>Connectors</strong></div>
+            <div id="connectorsList"></div>
+          </div>
+          <div class="card">
+            <div class="toolbar"><strong>Sources</strong></div>
+            <div id="sourcesList"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="section-admins">
+        <div class="card">
+          <div class="toolbar">
+            <strong>Admin Users</strong>
+            <button class="primary" data-action="newAdmin">New Admin</button>
+          </div>
+          <div id="adminsTable"></div>
+        </div>
+      </section>
+
+      <section class="section" id="section-audit">
+        <div class="card">
+          <div class="toolbar">
+            <div class="toolbar-left"><input id="auditSearch" placeholder="Search audit logs" /></div>
+            <div class="toolbar-right"><button data-action="loadAudit">Search</button></div>
+          </div>
+          <div id="auditTable"></div>
+        </div>
+      </section>
+
+      <section class="section" id="section-ops">
+        <div class="grid" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr)">
+          <div class="card">
+            <div class="toolbar"><strong>Health</strong><button data-action="loadOps">Refresh</button></div>
+            <div id="opsHealth"></div>
+          </div>
+          <div class="card">
+            <div class="toolbar"><strong>Test Runner</strong><button class="primary" data-action="runTests">Run Store Tests</button></div>
+            <div id="testResult" class="state">Idle</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modalTitle">Edit</h3>
+        <button id="modalClose">Close</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+  <div class="toast-wrap" id="toasts"></div>
+
+  <script>
+    const state = {
+      admin: null,
+      csrf: null,
+      section: "dashboard",
+      entityType: "announcements",
+      entities: [],
+      users: [],
+      admins: []
+    };
+    const entityTypes = [
+      ["announcements", "Announcements"],
+      ["faqs", "FAQs"],
+      ["feature-flags", "Feature Flags"],
+      ["pricing-plans", "Pricing"],
+      ["usage-limits", "Limits"],
+      ["prompt-templates", "Prompt Templates"]
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+    }
+    function toast(message, type = "ok") {
+      const el = document.createElement("div");
+      el.className = "toast " + type;
+      el.textContent = message;
+      $("toasts").appendChild(el);
+      setTimeout(() => el.remove(), 4200);
+    }
+    function showState(target, message) {
+      $(target).innerHTML = `<div class="state">${escapeHtml(message)}</div>`;
+    }
+    async function api(path, options = {}) {
+      const init = { credentials: "include", headers: { ...(options.headers || {}) }, ...options };
+      if (init.body && typeof init.body !== "string") {
+        init.headers["Content-Type"] = "application/json";
+        init.body = JSON.stringify(init.body);
+      }
+      if (["POST", "PATCH", "DELETE"].includes((init.method || "GET").toUpperCase()) && state.csrf) {
+        init.headers["X-CSRF-Token"] = state.csrf;
+      }
+      const res = await fetch("/admin/api" + path, init);
+      const text = await res.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch { data = { detail: text }; }
+      if (!res.ok) {
+        const detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail || data);
+        throw new Error(detail);
+      }
+      return data;
+    }
+    async function init() {
+      bindEvents();
+      renderEntityTabs();
+      try {
+        const data = await api("/me");
+        state.admin = data.admin;
+        showApp();
+        await loadSection();
+      } catch {
+        showLogin();
+      }
+    }
+    function bindEvents() {
+      $("loginForm").addEventListener("submit", login);
+      $("logoutBtn").addEventListener("click", logout);
+      $("refreshBtn").addEventListener("click", loadSection);
+      $("modalClose").addEventListener("click", closeModal);
+      $("modalBackdrop").addEventListener("click", (event) => { if (event.target.id === "modalBackdrop") closeModal(); });
+      $("nav").addEventListener("click", (event) => {
+        if (event.target.matches("button[data-section]")) switchSection(event.target.dataset.section);
+      });
+      document.body.addEventListener("click", (event) => {
+        const action = event.target.dataset.action;
+        if (!action) return;
+        actions[action]?.(event);
+      });
+      $("entityTabs").addEventListener("click", (event) => {
+        if (!event.target.dataset.entity) return;
+        state.entityType = event.target.dataset.entity;
+        renderEntityTabs();
+        loadEntities();
+      });
+    }
+    async function login(event) {
+      event.preventDefault();
+      $("loginBtn").disabled = true;
+      $("loginState").style.display = "none";
+      try {
+        const data = await api("/login", {
+          method: "POST",
+          body: { email: $("loginEmail").value, password: $("loginPassword").value }
+        });
+        state.admin = data.admin;
+        state.csrf = data.csrf_token;
+        showApp();
+        await loadSection();
+      } catch (error) {
+        $("loginState").style.display = "block";
+        $("loginState").textContent = error.message;
+      } finally {
+        $("loginBtn").disabled = false;
+      }
+    }
+    async function logout() {
+      try { await api("/logout", { method: "POST" }); } catch {}
+      state.admin = null;
+      state.csrf = null;
+      showLogin();
+    }
+    function showLogin() {
+      $("loginShell").style.display = "grid";
+      $("appShell").style.display = "none";
+    }
+    function showApp() {
+      $("loginShell").style.display = "none";
+      $("appShell").style.display = "grid";
+      $("adminIdentity").textContent = `${state.admin.email}`;
+      $("rolePill").textContent = state.admin.role.replaceAll("_", " ");
+    }
+    function switchSection(section) {
+      state.section = section;
+      document.querySelectorAll(".section").forEach((el) => el.classList.toggle("active", el.id === "section-" + section));
+      document.querySelectorAll(".nav button").forEach((btn) => btn.classList.toggle("active", btn.dataset.section === section));
+      $("sectionTitle").textContent = ({ dashboard:"Dashboard", users:"Users", content:"Content", config:"Config", admins:"Admins", audit:"Audit", ops:"Ops" })[section];
+      loadSection();
+    }
+    async function loadSection() {
+      try {
+        if (state.section === "dashboard") await loadDashboard();
+        if (state.section === "users") await loadUsers();
+        if (state.section === "content") await loadEntities();
+        if (state.section === "config") await loadConfig();
+        if (state.section === "admins") await loadAdmins();
+        if (state.section === "audit") await loadAudit();
+        if (state.section === "ops") await loadOps();
+      } catch (error) {
+        toast(error.message, "error");
+      }
+    }
+    async function loadDashboard() {
+      $("metricGrid").innerHTML = "";
+      const data = await api("/dashboard");
+      const metrics = data.metrics || {};
+      const cards = [
+        ["Users", metrics.users],
+        ["Prompt Activity", metrics.prompt_activity],
+        ["Uploads", metrics.uploads],
+        ["Evaluations", metrics.evaluations],
+        ["Audit Logs", metrics.audit_logs]
+      ];
+      $("metricGrid").innerHTML = cards.map(([label, value]) => `<div class="card"><div class="metric-label">${label}</div><div class="metric-value">${value ?? 0}</div></div>`).join("");
+      $("recentUsers").innerHTML = renderSimpleTable(data.recent_users || [], ["user_id", "enhancement_count", "updated_at"]);
+      $("recentAudit").innerHTML = renderSimpleTable(data.recent_audit_logs || [], ["action", "actor_email", "created_at"]);
+    }
+    async function loadUsers() {
+      showState("usersTable", "Loading users");
+      const data = await api(`/users?search=${encodeURIComponent($("userSearch").value)}`);
+      state.users = data.items || [];
+      if (!state.users.length) return showState("usersTable", "No users found");
+      $("usersTable").innerHTML = `<table><thead><tr><th>User</th><th>Domains</th><th>Enhancements</th><th>Last Summary</th><th>Updated</th><th></th></tr></thead><tbody>${state.users.map((u) => `
+        <tr>
+          <td>${escapeHtml(u.user_id)}</td>
+          <td>${escapeHtml((u.domains || []).join(", "))}</td>
+          <td>${u.enhancement_count || 0}</td>
+          <td>${escapeHtml(u.last_summary || "")}</td>
+          <td>${escapeHtml(u.updated_at || "")}</td>
+          <td class="actions"><button data-action="viewUser" data-id="${escapeHtml(u.user_id)}">Open</button><button class="danger" data-action="resetUser" data-id="${escapeHtml(u.user_id)}">Reset</button></td>
+        </tr>`).join("")}</tbody></table>`;
+    }
+    async function loadEntities() {
+      showState("entitiesTable", "Loading content");
+      const query = new URLSearchParams({ search: $("entitySearch").value, status: $("entityStatus").value });
+      const data = await api(`/${state.entityType}?${query.toString()}`);
+      state.entities = data.items || [];
+      if (!state.entities.length) return showState("entitiesTable", "No records found");
+      $("entitiesTable").innerHTML = `<table><thead><tr><th>Title</th><th>Slug</th><th>Status</th><th>Updated</th><th></th></tr></thead><tbody>${state.entities.map((row) => `
+        <tr>
+          <td>${escapeHtml(row.title)}</td>
+          <td>${escapeHtml(row.slug)}</td>
+          <td>${status(row.status)}</td>
+          <td>${escapeHtml(row.updated_at)}</td>
+          <td class="actions"><button data-action="editEntity" data-id="${row.id}">Edit</button><button class="danger" data-action="deleteEntity" data-id="${row.id}">Delete</button></td>
+        </tr>`).join("")}</tbody></table>`;
+    }
+    async function loadConfig() {
+      const [config, prompts, connectors, sources] = await Promise.all([
+        api("/config"),
+        api("/prompts/runtime"),
+        api("/connectors"),
+        api("/sources")
+      ]);
+      $("configJson").value = JSON.stringify(Object.fromEntries(Object.entries(config.config || {}).map(([k, v]) => [k, v.value])), null, 2);
+      $("runtimePrompts").innerHTML = `<pre>${escapeHtml(JSON.stringify(prompts, null, 2))}</pre>`;
+      $("connectorsList").innerHTML = renderSimpleTable(connectors.connectors || [], ["name", "category", "description"]);
+      $("sourcesList").innerHTML = renderSimpleTable(sources.sources || [], ["name", "category", "url"]);
+    }
+    async function loadAdmins() {
+      showState("adminsTable", "Loading admins");
+      const data = await api("/admin-users");
+      state.admins = data.items || [];
+      if (!state.admins.length) return showState("adminsTable", "No admin users found");
+      $("adminsTable").innerHTML = `<table><thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Status</th><th>Last Login</th><th></th></tr></thead><tbody>${state.admins.map((admin) => `
+        <tr>
+          <td>${escapeHtml(admin.email)}</td>
+          <td>${escapeHtml(admin.display_name)}</td>
+          <td>${escapeHtml(admin.role)}</td>
+          <td>${status(admin.status)}</td>
+          <td>${escapeHtml(admin.last_login_at || "")}</td>
+          <td class="actions"><button data-action="editAdmin" data-id="${admin.id}">Edit</button><button class="danger" data-action="deleteAdmin" data-id="${admin.id}">Delete</button></td>
+        </tr>`).join("")}</tbody></table>`;
+    }
+    async function loadAudit() {
+      showState("auditTable", "Loading audit logs");
+      const data = await api(`/audit-logs?search=${encodeURIComponent($("auditSearch").value)}`);
+      const items = data.items || [];
+      if (!items.length) return showState("auditTable", "No audit logs found");
+      $("auditTable").innerHTML = `<table><thead><tr><th>Action</th><th>Entity</th><th>Actor</th><th>Created</th><th>Payload</th></tr></thead><tbody>${items.map((row) => `
+        <tr>
+          <td>${escapeHtml(row.action)}</td>
+          <td>${escapeHtml(row.entity_type)}<br><span class="muted">${escapeHtml(row.entity_id)}</span></td>
+          <td>${escapeHtml(row.actor_email)}</td>
+          <td>${escapeHtml(row.created_at)}</td>
+          <td><pre>${escapeHtml(JSON.stringify({ before: row.before, after: row.after }, null, 2))}</pre></td>
+        </tr>`).join("")}</tbody></table>`;
+    }
+    async function loadOps() {
+      const data = await api("/operations/health");
+      $("opsHealth").innerHTML = `<pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
+    }
+    function renderEntityTabs() {
+      $("entityTabs").innerHTML = entityTypes.map(([id, label]) => `<button class="${id === state.entityType ? "active" : ""}" data-entity="${id}">${label}</button>`).join("");
+    }
+    function renderSimpleTable(rows, columns) {
+      if (!rows.length) return `<div class="state">No data</div>`;
+      return `<table><thead><tr>${columns.map((c) => `<th>${escapeHtml(c.replaceAll("_", " "))}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${columns.map((col) => `<td>${escapeHtml(row[col] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    }
+    function status(value) {
+      const clean = String(value || "");
+      return `<span class="status ${escapeHtml(clean)}"><span class="dot"></span>${escapeHtml(clean)}</span>`;
+    }
+    function openModal(title, body) {
+      $("modalTitle").textContent = title;
+      $("modalBody").innerHTML = body;
+      $("modalBackdrop").style.display = "flex";
+    }
+    function closeModal() {
+      $("modalBackdrop").style.display = "none";
+      $("modalBody").innerHTML = "";
+    }
+    const actions = {
+      loadUsers,
+      loadEntities,
+      loadConfig,
+      loadAudit,
+      loadOps,
+      newEntity() { entityModal(); },
+      editEntity(event) {
+        const row = state.entities.find((item) => item.id === event.target.dataset.id);
+        entityModal(row);
+      },
+      async deleteEntity(event) {
+        const row = state.entities.find((item) => item.id === event.target.dataset.id);
+        if (!row || !confirm(`Delete ${row.title}?`)) return;
+        await api(`/${state.entityType}/${row.id}`, { method: "DELETE" });
+        toast("Deleted");
+        await loadEntities();
+      },
+      async saveConfig() {
+        const values = JSON.parse($("configJson").value || "{}");
+        await api("/config", { method: "PATCH", body: { values } });
+        toast("Config saved");
+        await loadConfig();
+      },
+      async viewUser(event) {
+        const user = await api(`/users/${encodeURIComponent(event.target.dataset.id)}`);
+        userModal(user);
+      },
+      async resetUser(event) {
+        const id = event.target.dataset.id;
+        if (!confirm(`Reset memory for ${id}?`)) return;
+        await api(`/users/${encodeURIComponent(id)}/reset-memory`, { method: "POST" });
+        toast("Memory reset");
+        await loadUsers();
+      },
+      newAdmin() { adminModal(); },
+      editAdmin(event) {
+        const admin = state.admins.find((item) => item.id === event.target.dataset.id);
+        adminModal(admin);
+      },
+      async deleteAdmin(event) {
+        const admin = state.admins.find((item) => item.id === event.target.dataset.id);
+        if (!admin || !confirm(`Delete admin ${admin.email}?`)) return;
+        await api(`/admin-users/${admin.id}`, { method: "DELETE" });
+        toast("Admin deleted");
+        await loadAdmins();
+      },
+      async runTests() {
+        $("testResult").textContent = "Running";
+        try {
+          const data = await api("/operations/run-tests", { method: "POST", body: { suite: "store" } });
+          $("testResult").innerHTML = `<pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
+        } catch (error) {
+          $("testResult").innerHTML = `<pre>${escapeHtml(error.message)}</pre>`;
+        }
+      }
+    };
+    function entityModal(row = null) {
+      const payload = row ? JSON.stringify(row.payload || {}, null, 2) : "{}";
+      openModal(row ? "Edit Record" : "New Record", `
+        <form id="entityForm" class="form-grid">
+          <div><label>Slug</label><input id="entitySlug" value="${escapeHtml(row?.slug || "")}" required /></div>
+          <div><label>Status</label><select id="entityFormStatus">
+            ${["draft","published","active","inactive","hidden","archived"].map((s) => `<option ${row?.status === s ? "selected" : ""}>${s}</option>`).join("")}
+          </select></div>
+          <div class="span"><label>Title</label><input id="entityTitle" value="${escapeHtml(row?.title || "")}" required /></div>
+          <div class="span"><label>Payload JSON</label><textarea id="entityPayload">${escapeHtml(payload)}</textarea></div>
+          <div class="span actions"><button class="primary" type="submit">Save</button></div>
+        </form>`);
+      $("entityForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const body = {
+          slug: $("entitySlug").value,
+          title: $("entityTitle").value,
+          status: $("entityFormStatus").value,
+          payload: JSON.parse($("entityPayload").value || "{}")
+        };
+        if (row) await api(`/${state.entityType}/${row.id}`, { method: "PATCH", body });
+        else await api(`/${state.entityType}`, { method: "POST", body });
+        closeModal();
+        toast("Saved");
+        await loadEntities();
+      });
+    }
+    function userModal(user) {
+      openModal(`User ${user.user_id}`, `
+        <form id="userForm" class="form-grid">
+          <div class="span"><label>Personalization Notes</label><textarea id="userNotes">${escapeHtml(user.personalization_notes || "")}</textarea></div>
+          <div class="span"><label>Preferences JSON</label><textarea id="userPrefs">${escapeHtml(JSON.stringify(user.preferences || {}, null, 2))}</textarea></div>
+          <div class="span"><pre>${escapeHtml(JSON.stringify({ domains: user.domains, recent_context: user.recent_context }, null, 2))}</pre></div>
+          <div class="span actions"><button class="primary" type="submit">Save</button></div>
+        </form>`);
+      $("userForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await api(`/users/${encodeURIComponent(user.user_id)}`, {
+          method: "PATCH",
+          body: { personalization_notes: $("userNotes").value, preferences: JSON.parse($("userPrefs").value || "{}") }
+        });
+        closeModal();
+        toast("User saved");
+        await loadUsers();
+      });
+    }
+    function adminModal(admin = null) {
+      openModal(admin ? "Edit Admin" : "New Admin", `
+        <form id="adminForm" class="form-grid">
+          <div><label>Email</label><input id="adminEmail" type="email" value="${escapeHtml(admin?.email || "")}" ${admin ? "disabled" : ""} required /></div>
+          <div><label>Role</label><select id="adminRole">${["super_admin","admin","support_ops","read_only"].map((role) => `<option value="${role}" ${admin?.role === role ? "selected" : ""}>${role}</option>`).join("")}</select></div>
+          <div><label>Name</label><input id="adminName" value="${escapeHtml(admin?.display_name || "")}" required /></div>
+          <div><label>Status</label><select id="adminStatus"><option value="active" ${admin?.status === "active" ? "selected" : ""}>active</option><option value="disabled" ${admin?.status === "disabled" ? "selected" : ""}>disabled</option></select></div>
+          <div class="span"><label>Password ${admin ? "(leave blank to keep current)" : ""}</label><input id="adminPassword" type="password" ${admin ? "" : "required"} /></div>
+          <div class="span actions"><button class="primary" type="submit">Save</button></div>
+        </form>`);
+      $("adminForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const body = {
+          display_name: $("adminName").value,
+          role: $("adminRole").value,
+          status: $("adminStatus").value
+        };
+        if (!admin) body.email = $("adminEmail").value;
+        if ($("adminPassword").value) body.password = $("adminPassword").value;
+        if (admin) await api(`/admin-users/${admin.id}`, { method: "PATCH", body });
+        else await api("/admin-users", { method: "POST", body });
+        closeModal();
+        toast("Admin saved");
+        await loadAdmins();
+      });
+    }
+    init();
+  </script>
+</body>
+</html>

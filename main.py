@@ -30,6 +30,7 @@ from api.extract import router as extract_router
 from api.evaluate import router as evaluate_router
 from api.benchmarks import router as benchmarks_router
 from api.migration import router as migration_router
+from api.admin import router as admin_router
 
 app = FastAPI(title="ThinkVelocity", version="2.0.0")
 
@@ -59,6 +60,7 @@ app.include_router(extract_router, prefix="/extract", tags=["Extract"])
 app.include_router(evaluate_router)
 app.include_router(benchmarks_router)
 app.include_router(migration_router)
+app.include_router(admin_router)
 
 _STATIC = Path(__file__).parent / "static"
 if _STATIC.exists():
@@ -68,6 +70,11 @@ if _STATIC.exists():
 @app.get("/")
 def index():
     return FileResponse(str(_STATIC / "index.html"))
+
+
+@app.get("/admin")
+def admin_index():
+    return FileResponse(str(_STATIC / "admin.html"))
 
 
 @app.get("/health")
