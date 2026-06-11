@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
@@ -5,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 from core import context_loader, safety
 from core.connectors_catalog import connector_catalog_summary
 from core.contracts import (
+    AnnotatedSegment,
     IntentConfirmationResult,
     PromptMode,
     TargetAI,
@@ -13,11 +16,52 @@ from core.contracts import (
 )
 from core.llm import complete, complete_with_usage, stream_completion
 from core.output_validator import OutputValidationError, parse_validate_with_repair
-from core.prompt_modes import PromptBundle, prompt_bundle
+from core.prompt_modes import PromptBundle, prompt_bundle, prompt_bundle_internal
 from storage import store
 import json
 
 router = APIRouter()
+
+# Fast small model for intent classification — 1000 t/s, negligible cost
+_CLASSIFY_MODEL = "llama-3.1-8b-instant"
+
+_CLASSIFY_SYSTEM = """You are a single-field intent classifier for media prompts.
+
+Decide if the user's prompt is asking to:
+- Generate or enhance an IMAGE or VISUAL (product renders, illustrations, photos, AI image gen, thumbnails, concept art, 3D renders, design mockups, visual effects, video generation prompts) → "visual_generation"
+- Write MARKETING or CREATIVE COPY (ad copy, captions, social media posts, scripts, slogans, written content) → "marketing_copy"
+
+Return ONLY valid JSON with one field. No explanation. No markdown.
+{"intent": "visual_generation"} OR {"intent": "marketing_copy"}"""
+
+
+async def _classify_media_intent(raw_prompt: str) -> str:
+    """Classify media intent. Returns 'visual_generation' or 'marketing_copy'.
+    Falls back to 'marketing_copy' on any error to preserve existing behavior.
+    """
+    try:
+        raw = await complete(
+            _CLASSIFY_SYSTEM,
+            raw_prompt[:800],  # classifier only needs the gist
+            temperature=0,
+            max_tokens=20,
+            model=_CLASSIFY_MODEL,
+        )
+        result = json.loads(raw)
+        intent = result.get("intent", "marketing_copy")
+        return intent if intent in ("visual_generation", "marketing_copy") else "marketing_copy"
+    except Exception:
+        return "marketing_copy"
+
+
+async def _resolve_bundle(prompt_mode: str, raw_prompt: str) -> tuple[PromptBundle, str]:
+    """Return (bundle, media_intent). media_intent is non-empty only for media mode."""
+    if prompt_mode != "media":
+        return prompt_bundle("enhance", prompt_mode), ""
+    media_intent = await _classify_media_intent(raw_prompt)
+    if media_intent == "visual_generation":
+        return prompt_bundle_internal("enhance", "media_imagegen"), media_intent
+    return prompt_bundle("enhance", "media"), media_intent
 
 
 async def _repair_output(kind: str, raw: str, repair_prompt: str) -> str:
@@ -125,7 +169,13 @@ def _prepare_enhance_input(request: EnhanceRequest) -> tuple[str, list[dict], st
     if request.incognito:
         ctx_block = ""
     else:
-        user_ctx = store.get_user_context(request.user_id)
+        try:
+            user_ctx = store.get_user_context(request.user_id)
+        except (ValueError, Exception):
+            # user_id may be an email or other non-alphanumeric value sent by
+            # older / mid-auth-refactor extension builds — degrade to no
+            # personalisation rather than returning a 500 to the user.
+            user_ctx = {}
         ctx_block = context_loader.format_context_for_prompt(user_ctx, query=clean_prompt)
 
     user_message = build_enhance_user_message(
@@ -141,7 +191,10 @@ def _prepare_enhance_input(request: EnhanceRequest) -> tuple[str, list[dict], st
 def _personalization_metadata(request: EnhanceRequest) -> dict | None:
     if request.incognito:
         return None
-    user_ctx = store.get_user_context(request.user_id)
+    try:
+        user_ctx = store.get_user_context(request.user_id)
+    except (ValueError, Exception):
+        return None
     ctx_block = context_loader.format_context_for_prompt(user_ctx)
     if not ctx_block:
         return None
@@ -220,7 +273,7 @@ async def _run_enhance_once(request: EnhanceRequest, bundle: PromptBundle) -> di
 
 
 async def _generate(request: EnhanceRequest, background_tasks: BackgroundTasks):
-    bundle = prompt_bundle("enhance", request.prompt_mode)
+    bundle, media_intent = await _resolve_bundle(request.prompt_mode, request.prompt)
     clean_prompt, redactions, user_message = _prepare_enhance_input(request)
 
     accumulated = ""
@@ -254,6 +307,8 @@ async def _generate(request: EnhanceRequest, background_tasks: BackgroundTasks):
                     result["_personalization_trace"] = result.pop("personalization_trace")
 
                 result["_prompt_files"] = list(bundle.files)
+                if media_intent:
+                    result["_media_intent"] = media_intent
                 _record_enhancement(request, result, clean_prompt, usage_sink, background_tasks)
                 payload = json.dumps({"type": "done", "result": result})
                 yield f"data: {payload}\n\n"
@@ -293,8 +348,10 @@ async def compare_enhance_modes(request: EnhanceCompareRequest):
     for i, mode in enumerate(request.modes):
         model = model_overrides[i] if i < len(model_overrides) else None
         mode_request = request.model_copy(update={"prompt_mode": mode, "model_override": model})
-        bundle = prompt_bundle("enhance", mode)
+        bundle, media_intent = await _resolve_bundle(mode, clean_prompt)
         result = await _run_enhance_once(mode_request, bundle)
+        if media_intent:
+            result["_media_intent"] = media_intent
         result.pop("_usage", None)
         results.append(result)
     return {
@@ -305,6 +362,137 @@ async def compare_enhance_modes(request: EnhanceCompareRequest):
         "redactions": redactions,
         "results": results,
     }
+
+
+class AnnotateRequest(BaseModel):
+    enhanced_prompt: str
+    original_prompt: str = ""
+
+    @field_validator("enhanced_prompt")
+    @classmethod
+    def enhanced_not_empty(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("enhanced_prompt must not be empty")
+        if len(v) > 20_000:
+            raise ValueError("enhanced_prompt must not exceed 20,000 characters")
+        return v
+
+
+_ANNOTATE_SYSTEM = """You are a prompt-engineering annotation engine.
+
+Given an already-enhanced prompt, break it into logical segments and label each with the PE technique it represents.
+
+Return ONLY a valid JSON object — no preamble, no markdown fences:
+
+{
+  "annotated_segments": [
+    {
+      "id": "s1",
+      "text": "<exact substring of enhanced_prompt>",
+      "technique": "<one of the allowed technique keys>",
+      "technique_label": "<human-readable label>",
+      "color_key": "<matching color string>",
+      "reason": "<one sentence explaining why this technique was applied>",
+      "is_original": false,
+      "original_text": null
+    }
+  ]
+}
+
+Allowed technique keys and their required color_key values:
+- persona_injection → indigo
+- task_clarification → sky
+- chain_of_thought → amber
+- tree_of_thought → blue
+- socratic_prompting → fuchsia
+- structured_output → green
+- output_format_spec → emerald
+- constraint_definition → rose
+- context_framing → violet
+- few_shot_example → purple
+- negative_space → red
+- target_ai_optimization → orange
+- step_back_trigger → teal
+- contrastive → pink
+- domain_specific_depth → cyan
+- user_context_integration → lime
+- placeholder_facilitation → slate
+
+Rules:
+1. The `text` values of all segments MUST concatenate exactly to the full enhanced_prompt — character for character, including whitespace.
+2. Every character of enhanced_prompt must appear in exactly one segment (no gaps, no overlaps).
+3. Use `is_original: true` for segments copied verbatim from the original prompt without rewriting; `false` for everything added or rewritten.
+4. Apply at least 4 distinct techniques across all segments.
+5. Keep segments at a meaningful granularity — phrase or sentence level, not individual words.
+6. Return only the JSON object. No text outside it.
+"""
+
+
+@router.post("/enhance/annotate")
+async def annotate_enhanced_prompt(request: AnnotateRequest):
+    """
+    Lightweight annotation-only endpoint.
+    Accepts an already-enhanced prompt and returns annotated_segments
+    by asking the LLM to label PE techniques without re-running the
+    full enhance pipeline.
+    """
+    user_message_parts = [
+        "Annotate the following enhanced prompt by labeling each segment with the PE technique it represents.",
+    ]
+    if request.original_prompt.strip():
+        user_message_parts.append(f"\noriginal_prompt (for is_original detection):\n{request.original_prompt.strip()}")
+    user_message_parts.append(f"\nenhanced_prompt to annotate:\n{request.enhanced_prompt.strip()}")
+    user_message = "\n".join(user_message_parts)
+
+    try:
+        raw = await complete(
+            _ANNOTATE_SYSTEM,
+            user_message,
+            temperature=0,
+            max_tokens=4096,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"LLM call failed: {e}")
+
+    # Parse the raw JSON response
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        # Attempt to extract JSON from the response
+        match = re.search(r'\{[\s\S]*\}', raw)
+        if match:
+            try:
+                parsed = json.loads(match.group())
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=502, detail="LLM returned unparseable JSON")
+        else:
+            raise HTTPException(status_code=502, detail="LLM returned no JSON object")
+
+    raw_segs = parsed.get("annotated_segments", [])
+    if not isinstance(raw_segs, list):
+        raise HTTPException(status_code=502, detail="annotated_segments is not a list")
+
+    # Validate each segment against the AnnotatedSegment contract; skip invalid ones
+    valid_segs = []
+    for seg in raw_segs:
+        if not isinstance(seg, dict):
+            continue
+        try:
+            validated = AnnotatedSegment(**seg)
+            valid_segs.append(validated.model_dump(mode="json"))
+        except Exception:
+            # If the segment fails validation, skip it rather than erroring
+            continue
+
+    # Verify concatenation integrity — if it fails, return segments anyway
+    # (the client will fall back to plain text if segments don't reassemble)
+    concatenated = "".join(s["text"] for s in valid_segs)
+    if concatenated != request.enhanced_prompt.strip():
+        # Segments don't tile perfectly; return them anyway but flag it
+        return {"annotated_segments": valid_segs, "integrity": False}
+
+    return {"annotated_segments": valid_segs, "integrity": True}
 
 
 class TelemetryDiffRequest(BaseModel):
