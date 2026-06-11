@@ -3042,6 +3042,9 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
       <button class="nav-btn" id="nav-profile" onclick="showView('profile')">
         <span class="nav-icon">P</span> Profile
       </button>
+      <button class="nav-btn" id="nav-evaluate" onclick="showView('evaluate')">
+        <span class="nav-icon">📊</span> Evaluations
+      </button>
       <div class="nav-divider"></div>
       <button class="nav-btn" onclick="clearWorkspace()">
         <span class="nav-icon">R</span> Clear workspace
@@ -3480,6 +3483,51 @@ body { font-family: var(--body); background: var(--bg); color: var(--text); font
           <div class="profile-preview-actions">
             <button class="btn-primary" onclick="saveExtractedProfile()">Save profile</button>
             <button class="btn-ghost" onclick="clearProfileDraft()">Discard</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========= EVALUATIONS PAGE ========= -->
+    <div class="page-evaluate" id="pageEvaluate" style="display:none; padding: 20px; overflow-y: auto; height: 100%;">
+      <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 300px;">
+          <h2>Evaluations Dashboard</h2>
+          <p style="color: var(--muted); margin-bottom: 20px;">Monitor prompt quality and performance.</p>
+          
+          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button class="btn-primary" onclick="loadEvaluations()">Refresh Evaluations</button>
+            <button class="btn-secondary" onclick="seedSampleEvaluation()">Run Sample Evaluation</button>
+          </div>
+          
+          <div id="evaluationsList" style="display: flex; flex-direction: column; gap: 16px;"></div>
+        </div>
+        
+        <div style="flex: 1; min-width: 300px; border-left: 1px solid var(--line); padding-left: 20px;">
+          <h2>Live AI Benchmarks</h2>
+          <p style="color: var(--muted); margin-bottom: 20px;">Real-time model data from OpenRouter.</p>
+          
+          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button class="btn-primary" onclick="loadBenchmarks()">Refresh Benchmarks</button>
+          </div>
+          
+          <div style="overflow-x: auto;">
+            <table id="benchmarksTable" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--line); text-align: left;">
+                  <th style="padding: 8px;">Model</th>
+                  <th style="padding: 8px;">Context</th>
+                  <th style="padding: 8px;">MMLU</th>
+                  <th style="padding: 8px;">HumanEval</th>
+                  <th style="padding: 8px;">Elo</th>
+                  <th style="padding: 8px;">Prompt ($/M)</th>
+                  <th style="padding: 8px;">Completion ($/M)</th>
+                </tr>
+              </thead>
+              <tbody id="benchmarksList">
+                <tr><td colspan="7" style="padding: 8px; color: var(--muted);">Loading real-time benchmarks...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -3963,14 +4011,15 @@ function showView(view) {
   document.getElementById("pageEnhance").style.display = "none";
   document.getElementById("pageBrain").style.display = "none";
   document.getElementById("pageProfile").style.display = "none";
+  document.getElementById("pageEvaluate").style.display = "none";
   document.getElementById("pageDiagnostics").style.display = "none";
   document.getElementById("pageConnectors").style.display = "none";
   document.getElementById("pageVersion").style.display = "none";
 
-  const titles = { enhance: "Enhance", brain: "Memory", profile: "Profile" };
+  const titles = { enhance: "Enhance", brain: "Memory", profile: "Profile", evaluate: "Evaluations" };
   document.getElementById("topbarViewTitle").textContent = titles[view] || view;
 
-  ["enhance","brain","profile"].forEach(v => {
+  ["enhance","brain","profile","evaluate"].forEach(v => {
     document.getElementById("nav-" + v)?.classList.remove("active");
   });
   document.getElementById("nav-" + view)?.classList.add("active");
@@ -3989,6 +4038,10 @@ function showView(view) {
     shell.classList.add("page-profile");
     document.getElementById("pageProfile").style.display = "block";
     loadProfile();
+  } else if (view === "evaluate") {
+    document.getElementById("pageEvaluate").style.display = "block";
+    loadEvaluations();
+    loadBenchmarks();
   } else {
     document.getElementById("pageEnhance").style.display = "flex";
   }
@@ -7193,6 +7246,110 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 showView("enhance");
+</script>
+<script>
+async function loadEvaluations() {
+  try {
+    const res = await fetch("http://localhost:8000/evaluate?user_id=default");
+    if (!res.ok) throw new Error("Failed to fetch evaluations");
+    const data = await res.json();
+    const evals = data.evaluations || [];
+    const container = document.getElementById("evaluationsList");
+    container.innerHTML = "";
+    if (evals.length === 0) {
+      container.innerHTML = "<p>No evaluations found.</p>";
+      return;
+    }
+    evals.reverse().forEach(ev => {
+      const card = document.createElement("div");
+      card.style.border = "1px solid var(--line)";
+      card.style.padding = "16px";
+      card.style.borderRadius = "8px";
+      card.style.background = "var(--panel-2)";
+      
+      let scoreHtml = "";
+      if (ev.scores && !ev.scores.error) {
+        scoreHtml = `
+          <div style="display: flex; gap: 15px; margin-top: 10px;">
+            <div><strong>Adherence:</strong> ${ev.scores.adherence}/5</div>
+            <div><strong>Coherence:</strong> ${ev.scores.coherence}/5</div>
+            <div><strong>Quality:</strong> ${ev.scores.quality}/5</div>
+          </div>
+          <div style="margin-top: 5px; font-size: 12px; color: var(--muted)">Feedback: ${ev.scores.feedback}</div>
+        `;
+      } else if (ev.scores && ev.scores.error) {
+        scoreHtml = `<div style="color: red; margin-top: 10px;">Evaluation Error: ${ev.scores.error}</div>`;
+      }
+      
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between;">
+          <strong>Prompt ID: ${ev.prompt_id}</strong>
+          <span style="font-size: 12px; color: var(--faint)">${new Date(ev.timestamp).toLocaleString()} | Latency: ${ev.latency_ms}ms</span>
+        </div>
+        ${scoreHtml}
+      `;
+      container.appendChild(card);
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function seedSampleEvaluation() {
+  try {
+    const res = await fetch("http://localhost:8000/evaluate/sample", { method: "POST" });
+    if (!res.ok) throw new Error("Failed to trigger sample evaluation");
+    alert("Sample evaluation queued! Wait a few seconds and refresh.");
+  } catch (err) {
+    console.error(err);
+    alert("Error triggering sample evaluation.");
+  }
+}
+
+async function loadBenchmarks() {
+  const tbody = document.getElementById("benchmarksList");
+  tbody.innerHTML = '<tr><td colspan="7" style="padding: 8px; color: var(--muted);">Loading real-time benchmarks...</td></tr>';
+  try {
+    const res = await fetch("http://localhost:8000/benchmarks");
+    if (!res.ok) throw new Error("Failed to fetch benchmarks");
+    const data = await res.json();
+    const models = data.data || [];
+    
+    tbody.innerHTML = "";
+    if (models.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="padding: 8px; color: var(--muted);">No benchmark data found.</td></tr>';
+      return;
+    }
+    
+    // Sort by Elo descending, then context length
+    models.sort((a, b) => {
+      if (a.elo && !b.elo) return -1;
+      if (b.elo && !a.elo) return 1;
+      if (a.elo && b.elo) return b.elo - a.elo;
+      return (b.context_length || 0) - (a.context_length || 0);
+    }).slice(0, 50).forEach(m => {
+      const tr = document.createElement("tr");
+      tr.style.borderBottom = "1px solid var(--line-2)";
+      
+      const pCost = m.pricing && m.pricing.prompt ? (parseFloat(m.pricing.prompt) * 1000000).toFixed(2) : "N/A";
+      const cCost = m.pricing && m.pricing.completion ? (parseFloat(m.pricing.completion) * 1000000).toFixed(2) : "N/A";
+      
+      tr.innerHTML = `
+        <td style="padding: 8px; font-weight: 500;">${m.id}</td>
+        <td style="padding: 8px; font-family: var(--mono);">${(m.context_length || 0).toLocaleString()}</td>
+        <td style="padding: 8px; font-family: var(--mono);">${m.mmlu ? m.mmlu : 'N/A'}</td>
+        <td style="padding: 8px; font-family: var(--mono);">${m.humaneval ? m.humaneval : 'N/A'}</td>
+        <td style="padding: 8px; font-family: var(--mono); color: var(--accent); font-weight: 600;">${m.elo ? m.elo : 'N/A'}</td>
+        <td style="padding: 8px; font-family: var(--mono);">$${pCost}</td>
+        <td style="padding: 8px; font-family: var(--mono);">$${cCost}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = `<tr><td colspan="7" style="padding: 8px; color: red;">Error: ${err.message}</td></tr>`;
+  }
+}
 </script>
 </body>
 </html>

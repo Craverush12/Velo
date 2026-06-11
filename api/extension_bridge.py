@@ -6,21 +6,24 @@ Extension protocol:
   POST /dev/test/enhance/stream          → SSE: type "content"/"complete"/"[DONE]"
   POST /dev/test/clarify                 → { mcq_questions: [...] }
   POST /dev/test/refine                  → { enhanced_prompt, tokens }
+  POST /dev/test/transcribe              → { transcript }
   POST /dev/test/api/v1/quality/analyze-prompt → { status, metadata }
 
 Internal pipeline:
   POST /enhance                          → SSE: type "chunk"/"done"
   POST /refine/prepare                   → { questions: [...] }
   POST /refine                           → { refined_prompt, ... }
+  POST /cothinker/transcribe             → { transcript }
 """
 from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, UploadFile, File
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from api.cothinker import cothinker_transcribe as _cothinker_transcribe
 from api.enhance import EnhanceRequest, _generate
 from api.refine import (
     RefineRequest,
@@ -180,6 +183,14 @@ async def ext_refine(req: ExtRefineRequest):
         "enhanced_prompt": result.get("refined_prompt", ""),
         "tokens": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
     }
+
+
+# ── Transcribe (voice-to-text) ────────────────────────────────────────────────
+
+@router.post("/transcribe")
+async def ext_transcribe(audio: UploadFile = File(...)):
+    """Proxy for cothinker_transcribe — used by the Chrome extension voice mode."""
+    return await _cothinker_transcribe(audio)
 
 
 # ── Quality analyze stub ──────────────────────────────────────────────────────

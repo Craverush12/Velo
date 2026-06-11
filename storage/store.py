@@ -250,3 +250,38 @@ def update_personalization_notes(user_id: str, notes: str) -> None:
     ctx["personalization_notes"] = notes
     ctx["updated_at"] = datetime.now(timezone.utc).isoformat()
     save_user_context(user_id, ctx)
+
+def save_evaluation(evaluation: dict) -> None:
+    """Save an evaluation record."""
+    user_id = evaluation.get("user_id", "default")
+    _validate_user_id(user_id)
+    path = _STORAGE_PATH / f"evals_{user_id}.json"
+    
+    with _lock_for(f"evals_{user_id}"):
+        evals = []
+        if path.exists():
+            with open(path, "r", encoding="utf-8") as f:
+                try:
+                    evals = json.load(f)
+                except json.JSONDecodeError:
+                    evals = []
+        evals.append(evaluation)
+        evals = evals[-1000:]
+        
+        tmp = path.with_suffix(".json.tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(evals, f, indent=2)
+            f.write("\n")
+        os.replace(tmp, path)
+
+def get_evaluations(user_id: str) -> list[dict]:
+    """Retrieve evaluations for a user."""
+    _validate_user_id(user_id)
+    path = _STORAGE_PATH / f"evals_{user_id}.json"
+    if not path.exists():
+        return []
+    with open(path, "r", encoding="utf-8") as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return []

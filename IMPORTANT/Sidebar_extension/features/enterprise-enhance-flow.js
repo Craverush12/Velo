@@ -16,14 +16,14 @@
    * @param {string} enterpriseId
    * @returns {Promise<{allowed,decision,queueId,violations,redactedPrompt}>}
    */
-  async function checkGuardrail(prompt, accessToken) {
-    const res = await fetch(`${ENT_BASE}/backend/guardrail/check`, {
+  async function checkGuardrail(prompt, accessToken, enterpriseId) {
+    const res = await fetch(`${ENT_BASE}/backend/guardrail/check-prompt`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ prompt, contentType: "CHAT_PROMPT" }),
+      body: JSON.stringify({ prompt, contentType: "CHAT_PROMPT", enterpriseId }),
     });
     if (!res.ok) {
       const msg = await res.text().catch(() => "");
@@ -141,7 +141,7 @@
     if (!opts.skipGuardrail) {
       let guardrail;
       try {
-        guardrail = await checkGuardrail(prompt, accessToken);
+        guardrail = await checkGuardrail(prompt, accessToken, enterpriseId);
       } catch (err) {
         return { success: false, code: "ENT_GUARDRAIL_ERROR", error: err.message };
       }
@@ -205,7 +205,10 @@
     }
 
     try {
-      const guardrail = await checkGuardrail(prompt, accessToken);
+      const SK = TV.STORAGE_KEYS;
+      const stored = await TV.chromeStorage.get([SK.ENT_ENTERPRISE_ID]);
+      const enterpriseId = stored[SK.ENT_ENTERPRISE_ID] || "";
+      const guardrail = await checkGuardrail(prompt, accessToken, enterpriseId);
       const decision = (guardrail.decision || "ALLOW").toUpperCase();
       if (decision === "WARN")               return { success: false, code: "ENT_GUARDRAIL_WARN",     guardrail };
       if (decision === "REQUIRE_CONFIRMATION") return { success: false, code: "ENT_GUARDRAIL_CONFIRM",  guardrail };

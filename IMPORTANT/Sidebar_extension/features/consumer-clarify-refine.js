@@ -33,29 +33,26 @@
 
   // Normalise prepare/clarify response into [{ id, question, options }]
   function normaliseQuestions(json) {
-    // New format: { questions: [{ id, question, options }] }
-    const newList = json.questions || (json.data && json.data.questions);
-    if (Array.isArray(newList) && newList.length && typeof newList[0].question === "string") {
-      return newList.map((q, i) => ({
-        id: q.id != null ? q.id : i,
-        question: q.question || "",
-        options: Array.isArray(q.options) ? q.options : [],
-      }));
-    }
-
-    // Legacy format A: { mcq_questions: [{ question_text, answer_options }] }
-    const mcqList = json.mcq_questions || (json.data && json.data.mcq_questions);
-    if (Array.isArray(mcqList) && mcqList.length) {
-      return mcqList.map((q, i) => ({
-        id: q.question_id || i,
-        question: q.question_text || q.question || "",
-        options: Array.isArray(q.answer_options) ? q.answer_options : [],
-      }));
+    const list = json.questions || json.mcq_questions || (json.data && (json.data.questions || json.data.mcq_questions));
+    
+    if (Array.isArray(list) && list.length && typeof list[0] === "object") {
+      return list.map((q, i) => {
+        const questionText = q.question || q.question_text || q.text || "";
+        const optionsList = Array.isArray(q.options) ? q.options 
+                          : Array.isArray(q.answer_options) ? q.answer_options 
+                          : Array.isArray(q.choices) ? q.choices 
+                          : [];
+        return {
+          id: q.id != null ? q.id : (q.question_id || i),
+          question: questionText,
+          options: optionsList,
+        };
+      });
     }
 
     // Legacy format B: { questions: ["q1","q2"], options: [["a","b"],["c","d"]] }
-    const rawQs   = (json.data && json.data.questions) || [];
-    const rawOpts = (json.data && json.data.options)   || null;
+    const rawQs   = json.questions || (json.data && json.data.questions) || [];
+    const rawOpts = json.options   || (json.data && json.data.options)   || null;
     if (Array.isArray(rawQs) && rawQs.length && typeof rawQs[0] === "string" && Array.isArray(rawOpts)) {
       return rawQs.map((text, i) => ({
         id: i,
@@ -107,7 +104,14 @@
       };
 
       const questions = normaliseQuestions(json);
-      return { success: true, data: { questions } };
+      return {
+        success: true,
+        data: {
+          questions,
+          neuro_state:      _prepareState.neuro_state,
+          context_patterns: _prepareState.context_patterns,
+        },
+      };
     } catch (err) {
       return { success: false, error: err.message || String(err) };
     }
@@ -218,24 +222,35 @@
     }
   }
 
-  async function sendFeedback(promptId, feedback, mode) {
-    if (!promptId || !feedback) {
+  async function sendFeedback(promptId, feedback, mode, isRefine) {
+    if (!promptId || feedback === undefined || feedback === null) {
       return { success: false, error: "promptId and feedback are required" };
     }
+    
+    let isLike = true;
+    if (feedback === "dislike" || feedback === false) isLike = false;
+    else if (feedback === "like" || feedback === true) isLike = true;
+    
     try {
-      const { userId, accessToken } = await getAuth();
-      const res = await fetch(FEEDBACK_URL, {
+      const { accessToken } = await getAuth();
+      const stored = await root.TV.chromeStorage.get(["velocityCurrentRefinedPromptId"]);
+      const refineId = stored.velocityCurrentRefinedPromptId;
+      
+      const endpoint = (isRefine && refineId)
+          ? `${BACKEND_URL}/prompt/refine-prompt/feedback`
+          : `${BACKEND_URL}/prompt/enhanced-prompt/feedback`;
+          
+      const body = (isRefine && refineId)
+          ? { refine_id: refineId, feedback: isLike }
+          : { enhanced_prompt_id: promptId, feedback: isLike };
+          
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
-        body: JSON.stringify({
-          prompt_id: promptId,
-          feedback,
-          mode: mode || "standard",
-          user_id: userId || "",
-        }),
+        body: JSON.stringify(body),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {

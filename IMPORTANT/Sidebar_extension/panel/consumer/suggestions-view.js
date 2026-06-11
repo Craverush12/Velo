@@ -31,6 +31,127 @@
   /** Question keys whose QA card body is currently expanded. */
   const _expandedKeys = new Set();
 
+  // ── Style injection ───────────────────────────────────────────────────────
+  (function injectStyles() {
+    if (document.getElementById("tv-suggestions-styles")) return;
+    const s = document.createElement("style");
+    s.id = "tv-suggestions-styles";
+    s.textContent = `
+      /* ── Hide composer dock while suggestions view is active ──── */
+      .app-shell:has(#viewSuggestions.view-surface--active:not([hidden])) .composer-dock {
+        display: none !important;
+      }
+
+      /* ── Progress bar ─────────────────────────────────────────── */
+      .refine-progress-wrap {
+        margin: 0 0 16px;
+        padding: 0 2px;
+        flex-shrink: 0;
+      }
+      .refine-progress-track {
+        height: 3px;
+        background: rgba(25, 216, 230, 0.12);
+        border-radius: 99px;
+        overflow: hidden;
+        margin-bottom: 8px;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+      }
+      .refine-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #0fb6c4, #19d8e6);
+        border-radius: 99px;
+        transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.5s ease;
+        min-width: 0;
+        box-shadow: 0 0 10px rgba(25, 216, 230, 0.4);
+      }
+      .refine-progress-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .refine-progress-label {
+        font-size: clamp(0.66rem, 1.8vw, 0.72rem);
+        color: var(--vel-muted-text, #bac9cc);
+        letter-spacing: 0.02em;
+        font-weight: 600;
+        flex: 1;
+      }
+      .refine-progress-count {
+        font-size: clamp(0.66rem, 1.8vw, 0.72rem);
+        font-weight: 800;
+        color: var(--vel-accent, #19d8e6);
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+      }
+
+      /* ── Refine CTA button ────────────────────────────────────── */
+      .refine-btn-wrap {
+        padding: 14px 0 2px;
+        flex-shrink: 0;
+      }
+      .refine-cta-btn {
+        width: 100%;
+        padding: clamp(12px, 3vw, 14px) 20px;
+        border-radius: 999px;
+        border: 1px solid rgba(25, 216, 230, 0.2);
+        background: rgba(25, 216, 230, 0.05);
+        color: rgba(25, 216, 230, 0.4);
+        font-family: inherit;
+        font-size: clamp(0.85rem, 2.2vw, 0.95rem);
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        cursor: not-allowed;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        outline: none;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+      .refine-cta-btn.refine-cta-btn--active {
+        cursor: pointer;
+        color: var(--vel-accent, #19d8e6);
+        border-color: rgba(25, 216, 230, 0.5);
+        background: rgba(25, 216, 230, 0.1);
+        box-shadow: 0 4px 16px rgba(25, 216, 230, 0.15);
+      }
+      .refine-cta-btn.refine-cta-btn--active:hover {
+        background: rgba(25, 216, 230, 0.15);
+        border-color: rgba(25, 216, 230, 0.7);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(25, 216, 230, 0.25);
+      }
+      .refine-cta-btn.refine-cta-btn--ready {
+        background: linear-gradient(135deg, #19d8e6, #0fb6c4);
+        border-color: transparent;
+        color: #000;
+        animation: tv-refine-pulse 2.4s ease-in-out infinite;
+        text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4);
+      }
+      .refine-cta-btn.refine-cta-btn--ready:hover {
+        transform: translateY(-2px);
+        filter: brightness(1.1);
+      }
+      @keyframes tv-refine-pulse {
+        0%, 100% {
+          box-shadow: 0 0 10px rgba(25,216,230,.32),
+                      0 0 26px rgba(25,216,230,.14);
+        }
+        50% {
+          box-shadow: 0 0 20px rgba(25,216,230,.58),
+                      0 0 44px rgba(25,216,230,.26);
+        }
+      }
+      .refine-cta-btn.refine-cta-btn--busy {
+        cursor: wait;
+        animation: none;
+        opacity: 0.6;
+        transform: none;
+      }
+    `;
+    (document.head || document.documentElement).appendChild(s);
+  })();
+
   const CHEVRON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
   const PREV_SVG    = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>`;
   const NEXT_SVG    = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>`;
@@ -95,10 +216,20 @@
     return wrap;
   }
 
+  /** Returns true only for questions that should render as radio buttons. */
+  function isSelectQuestion(q) {
+    return (
+      q.answer_type === "single_select" &&
+      Array.isArray(q.options) &&
+      q.options.length > 0
+    );
+  }
+
   function normalizeOptions(q) {
     const raw = Array.isArray(q.options) && q.options.length
       ? q.options.map((o) => String(o).trim()).filter(Boolean)
-      : ["Option A", "Option B", "Option C"];
+      : [];
+    if (!raw.length) return [];
     const mapped = raw.map(displayOptionLabel);
     const uniq = [];
     const seen = new Set();
@@ -176,98 +307,138 @@
     }, 380);
   }
 
-  function buildAnswerSavedToast(answeredCount, total) {
-    const toast = document.createElement("div");
-    toast.className = "answer-saved-toast";
+  /**
+   * Slim glowing progress bar shown at the top of the active panel.
+   * Always visible; grows and glows as questions are answered.
+   */
+  function buildProgressBar(answeredCount, total) {
+    const safeTotal = Math.max(1, Number(total) || 1);
+    const safeAnswered = Math.min(safeTotal, Math.max(0, Number(answeredCount) || 0));
+    const remaining = safeTotal - safeAnswered;
+    const ratio = safeAnswered / safeTotal;
+    const pct = Math.round(ratio * 100);
 
-    const textBlock = document.createElement("div");
-    textBlock.className = "answer-saved-text-block";
-    const title = document.createElement("div");
-    title.className = "answer-saved-title";
-    title.textContent = "Answer saved.";
-    const sub = document.createElement("div");
-    sub.className = "answer-saved-sub";
-    sub.textContent = "You can refine now, or answer more questions for a stronger result.";
-    textBlock.appendChild(title);
-    textBlock.appendChild(sub);
+    const wrap = document.createElement("div");
+    wrap.className = "refine-progress-wrap";
+    wrap.setAttribute("role", "progressbar");
+    wrap.setAttribute("aria-valuenow", String(safeAnswered));
+    wrap.setAttribute("aria-valuemin", "0");
+    wrap.setAttribute("aria-valuemax", String(safeTotal));
+    wrap.setAttribute("aria-label", `${safeAnswered} of ${safeTotal} questions answered`);
 
-    toast.appendChild(textBlock);
-    toast.appendChild(buildProgressRing(answeredCount, total));
-    return toast;
+    const track = document.createElement("div");
+    track.className = "refine-progress-track";
+
+    const fill = document.createElement("div");
+    fill.className = "refine-progress-fill";
+    fill.style.width = `${pct}%`;
+
+    // Glow grows with ratio — cyan matches product accent (#19d8e6)
+    if (ratio > 0) {
+      const glowSz = Math.round(2 + ratio * 8);
+      const glowOp = (0.25 + ratio * 0.55).toFixed(2);
+      fill.style.boxShadow =
+        `0 0 ${glowSz}px rgba(25,216,230,${glowOp}),` +
+        ` 0 0 ${glowSz * 2}px rgba(25,216,230,${(parseFloat(glowOp) * 0.4).toFixed(2)})`;
+    }
+
+    track.appendChild(fill);
+
+    const meta = document.createElement("div");
+    meta.className = "refine-progress-meta";
+
+    const label = document.createElement("span");
+    label.className = "refine-progress-label";
+    if (safeAnswered === 0) {
+      label.textContent = "Answer questions for a stronger refinement";
+    } else if (remaining === 0) {
+      label.textContent = "All questions answered — ready to refine!";
+    } else {
+      label.textContent = `${remaining} question${remaining !== 1 ? "s" : ""} remaining`;
+    }
+
+    const count = document.createElement("span");
+    count.className = "refine-progress-count";
+    count.textContent = `${safeAnswered}/${safeTotal}`;
+
+    meta.appendChild(label);
+    meta.appendChild(count);
+    wrap.appendChild(track);
+    wrap.appendChild(meta);
+    return wrap;
   }
 
-  function buildProgressRing(answeredCount, total) {
+  /**
+   * Glowing "Refine Prompt" CTA button.
+   * Dim when no answers, progressively brighter with each answer,
+   * pulsing "ready" state when all answered.
+   */
+  function buildRefineButton(answeredCount, total) {
     const safeTotal = Math.max(1, Number(total) || 1);
     const safeAnswered = Math.min(safeTotal, Math.max(0, Number(answeredCount) || 0));
     const ratio = safeAnswered / safeTotal;
+    const allDone = safeAnswered >= safeTotal;
+    const hasAny = safeAnswered > 0;
+    const canRefine = hasAny && _session != null && _otherPendingKey == null;
 
-    const size = 56;
-    const stroke = 4;
-    const radius = (size - stroke) / 2;
-    const circumference = 2 * Math.PI * radius;
-    const dashOffset = circumference * (1 - ratio);
+    const wrap = document.createElement("div");
+    wrap.className = "refine-btn-wrap";
 
-    const badge = document.createElement("div");
-    badge.className = "progress-badge";
-    badge.setAttribute("role", "img");
-    badge.setAttribute(
-      "aria-label",
-      `Progress: ${safeAnswered} of ${safeTotal} answered`
-    );
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = "btnRefineAction";
 
-    const SVG_NS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(SVG_NS, "svg");
-    svg.setAttribute("class", "progress-ring-svg");
-    svg.setAttribute("width", String(size));
-    svg.setAttribute("height", String(size));
-    svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
-    svg.setAttribute("aria-hidden", "true");
+    const classes = ["refine-cta-btn"];
+    if (canRefine) classes.push("refine-cta-btn--active");
+    if (allDone && canRefine) classes.push("refine-cta-btn--ready");
+    btn.className = classes.join(" ");
+    btn.disabled = !canRefine;
+    btn.setAttribute("aria-label", canRefine ? "Refine prompt with your answers" : "Answer at least one question to refine");
 
-    const track = document.createElementNS(SVG_NS, "circle");
-    track.setAttribute("class", "progress-ring-track");
-    track.setAttribute("cx", String(size / 2));
-    track.setAttribute("cy", String(size / 2));
-    track.setAttribute("r", String(radius));
-    track.setAttribute("fill", "none");
-    track.setAttribute("stroke-width", String(stroke));
+    // Progressive cyan glow — scales from subtle to bright as ratio increases
+    if (canRefine && !allDone) {
+      const glowSz = Math.round(4 + ratio * 16);
+      const glowOp = (0.18 + ratio * 0.42).toFixed(2);
+      btn.style.boxShadow =
+        `0 0 ${glowSz}px rgba(25,216,230,${glowOp}),` +
+        ` 0 0 ${Math.round(glowSz * 1.8)}px rgba(25,216,230,${(parseFloat(glowOp) * 0.45).toFixed(2)})`;
+      btn.style.borderColor = `rgba(25,216,230,${(0.3 + ratio * 0.4).toFixed(2)})`;
+    }
 
-    const arc = document.createElementNS(SVG_NS, "circle");
-    arc.setAttribute("class", "progress-ring-arc");
-    arc.setAttribute("cx", String(size / 2));
-    arc.setAttribute("cy", String(size / 2));
-    arc.setAttribute("r", String(radius));
-    arc.setAttribute("fill", "none");
-    arc.setAttribute("stroke-width", String(stroke));
-    arc.setAttribute("stroke-linecap", "round");
-    arc.setAttribute("stroke-dasharray", String(circumference));
-    arc.setAttribute("stroke-dashoffset", String(dashOffset));
+    const label = document.createElement("span");
+    label.className = "refine-cta-label";
+    label.textContent = "Refine Prompt";
+    btn.appendChild(label);
 
-    svg.appendChild(track);
-    svg.appendChild(arc);
+    btn.addEventListener("click", async () => {
+      if (!canRefine || btn.disabled) return;
+      btn.disabled = true;
+      btn.classList.remove("refine-cta-btn--ready");
+      btn.classList.add("refine-cta-btn--busy");
+      btn.style.boxShadow = "";
+      label.textContent = "Refining…";
+      const ok = await submitRefine();
+      if (!ok) {
+        // Restore on failure
+        btn.disabled = false;
+        btn.classList.remove("refine-cta-btn--busy");
+        if (allDone) btn.classList.add("refine-cta-btn--ready");
+        label.textContent = "Refine Prompt";
+      }
+    });
 
-    const center = document.createElement("div");
-    center.className = "progress-ring-center";
-    const blbl = document.createElement("span");
-    blbl.className = "progress-badge-label";
-    blbl.textContent = "PROGRESS";
-    const bval = document.createElement("span");
-    bval.className = "progress-badge-value";
-    bval.textContent = `${safeAnswered}/${safeTotal}`;
-    center.appendChild(blbl);
-    center.appendChild(bval);
-
-    badge.appendChild(svg);
-    badge.appendChild(center);
-    return badge;
+    wrap.appendChild(btn);
+    return wrap;
   }
 
   function buildQACard(q, index, total, onSelect, onPrev, onNext, onClose) {
     const key = questionKey(q, index);
-    const optionsList = normalizeOptions(q);
+    const useSelect = isSelectQuestion(q);
+    const optionsList = useSelect ? normalizeOptions(q) : [];
     const currentAnswer = _answers[key];
     const pendingHere = _otherPendingKey === key;
     const showOtherField =
-      pendingHere || isCustomOtherAnswer(q, index, currentAnswer);
+      useSelect && (pendingHere || isCustomOtherAnswer(q, index, currentAnswer));
     // Force-expand whenever the "Other" custom-text flow is in progress so the
     // user can see (and reach) the textarea. Otherwise honor the persisted
     // per-question expand state.
@@ -336,35 +507,72 @@
     body.id = `qa-card-body-${index}`;
     if (!expanded) body.hidden = true;
 
-    const opts = document.createElement("div");
-    opts.className = "qa-options";
+    if (useSelect) {
+      // ── Radio-button path: single_select with real options ──────────────
+      const opts = document.createElement("div");
+      opts.className = "qa-options";
 
-    optionsList.forEach((display) => {
-      const selected =
-        display === OTHER_LABEL
-          ? Boolean(showOtherField)
-          : Boolean(!showOtherField && currentAnswer === display);
+      optionsList.forEach((display) => {
+        const selected =
+          display === OTHER_LABEL
+            ? Boolean(showOtherField)
+            : Boolean(!showOtherField && currentAnswer === display);
 
-      const optBtn = document.createElement("button");
-      optBtn.type = "button";
-      optBtn.className = "qa-option" + (selected ? " qa-option--selected" : "");
+        const optBtn = document.createElement("button");
+        optBtn.type = "button";
+        optBtn.className = "qa-option" + (selected ? " qa-option--selected" : "");
 
-      const radio = document.createElement("span");
-      radio.className = "qa-radio";
-      const dot = document.createElement("span");
-      dot.className = "qa-radio-dot";
-      radio.appendChild(dot);
+        const radio = document.createElement("span");
+        radio.className = "qa-radio";
+        const dot = document.createElement("span");
+        dot.className = "qa-radio-dot";
+        radio.appendChild(dot);
 
-      const text = document.createElement("span");
-      text.textContent = display;
+        const text = document.createElement("span");
+        text.textContent = display;
 
-      optBtn.appendChild(radio);
-      optBtn.appendChild(text);
-      optBtn.addEventListener("click", () => onSelect(q, index, display, opts));
-      opts.appendChild(optBtn);
-    });
+        optBtn.appendChild(radio);
+        optBtn.appendChild(text);
+        optBtn.addEventListener("click", () => onSelect(q, index, display, opts));
+        opts.appendChild(optBtn);
+      });
 
-    body.appendChild(opts);
+      body.appendChild(opts);
+    } else {
+      // ── Textarea path: short_text / long_text / select with no options ──
+      const textWrap = document.createElement("div");
+      textWrap.className = "qa-other-wrap";
+
+      const inp = document.createElement("textarea");
+      inp.className = "qa-other-input";
+      inp.setAttribute("aria-label", q.question || "Your answer");
+      inp.rows = q.answer_type === "long_text" ? 4 : 2;
+      inp.placeholder = "Type your answer…";
+      inp.value = currentAnswer || "";
+
+      const actions = document.createElement("div");
+      actions.className = "qa-other-actions";
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "qa-other-done";
+      saveBtn.textContent = "Save answer";
+      saveBtn.addEventListener("click", () => handleOtherCommit(q, index, inp));
+      inp.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) {
+          ev.preventDefault();
+          handleOtherCommit(q, index, inp);
+        }
+      });
+
+      actions.appendChild(saveBtn);
+      textWrap.appendChild(inp);
+      textWrap.appendChild(actions);
+      body.appendChild(textWrap);
+
+      if (expanded) {
+        window.requestAnimationFrame(() => { try { inp.focus(); } catch (_) {} });
+      }
+    }
 
     if (showOtherField) {
       const otherWrap = document.createElement("div");
@@ -587,6 +795,24 @@
         if (TP && typeof TP.markAllStepsDone === "function") {
           TP.markAllStepsDone();
         }
+
+        // Fetch annotations for the refined prompt — best-effort, same
+        // mechanism as the enhanced prompt path in consumer-enhance-flow.js.
+        // Runs before the setTimeout so the segments are ready when the
+        // output view renders. Never throws, returns [] on any failure.
+        let refinedAnnotations = [];
+        const annotate =
+          root.TV.consumerEnhanceFlow &&
+          root.TV.consumerEnhanceFlow.fetchLocalAnnotations;
+        if (typeof annotate === "function" && refined) {
+          try {
+            refinedAnnotations = await annotate(
+              refined,
+              (_session && _session.original) || ""
+            );
+          } catch (_) { /* silent — local server may be offline */ }
+        }
+
         setTimeout(() => {
           // Restore the suggestions surface before handing off to _onRefined.
           // _onRefined immediately swaps to the Output tab via showSessionShell,
@@ -594,7 +820,7 @@
           // etc.) we'd otherwise be left with a blank panel until refresh.
           if (TP) TP.hide({ restoreSession: "suggestions" });
           try {
-            _onRefined(refined, qaArray);
+            _onRefined(refined, qaArray, refinedAnnotations);
           } catch (err) {
             console.warn("[suggestions-view] onRefined handler failed:", err);
           }
@@ -687,19 +913,18 @@
     const activePanel = $("suggestionsActivePanel");
     if (!scroll || !activePanel) return;
 
-    scroll.innerHTML      = "";
-    activePanel.innerHTML = "";
+    // The scroll area no longer shows the ORIGINAL collapsible — hide it.
+    scroll.innerHTML = "";
+    scroll.hidden = true;
 
-    // — History scroll (ORIGINAL only; current/past answers use active panel + composer) —
-    scroll.appendChild(buildOriginalCollapsible(_session && _session.original));
+    activePanel.innerHTML = "";
 
     // — Active panel —
     const answeredCount = Object.keys(_answers).length;
     const total = Math.min(MAX_QUESTIONS, _questions.length || MAX_QUESTIONS);
 
-    if (answeredCount > 0) {
-      activePanel.appendChild(buildAnswerSavedToast(answeredCount, total));
-    }
+    // Always-visible slim progress bar (replaces the full answer-saved toast box)
+    activePanel.appendChild(buildProgressBar(answeredCount, total));
 
     activePanel.appendChild(buildImproveSectionTitle(answeredCount, total));
 
@@ -737,6 +962,9 @@
         () => { hide(); }
       ));
     }
+
+    // Glowing Refine CTA button — replaces the bottom composer input
+    activePanel.appendChild(buildRefineButton(answeredCount, total));
 
     syncComposerFromAnswers();
   }
@@ -798,12 +1026,22 @@
       if (res && res.success) {
         const qs = (res.data && res.data.questions) || (Array.isArray(res.data) ? res.data : []);
         _questions = qs.slice(0, MAX_QUESTIONS);
+        // Forward neuro state to context view so the Context tab can display it.
+        if (root.TV.contextView && typeof root.TV.contextView.updateNeuro === "function") {
+          root.TV.contextView.updateNeuro(
+            res.data && res.data.neuro_state,
+            res.data && res.data.context_patterns,
+          );
+        }
       }
     } catch (e) {
       console.warn("[suggestions-view] clarify error:", e);
     }
     render();
   }
+
+  // The composer-dock is hidden while the suggestions view is active via a
+  // CSS :has() rule injected in injectStyles() — no JS DOM walk needed.
 
   function show() {
     const view = $("viewSuggestions");

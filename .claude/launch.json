@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"],
       "port": 8000
+    },
+    {
+      "name": "evil-eye-test",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8001", "--directory", "IMPORTANT/Sidebar_extension/panel/consumer"],
+      "port": 8001
     }
   ]
 }
