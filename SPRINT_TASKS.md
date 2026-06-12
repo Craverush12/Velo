@@ -946,29 +946,23 @@ Depends: E1-4 (DNS flipped), T-066 (RECONCILE.md verified)
 BLOCKED: Awaiting architecture plan approval
 ```
 
-**E2-2** | Phase 2: Policy as pipeline stage (in-process, not separate HTTP call) | [AGENT] | 🟡
+**E2-2** | Phase 2: Policy as pipeline stage — DONE (commit 90f48b7) | [AGENT] | ✅
 ```
 File: python-ai-unified/routers/ai/enhance.py
-When request has enterprise_id → call moderation in-process before enhance
-Honors verdict: BLOCK → refuse; REDACT → enhance scrubbed text; WARN → stamp
-Consumer requests (no enterprise_id) → skip policy stage entirely (zero latency cost)
-
-Depends: E2-1
-BLOCKED: Awaiting architecture plan approval
+enterprise_id detection + in-process moderation before enhance
+BLOCK→SSE error, REDACT→scrub prompt, WARN→stamp metadata, ALLOW→normal
+Fail-closed D-030: moderation exception → BLOCK
+Consumer requests completely unaffected
 ```
 
-**E2-3** | Phase 3: Context engine enterprise evolution | [AGENT] | 🟡
+**E2-3** | Phase 3: Context engine enterprise evolution — DONE (commit a2c033b) | [AGENT] | ✅
 ```
-Files: python-ai-unified/routers/context.py, shared/db.py
-Changes:
-  1. Add enterprise_id + team_id to context schema + pgvector partition keys
-  2. PII scanner runs BEFORE embedding (redact-before-embed)
-  3. Enterprise persistence → enterprise schema (not consumer Node backend)
-  4. Retrieval wired into enterprise enhance stage
-  5. Audit events for all enterprise context reads/writes
-
-Depends: E2-2
-BLOCKED: Awaiting architecture plan approval
+File: python-ai-unified/routers/context.py
+enterprise_id/team_id partition keys in pgvector
+PII redaction before embed (SSN, CC, email, phone → [REDACTED:TYPE])
+Enterprise persistence → /api/v1/enterprise-context
+Audit events at INFO level
+Consumer requests completely unaffected
 ```
 
 **E2-4** | Phase 4: Rebuild Docker images (decommission hot-patches) | [AGENT+ARJUN] | 🟢

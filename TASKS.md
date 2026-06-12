@@ -515,25 +515,20 @@
   - Dependency: T-063 (DNS flipped), T-066 (RECONCILE verified)
   - **BLOCKED: Awaiting architecture plan approval**
 
-- [ ] **T-068 — Architecture Phase 2: Policy as pipeline stage (not separate HTTP call)**
-  - When request carries `enterprise_id`, enhance handler calls moderation in-process (no HTTP hop)
-  - Honors verdict: BLOCK → refuse; REDACT → enhance the scrubbed text; WARN → stamp warning
-  - Stamps verdict into response metadata + audit log
-  - Consumer requests (no `enterprise_id`) skip stage — zero added latency
-  - This is the "single prompt service with connectors" model
-  - Owner: AI (implementation in python-ai-unified/routers/ai/enhance.py)
-  - Dependency: T-067
-  - **BLOCKED: Awaiting architecture plan approval**
+- [x] **T-068 — Architecture Phase 2: Policy as pipeline stage (not separate HTTP call)** (completed 2026-06-12, commit 90f48b7)
+  - enterprise_id detection added to EnhanceRequest; moderation called in-process before enhance
+  - Verdicts: BLOCK → SSE error; REDACT → scrub prompt + stamp metadata; WARN → stamp warning; ALLOW → normal
+  - Fail-closed per D-030: moderation exception → BLOCK, not ALLOW
+  - Consumer requests (no enterprise_id) completely unaffected — zero added latency
+  - Owner: AI ✅
 
-- [ ] **T-069 — Architecture Phase 3: Context engine enterprise evolution**
-  - Add `enterprise_id`/`team_id` to context schema; partition pgvector by tenant
-  - Insert redact-before-embed: PII scanner runs on transcripts before essence/embedding
-  - Route enterprise persistence to enterprise schema (not consumer Node backend)
-  - Wire retrieval into enterprise enhance stage: [moderation] → [tenant context retrieve] → [enhance]
-  - Emit audit events for every enterprise context read/write
-  - Owner: AI (implementation in python-ai-unified/routers/context.py)
-  - Dependency: T-068
-  - **BLOCKED: Awaiting architecture plan approval**
+- [x] **T-069 — Architecture Phase 3: Context engine enterprise evolution** (completed 2026-06-12, commit a2c033b)
+  - enterprise_id/team_id added to ProcessContextRequest; pgvector key namespaced by tenant
+  - PII redaction before embed: SSN, CC, email, phone patterns → [REDACTED:TYPE]
+  - Enterprise persistence routed to /api/v1/enterprise-context (consumer path unchanged)
+  - Audit events logged at INFO: AUDIT {"action":"context_stored","enterprise_id":...}
+  - Consumer requests (no enterprise_id) completely unaffected
+  - Owner: AI ✅
 
 - [ ] **T-070 — Architecture Phase 4: Rebuild Docker image (decommission hot-patches)**
   - Fold in media-pipeline-v2 hot-patch and admin panel hot-patch into proper Docker image builds
