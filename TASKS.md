@@ -450,12 +450,13 @@
 
 > **CURRENT STATE:** New consolidated server `35.154.138.184` is LIVE with all 5 containers running (tv-extension-api :8000, tv-python-ai-unified :8005, tv-nestjs-enterprise :3000, postgres17, redis). Admin panel at `http://35.154.138.184/admin`. DNS flip and Certbot still pending.
 
-- [!] **T-061 — Fix MODERATION_SERVICE_URL on tv-nestjs-enterprise** ← 🔴 PRODUCTION SECURITY GAP
+- [~] **T-061 — Fix MODERATION_SERVICE_URL on tv-nestjs-enterprise** ← 🔴 PRODUCTION SECURITY GAP
   - **Severity:** CRITICAL — enterprise policy checking, PII redaction, and prompt blocking are silently disabled in production
   - **Root cause:** Env var is `http://tv-python-ai-unified:8005/ai/enhance` (wrong). Guardrail code appends `/moderation/check` → hits `…/ai/enhance/moderation/check` → 404 → code defaults to ALLOW on failure
   - **Fix:** Update env var to `MODERATION_SERVICE_URL=http://tv-python-ai-unified:8005/ai` + restart container
   - **Verified:** Correct endpoint `http://127.0.0.1:8005/ai/moderation/check` returns proper REDACT decision
   - **Decision needed (T-062 below):** Fail-open vs fail-closed
+  - Hot-patch script generated at `configs/hotpatches/apply-guardrail-fix.sh` — human must run on server
   - Owner: Human (env var change + `docker restart tv-nestjs-enterprise`)
 
 - [x] **T-062 — Decide fail-open vs fail-closed for moderation service failures** (decided 2026-06-12)
