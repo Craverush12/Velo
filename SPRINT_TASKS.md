@@ -849,29 +849,11 @@ Note: Must rebuild Docker image (T-070) to make this non-hot-patch
 
 ### BLOCK E1 — IMMEDIATE (do now, no approval needed)
 
-**E1-1** | Fix MODERATION_SERVICE_URL on tv-nestjs-enterprise | [ARJUN] | 🔴
+**E1-1** | Fix MODERATION_SERVICE_URL + fail-closed — DONE (2026-06-12) | [AI] | ✅
 ```
-CRITICAL: Enterprise guardrail (policy checks, PII redaction, blocking) is silently
-disabled. Moderation calls hit 404 and fall through to ALLOW.
-
-Fix (SSH to 35.154.138.184):
-  docker exec tv-nestjs-enterprise printenv MODERATION_SERVICE_URL
-  # Currently: http://tv-python-ai-unified:8005/ai/enhance  ← WRONG
-  # Must be:   http://tv-python-ai-unified:8005/ai           ← CORRECT
-
-  docker exec -it tv-nestjs-enterprise sh -c \
-    "echo 'MODERATION_SERVICE_URL=http://tv-python-ai-unified:8005/ai' >> /app/.env"
-  docker restart tv-nestjs-enterprise
-
-  # Verify:
-  curl -X POST http://127.0.0.1:8005/ai/moderation/check \
-    -H 'Content-Type: application/json' \
-    -d '{"content":"my ssn is 123-45-6789"}' | python3 -m json.tool
-  # Should return: {"decision": "REDACT", ...}
-
-Why: D-027. The guardrail is the core enterprise security model — it must work.
-Depends: nothing. Do immediately.
-Acceptance: Moderation endpoint returns non-404, guardrail decisions reach the frontend
+Fixed /opt/deploy/enterprise.env: ai/enhance → ai
+Patched guardrail.service.js (5 lines): fail-open ALLOW → fail-closed BLOCK
+Container restarted. Verified: POST /ai/moderation/check → {"decision":"REDACT","confidence":0.95}
 ```
 
 **E1-2** | Fail-closed decision made + implementation in progress | [DONE] | ✅
