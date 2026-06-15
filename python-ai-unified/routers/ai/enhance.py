@@ -93,6 +93,38 @@ class EnhanceRequest(BaseModel):
     attachments: list[dict[str, Any]] = []
 
 
+async def _fetch_tenant_prompt_suffix(enterprise_id: str) -> str:
+    """Fetch the per-tenant system prompt suffix from the tenants table.
+
+    Queries ``tenants.prompt_suffix`` for the given enterprise_id. Returns the
+    suffix string, or ``""`` on any error or when no suffix is configured.
+    Degrades open — a missing suffix never blocks enhancement.
+
+    Requires migration: IMPORTANT/migrations/add_tenant_prompt_suffix.sql
+    """
+    try:
+        from shared.db import async_engine
+        async with AsyncSession(async_engine) as session:
+            result = await session.execute(
+                text(
+                    "SELECT prompt_suffix FROM tenants "
+                    "WHERE id = :eid AND prompt_suffix IS NOT NULL LIMIT 1"
+                ),
+                {"eid": enterprise_id},
+            )
+            row = result.first()
+            suffix: str = row[0] if row and row[0] else ""
+            if suffix:
+                logger.info(
+                    "tenant_prompt_suffix: loaded %d chars for enterprise_id=%s",
+                    len(suffix),
+                    enterprise_id,
+                )
+            return suffix
+    except Exception:  # noqa: BLE001 — suffix fetch never blocks the enhance path
+        return ""
+
+
 async def _fetch_context_hint(user_id: str, query: str) -> str:
     """Fetch the top-3 session essences from Node backend context store via in-process search.
 
@@ -366,6 +398,15 @@ async def enhance_stream(
     # Fetch session essence from Node backend context store (best-effort, degrades open).
     context_hint = await _fetch_context_hint(request.user_id, effective_prompt)
 
+    # Fetch per-tenant system prompt suffix (enterprise only; degrades open).
+    tenant_suffix = await _fetch_tenant_prompt_suffix(request.enterprise_id) if request.enterprise_id else ""
+    if tenant_suffix:
+        context_hint = (
+            f"{context_hint}\n\n[TENANT_CONSTRAINTS]\n{tenant_suffix}"
+            if context_hint
+            else f"[TENANT_CONSTRAINTS]\n{tenant_suffix}"
+        )
+
     inner: StreamingResponse = await _generate(
         _to_local(request, context_hint=context_hint), background_tasks
     )
@@ -403,6 +444,16 @@ async def enhance_chat(
     if effective_prompt != request.prompt:
         request = request.model_copy(update={"prompt": effective_prompt})
     context_hint = await _fetch_context_hint(request.user_id, effective_prompt)
+
+    # Fetch per-tenant system prompt suffix (enterprise only; degrades open).
+    tenant_suffix = await _fetch_tenant_prompt_suffix(request.enterprise_id) if request.enterprise_id else ""
+    if tenant_suffix:
+        context_hint = (
+            f"{context_hint}\n\n[TENANT_CONSTRAINTS]\n{tenant_suffix}"
+            if context_hint
+            else f"[TENANT_CONSTRAINTS]\n{tenant_suffix}"
+        )
+
     inner: StreamingResponse = await _generate(
         _to_local(request, force_media=force_media, context_hint=context_hint), background_tasks
     )
