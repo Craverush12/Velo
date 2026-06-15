@@ -1,15 +1,28 @@
 import json
+import logging
 import os
 from typing import AsyncGenerator
 
+import litellm
+from litellm.exceptions import RateLimitError as LiteLLMRateLimitError, ServiceUnavailableError as LiteLLMServiceUnavailableError
 from dotenv import load_dotenv
 from groq import AsyncGroq, APIError, RateLimitError
 from fastapi import HTTPException
 
 load_dotenv()
 
-_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
 _AGENTIC_MODEL = os.getenv("LLM_AGENTIC_MODEL", "groq/compound-mini")
+
+logger = logging.getLogger(__name__)
+
+
+def _primary_model(override: str | None = None) -> str:
+    m = override or os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+    return m if "/" in m else f"groq/{m}"
+
+
+def _fallback_model() -> str:
+    return os.getenv("LLM_FALLBACK_MODEL", "openai/gpt-4o-mini")
 
 
 def _client() -> AsyncGroq:
@@ -27,13 +40,15 @@ async def stream_completion(
     usage_sink: dict | None = None,
     model: str | None = None,
 ) -> AsyncGenerator[str, None]:
-    try:
-        stream = await _client().chat.completions.create(
-            model=model or _MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_message},
+    ]
+
+    async def _stream(chosen_model: str) -> AsyncGenerator[str, None]:
+        stream = await litellm.acompletion(
+            model=chosen_model,
+            messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
             response_format={"type": "json_object"},
@@ -43,9 +58,20 @@ async def stream_completion(
             content = chunk.choices[0].delta.content if chunk.choices else None
             if content:
                 yield content
-    except RateLimitError as e:
-        raise HTTPException(status_code=429, detail=f"Rate limit hit: {e}")
-    except APIError as e:
+
+    primary = _primary_model(model)
+    try:
+        async for token in _stream(primary):
+            yield token
+    except (LiteLLMRateLimitError, LiteLLMServiceUnavailableError):
+        fallback = _fallback_model()
+        logger.warning("llm: groq unavailable, falling back to %s", fallback)
+        try:
+            async for token in _stream(fallback):
+                yield token
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"All LLM providers failed: {e}")
+    except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM API error: {e}")
 
 
@@ -56,21 +82,35 @@ async def complete(
     max_tokens: int = 4096,
     model: str | None = None,
 ) -> str:
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_message},
+    ]
+    primary = _primary_model(model)
     try:
-        response = await _client().chat.completions.create(
-            model=model or _MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
+        response = await litellm.acompletion(
+            model=primary,
+            messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
             response_format={"type": "json_object"},
         )
         return response.choices[0].message.content
-    except RateLimitError as e:
-        raise HTTPException(status_code=429, detail=f"Rate limit hit: {e}")
-    except APIError as e:
+    except (LiteLLMRateLimitError, LiteLLMServiceUnavailableError):
+        fallback = _fallback_model()
+        logger.warning("llm: groq unavailable, falling back to %s", fallback)
+        try:
+            response = await litellm.acompletion(
+                model=fallback,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"},
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"All LLM providers failed: {e}")
+    except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM API error: {e}")
 
 
@@ -81,21 +121,35 @@ async def complete_multi_turn(
     max_tokens: int = 1024,
 ) -> str:
     """Multi-turn completion. messages is a list of {role, content} dicts."""
+    full_messages = [
+        {"role": "system", "content": system_prompt},
+        *messages,
+    ]
+    primary = _primary_model()
     try:
-        response = await _client().chat.completions.create(
-            model=_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                *messages,
-            ],
+        response = await litellm.acompletion(
+            model=primary,
+            messages=full_messages,
             temperature=temperature,
             max_tokens=max_tokens,
             response_format={"type": "json_object"},
         )
         return response.choices[0].message.content
-    except RateLimitError as e:
-        raise HTTPException(status_code=429, detail=f"Rate limit hit: {e}")
-    except APIError as e:
+    except (LiteLLMRateLimitError, LiteLLMServiceUnavailableError):
+        fallback = _fallback_model()
+        logger.warning("llm: groq unavailable, falling back to %s", fallback)
+        try:
+            response = await litellm.acompletion(
+                model=fallback,
+                messages=full_messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"},
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"All LLM providers failed: {e}")
+    except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM API error: {e}")
 
 
@@ -158,13 +212,15 @@ async def complete_with_usage(
 ) -> tuple[str, dict]:
     """Non-streaming completion that returns (content, usage_dict).
     usage_dict keys: prompt_tokens, completion_tokens, total_tokens."""
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_message},
+    ]
+    primary = _primary_model(model)
     try:
-        response = await _client().chat.completions.create(
-            model=model or _MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
+        response = await litellm.acompletion(
+            model=primary,
+            messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
             response_format={"type": "json_object"},
@@ -175,7 +231,24 @@ async def complete_with_usage(
             "total_tokens": response.usage.total_tokens,
         }
         return response.choices[0].message.content, usage
-    except RateLimitError as e:
-        raise HTTPException(status_code=429, detail=f"Rate limit hit: {e}")
-    except APIError as e:
+    except (LiteLLMRateLimitError, LiteLLMServiceUnavailableError):
+        fallback = _fallback_model()
+        logger.warning("llm: groq unavailable, falling back to %s", fallback)
+        try:
+            response = await litellm.acompletion(
+                model=fallback,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"},
+            )
+            usage = {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens,
+            }
+            return response.choices[0].message.content, usage
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"All LLM providers failed: {e}")
+    except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM API error: {e}")
