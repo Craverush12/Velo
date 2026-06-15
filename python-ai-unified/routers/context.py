@@ -1326,6 +1326,54 @@ async def get_user_profile(user_id: str) -> Dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Entity extraction helpers (zero-latency, no external API)
+# ---------------------------------------------------------------------------
+
+_FRAMEWORK_PATTERNS = [
+    "react", "next.js", "nextjs", "vue", "angular", "svelte",
+    "fastapi", "django", "flask", "express", "nestjs",
+    "pytorch", "tensorflow", "langchain",
+    "postgres", "postgresql", "mysql", "mongodb", "redis",
+    "kubernetes", "docker", "terraform", "aws", "gcp", "azure",
+]
+
+_DOMAIN_PATTERNS = {
+    "e-commerce": ["ecommerce", "e-commerce", "shopify", "shop", "product catalog", "checkout"],
+    "saas": ["saas", "subscription", "tenant", "multi-tenant", "billing"],
+    "fintech": ["fintech", "payment", "stripe", "banking", "transaction"],
+    "healthcare": ["healthcare", "medical", "patient", "clinical", "hipaa"],
+    "data_engineering": ["pipeline", "etl", "bigquery", "dbt", "airflow", "spark"],
+    "legal_tech": ["legal", "contract", "compliance", "regulatory"],
+    "ai_ml": ["llm", "model", "training", "inference", "embedding", "fine-tun"],
+}
+
+
+def extract_entities(essence: str) -> dict:
+    """Extract structured entities from a raw essence string.
+
+    Returns a dict with keys: frameworks (list), domain (str or None), language (str or None).
+    All matching is case-insensitive substring match — no external API needed.
+    Empty lists / None values are omitted from the returned dict.
+    """
+    text = essence.lower()
+    frameworks = [f for f in _FRAMEWORK_PATTERNS if f in text]
+
+    domain = None
+    for dom, signals in _DOMAIN_PATTERNS.items():
+        if any(s in text for s in signals):
+            domain = dom
+            break
+
+    language = None
+    for lang in ["python", "typescript", "javascript", "go", "rust", "java", "ruby"]:
+        if lang in text:
+            language = lang
+            break
+
+    return {k: v for k, v in {"frameworks": frameworks, "domain": domain, "language": language}.items() if v}
+
+
 @router.post("/search/contexts", response_model=ContextSearchResponse)
 async def search_contexts(request: ContextSearchRequest) -> ContextSearchResponse:
     """

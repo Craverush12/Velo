@@ -128,8 +128,12 @@ async def _fetch_tenant_prompt_suffix(enterprise_id: str) -> str:
 async def _fetch_context_hint(user_id: str, query: str) -> str:
     """Fetch the top-3 session essences from Node backend context store via in-process search.
 
-    Returns a pipe-delimited string of essences, or empty string on any failure.
-    Degrades open — a missing context hint never blocks enhancement.
+    Returns a JSON string with structured essences + merged entities, or empty string on any
+    failure.  Degrades open — a missing context hint never blocks enhancement.
+
+    Output shape (when results exist):
+        {"essences": ["...", "..."], "entities": {"frameworks": ["React"], "domain": "saas"}}
+    Falls back to pipe-delimited string if entity extraction itself raises.
     """
     if not user_id or user_id == "anonymous":
         return ""
@@ -143,7 +147,28 @@ async def _fetch_context_hint(user_id: str, query: str) -> str:
         if len(results) > len(passed):
             logger.debug("context_hint: gated %d low-relevance essences (threshold=%.2f)", len(results) - len(passed), CONTEXT_SIMILARITY_THRESHOLD)
         essences = [r.essence for r in passed]
-        return " | ".join(essences) if essences else ""
+        if not essences:
+            return ""
+
+        # Extract and merge entities across all essences
+        try:
+            from routers.context import extract_entities
+            all_entities: dict = {}
+            for ess in essences:
+                for k, v in extract_entities(ess).items():
+                    if k == "frameworks":
+                        existing = all_entities.get("frameworks", [])
+                        all_entities["frameworks"] = list(dict.fromkeys(existing + v))
+                    else:
+                        all_entities.setdefault(k, v)
+
+            hint: dict = {"essences": essences}
+            if all_entities:
+                hint["entities"] = all_entities
+            return json.dumps(hint, ensure_ascii=False)
+        except Exception:
+            # Fall back to pipe-delimited string on any extraction failure
+            return " | ".join(essences)
     except Exception:
         return ""
 
