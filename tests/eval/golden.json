@@ -1,0 +1,225 @@
+[
+  {
+    "id": "G-001",
+    "mode": "media",
+    "media_sub": "product_photography",
+    "prompt": "product photo of our matte black ceramic cookware set on a wooden countertop",
+    "must_contain": ["matte", "no specular", "shot type", "product"],
+    "must_not_contain": ["mood lighting", "editorial style", "artistic"],
+    "min_length": 200
+  },
+  {
+    "id": "G-002",
+    "mode": "media",
+    "media_sub": "product_photography",
+    "prompt": "hero shot of amber glass skincare serum bottle with white label",
+    "must_contain": ["hero", "glass", "backlit", "no hot spots"],
+    "must_not_contain": ["painterly", "stylized", "mood"],
+    "min_length": 200
+  },
+  {
+    "id": "G-003",
+    "mode": "media",
+    "media_sub": "visual_generation",
+    "prompt": "generate a 3D render of an alien jungle with glowing purple flora",
+    "must_contain": ["lighting", "render", "camera"],
+    "must_not_contain": ["product", "label", "brand"],
+    "min_length": 150
+  },
+  {
+    "id": "G-004",
+    "mode": "media",
+    "media_sub": "visual_generation",
+    "prompt": "create concept art for a cyberpunk city rooftop at night with neon rain",
+    "must_contain": ["lighting", "atmosphere", "camera"],
+    "must_not_contain": ["product", "sku", "packaging"],
+    "min_length": 150
+  },
+  {
+    "id": "G-005",
+    "mode": "media",
+    "media_sub": "marketing_copy",
+    "prompt": "write 5 Instagram captions for our sustainable fashion brand, Gen Z tone",
+    "must_contain": ["caption", "hashtag", "tone"],
+    "must_not_contain": ["photograph", "render", "camera"],
+    "min_length": 200
+  },
+  {
+    "id": "G-006",
+    "mode": "media",
+    "media_sub": "product_photography",
+    "prompt": "brand mockup of our logo on a clean white retail shelf for our snack packaging",
+    "must_contain": ["shot type", "no props", "neutral lighting"],
+    "must_not_contain": ["mood", "artistic", "editorial"],
+    "min_length": 150
+  },
+  {
+    "id": "G-007",
+    "mode": "fast_build",
+    "build_sub": "web_app",
+    "prompt": "build a React dashboard with real-time sales charts and CSV export",
+    "must_contain": ["interface", "props", "TypeScript"],
+    "must_not_contain": ["what framework", "what library", "please specify"],
+    "min_length": 300
+  },
+  {
+    "id": "G-008",
+    "mode": "fast_build",
+    "build_sub": "api_service",
+    "prompt": "create a POST /auth/login FastAPI endpoint that validates credentials and returns JWT",
+    "must_contain": ["201", "401", "request", "response"],
+    "must_not_contain": ["please specify", "what database", "clarify"],
+    "min_length": 250
+  },
+  {
+    "id": "G-009",
+    "mode": "fast_build",
+    "build_sub": "script_cli",
+    "prompt": "write a python script to scrape product prices from a website every hour",
+    "must_contain": ["argparse", "exit", "flags"],
+    "must_not_contain": ["what website", "please clarify", "need more info"],
+    "min_length": 250
+  },
+  {
+    "id": "G-010",
+    "mode": "fast_build",
+    "build_sub": "database_schema",
+    "prompt": "design a postgres schema for a multi-tenant SaaS with tenants, users, subscriptions",
+    "must_contain": ["CREATE TABLE", "PRIMARY KEY", "FOREIGN KEY"],
+    "must_not_contain": ["please specify", "clarify", "need more details"],
+    "min_length": 300
+  },
+  {
+    "id": "G-011",
+    "mode": "fast_build",
+    "build_sub": "data_pipeline",
+    "prompt": "build an ETL pipeline to sync our postgres events table to BigQuery daily",
+    "must_contain": ["idempotent", "source", "target"],
+    "must_not_contain": ["please clarify", "what events", "need more info"],
+    "min_length": 250
+  },
+  {
+    "id": "G-012",
+    "mode": "fast_build",
+    "build_sub": "infra_config",
+    "prompt": "write a production Dockerfile for a Next.js 14 app with nginx reverse proxy",
+    "must_contain": ["multi-stage", "EXPOSE", "nginx"],
+    "must_not_contain": ["please specify", "what port", "clarify"],
+    "min_length": 200
+  },
+  {
+    "id": "G-013",
+    "mode": "research",
+    "research_sub": "academic_lit_review",
+    "prompt": "what does recent research say about transformer attention vs mamba SSMs for long-context",
+    "must_contain": ["complexity", "O(", "empirical"],
+    "must_not_contain": ["I think", "in my opinion", "probably"],
+    "min_length": 400
+  },
+  {
+    "id": "G-014",
+    "mode": "research",
+    "research_sub": "technical_deep_dive",
+    "prompt": "explain exactly how postgres vacuum and autovacuum work at a deep technical level",
+    "must_contain": ["MVCC", "dead tuple", "autovacuum_vacuum_scale_factor"],
+    "must_not_contain": ["I think", "generally speaking", "kind of"],
+    "min_length": 400
+  },
+  {
+    "id": "G-015",
+    "mode": "research",
+    "research_sub": "market_research",
+    "prompt": "what is the market opportunity for AI-powered legal document review software in 2024-2025",
+    "must_contain": ["TAM", "CAGR", "competitor"],
+    "must_not_contain": ["I think", "approximately", "maybe"],
+    "min_length": 350
+  },
+  {
+    "id": "G-016",
+    "mode": "research",
+    "research_sub": "comparative_analysis",
+    "prompt": "compare supabase, planetscale, and neon for a fast-growing B2B SaaS — help me decide",
+    "must_contain": ["criteria", "recommendation", "when"],
+    "must_not_contain": ["it depends", "hard to say", "either could work"],
+    "min_length": 350
+  },
+  {
+    "id": "G-017",
+    "mode": "research",
+    "research_sub": "investigative_audit",
+    "prompt": "audit our microservices API architecture and find bottlenecks, security gaps, and design issues",
+    "must_contain": ["CRITICAL", "HIGH", "evidence"],
+    "must_not_contain": ["might be", "could possibly", "perhaps"],
+    "min_length": 350
+  },
+  {
+    "id": "G-018",
+    "mode": "normal",
+    "prompt": "write a product description for a noise-cancelling headphone targeting remote workers",
+    "must_contain": ["benefit", "feature", "audience"],
+    "must_not_contain": [],
+    "min_length": 150
+  },
+  {
+    "id": "G-019",
+    "mode": "normal",
+    "prompt": "draft an email to a client explaining a 2-week project delay due to scope changes",
+    "must_contain": ["apology", "reason", "timeline"],
+    "must_not_contain": [],
+    "min_length": 150
+  },
+  {
+    "id": "G-020",
+    "mode": "fast_build",
+    "build_sub": "web_app",
+    "prompt": "create a Next.js landing page for a SaaS product with hero section, pricing, and CTA",
+    "must_contain": ["component", "props", "TypeScript"],
+    "must_not_contain": ["please clarify", "what framework", "need more info"],
+    "min_length": 250
+  },
+  {
+    "id": "G-021",
+    "mode": "research",
+    "research_sub": "technical_deep_dive",
+    "prompt": "explain how Kubernetes pod scheduling works including node selection, affinity, and taints",
+    "must_contain": ["scheduler", "node", "affinity"],
+    "must_not_contain": ["I think", "generally", "usually"],
+    "min_length": 350
+  },
+  {
+    "id": "G-022",
+    "mode": "media",
+    "media_sub": "product_photography",
+    "prompt": "e-commerce photo of white wireless earbuds in their charging case on a clean surface",
+    "must_contain": ["shot type", "lighting", "background"],
+    "must_not_contain": ["artistic", "mood", "editorial"],
+    "min_length": 150
+  },
+  {
+    "id": "G-023",
+    "mode": "fast_build",
+    "build_sub": "api_service",
+    "prompt": "build a REST API endpoint to upload files to S3 with progress tracking",
+    "must_contain": ["request", "response", "status"],
+    "must_not_contain": ["please clarify", "what cloud", "need more info"],
+    "min_length": 200
+  },
+  {
+    "id": "G-024",
+    "mode": "research",
+    "research_sub": "market_research",
+    "prompt": "analyze the competitive landscape for AI coding assistants in 2024",
+    "must_contain": ["competitor", "market", "positioning"],
+    "must_not_contain": ["I think", "maybe", "hard to say"],
+    "min_length": 300
+  },
+  {
+    "id": "G-025",
+    "mode": "fast_build",
+    "build_sub": "script_cli",
+    "prompt": "write a bash script to backup a postgres database and upload to S3 with retention policy",
+    "must_contain": ["flags", "exit", "error"],
+    "must_not_contain": ["please specify", "what bucket", "clarify"],
+    "min_length": 200
+  }
+]
