@@ -17,7 +17,35 @@ Light rate-limiting is layered on via the shared Redis helper (degrades open).
 from __future__ import annotations
 
 import json
+import logging
+import re
 from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Module-level constants
+# ---------------------------------------------------------------------------
+
+CONTEXT_SIMILARITY_THRESHOLD = 0.6  # gate for session-essence relevance
+
+_PII_PATTERNS = [
+    (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[PII:email]'),
+    (r'\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b', '[PII:phone]'),
+    (r'\b\d{3}-\d{2}-\d{4}\b', '[PII:ssn]'),
+    (r'\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|6(?:011|5[0-9]{2})[0-9]{12})\b', '[PII:card]'),
+    (r'\b(?:sk-|ghp_|gho_|AKIA|Bearer\s+)[A-Za-z0-9_\-]{16,}\b', '[PII:api_key]'),
+]
+
+_INJECTION_PATTERNS = [
+    r'ignore.{0,10}previous',
+    r'system prompt',
+    r'you are now',
+    r'disregard',
+    r'forget.{0,10}instructions',
+    r'new instructions',
+    r'ignore.{0,10}instructions',
+]
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -30,7 +58,7 @@ from shared.db import get_session
 from shared.redis_cache import rate_limit_check
 
 # Canonical logic from the monorepo (see local_app.py / D-019).
-from local_app import EnhanceRequest as LocalEnhanceRequest, _generate, map_mode
+from local_app import EnhanceRequest as LocalEnhanceRequest, _generate, map_mode, AttachmentItem as LocalAttachmentItem
 
 # In-process moderation pipeline (D-029 / D-030).
 from routers.ai.moderation import _run_pipeline as _moderation_pipeline
@@ -61,16 +89,98 @@ class EnhanceRequest(BaseModel):
     intent_description: str = ""
     user_context: dict[str, Any] = {}
     enterprise_id: Optional[str] = None
+    # Attachments forwarded from the extension (file contents, clipboard text, etc.)
+    attachments: list[dict[str, Any]] = []
 
 
-def _to_local(req: EnhanceRequest, *, force_media: bool = False) -> LocalEnhanceRequest:
+async def _fetch_context_hint(user_id: str, query: str) -> str:
+    """Fetch the top-3 session essences from Node backend context store via in-process search.
+
+    Returns a pipe-delimited string of essences, or empty string on any failure.
+    Degrades open — a missing context hint never blocks enhancement.
+    """
+    if not user_id or user_id == "anonymous":
+        return ""
+    try:
+        from routers.context import search_contexts, ContextSearchRequest
+        response = await search_contexts(
+            ContextSearchRequest(user_id=user_id, query=query, limit=3)
+        )
+        results = response.results or []
+        passed = [r for r in results if r.similarity >= CONTEXT_SIMILARITY_THRESHOLD and r.essence and r.essence != "User is working on a task."]
+        if len(results) > len(passed):
+            logger.debug("context_hint: gated %d low-relevance essences (threshold=%.2f)", len(results) - len(passed), CONTEXT_SIMILARITY_THRESHOLD)
+        essences = [r.essence for r in passed]
+        return " | ".join(essences) if essences else ""
+    except Exception:
+        return ""
+
+
+def _sanitize_attachment_text(name: str, text: str, user_id: str) -> str:
+    """Sanitise attachment text before it reaches LLM infrastructure.
+
+    Order of operations:
+      1. Truncate to 8000 chars (bridge-layer limit; canonical side truncates at 5000).
+      2. PII redaction — emails, phones, SSNs, card numbers, API keys.
+      3. Prompt-injection detection — if matched, replace entire text with a
+         policy-violation notice and log a WARNING.
+    """
+    # 1. Truncate
+    if len(text) > 8000:
+        text = text[:8000]
+
+    # 2. PII redaction
+    pii_count = 0
+    for pattern, replacement in _PII_PATTERNS:
+        new_text, n = re.subn(pattern, replacement, text, flags=re.IGNORECASE)
+        pii_count += n
+        text = new_text
+    if pii_count > 0:
+        logger.info(
+            "attachment_pii: redacted %d PII instances in '%s' for user %s",
+            pii_count, name, user_id,
+        )
+
+    # 3. Injection pattern check
+    for pattern in _INJECTION_PATTERNS:
+        m = re.search(pattern, text, flags=re.IGNORECASE)
+        if m:
+            logger.warning(
+                "attachment_injection: prompt-injection pattern '%s' matched in attachment '%s' for user %s — redacting",
+                pattern, name, user_id,
+            )
+            return "[CONTENT REDACTED: policy violation detected in attachment]"
+
+    return text
+
+
+def _to_local(
+    req: EnhanceRequest,
+    *,
+    force_media: bool = False,
+    context_hint: str = "",
+) -> LocalEnhanceRequest:
     """Translate the extension request into the canonical EnhanceRequest."""
     mode = "media" if force_media else map_mode(req.context.get("mode"))
+    attachments = [
+        LocalAttachmentItem(
+            name=a.get("name", "") if isinstance(a, dict) else "",
+            text=_sanitize_attachment_text(
+                a.get("name", "") if isinstance(a, dict) else "",
+                a.get("text", "") if isinstance(a, dict) else "",
+                req.user_id,
+            ),
+        )
+        for a in (req.attachments or [])
+        if isinstance(a, dict) and a.get("text")
+    ]
     return LocalEnhanceRequest(
         prompt=req.prompt,
         user_id=req.user_id,
         target_ai=req.target_ai or None,
         prompt_mode=mode,
+        attachments=attachments,
+        context_hint=context_hint,
     )
 
 
@@ -253,7 +363,12 @@ async def enhance_stream(
     if effective_prompt != request.prompt:
         request = request.model_copy(update={"prompt": effective_prompt})
 
-    inner: StreamingResponse = await _generate(_to_local(request), background_tasks)
+    # Fetch session essence from Node backend context store (best-effort, degrades open).
+    context_hint = await _fetch_context_hint(request.user_id, effective_prompt)
+
+    inner: StreamingResponse = await _generate(
+        _to_local(request, context_hint=context_hint), background_tasks
+    )
     return StreamingResponse(
         _adapt_stream(inner, extra_meta=extra_meta),
         media_type="text/event-stream",
@@ -287,8 +402,9 @@ async def enhance_chat(
 
     if effective_prompt != request.prompt:
         request = request.model_copy(update={"prompt": effective_prompt})
+    context_hint = await _fetch_context_hint(request.user_id, effective_prompt)
     inner: StreamingResponse = await _generate(
-        _to_local(request, force_media=force_media), background_tasks
+        _to_local(request, force_media=force_media, context_hint=context_hint), background_tasks
     )
     enhanced_prompt = ""
     metadata: dict[str, Any] = {}
