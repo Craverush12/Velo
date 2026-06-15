@@ -1,0 +1,45 @@
+# =============================================================================
+# ThinkVelocity AI Unified — Python dependencies
+# Union of the three merged services (see docs/python-ai-merge-plan.md §3 §8):
+#   - prompt-enhance / python-backend  (/ai/*)
+#   - context-engine                   (/context/*)
+# Version conflicts resolved per merge plan:
+#   - groq standardized to >=1.0.0 (context-engine's newer SDK)
+#   - sentence-transformers kept for local embedding fallback
+# =============================================================================
+
+# ── Web framework / ASGI server ──────────────────────────────────────────────
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9          # multipart file upload (/ai/context/upload, /ai/transcribe)
+
+# ── Settings / validation ────────────────────────────────────────────────────
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# ── LLM providers ────────────────────────────────────────────────────────────
+groq>=1.0.0                      # standardized; key-pool rotation in shared/groq_client.py
+openai>=1.12.0
+google-generativeai>=0.4.0       # Gemini
+litellm>=1.40.0                  # multi-provider fallback routing (Groq → OpenAI)
+
+# ── Database (PostgreSQL + pgvector RAG for /ai/* routes) ─────────────────────
+sqlalchemy[asyncio]>=2.0.25
+psycopg[binary]>=3.1.0
+
+# ── Cache / rate limiting (Redis; /ai/* routes only) ─────────────────────────
+redis>=5.2.1
+
+# ── HTTP client (Node.js proxy for /context/*, enterprise backend) ────────────
+httpx>=0.27.0
+
+# ── Embeddings (NVIDIA API primary + local HuggingFace fallback) ─────────────
+sentence-transformers>=2.5.0
+numpy>=1.26.0
+
+# ── Cloud / object storage ───────────────────────────────────────────────────
+boto3>=1.34.0                    # AWS Secrets Manager, S3
+
+# ── Web search (Tavily primary; Google CSE fallback) ─────────────────────────
+tavily-python>=0.3.0
+google-api-python-client>=2.120.0
