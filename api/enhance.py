@@ -1,8 +1,12 @@
 import re
+import time
+import logging
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
+
+_log = logging.getLogger(__name__)
 
 from core import context_loader, safety
 from core.connectors_catalog import connector_catalog_summary
@@ -24,44 +28,66 @@ router = APIRouter()
 
 # Fast small model for intent classification — 1000 t/s, negligible cost
 _CLASSIFY_MODEL = "llama-3.1-8b-instant"
+_INTENT_CONFIDENCE_THRESHOLD = 0.65  # below this, fall back to visual_generation (safest)
 
-_CLASSIFY_SYSTEM = """You are a single-field intent classifier for media prompts.
+_CLASSIFY_SYSTEM = """You are a two-field intent classifier for media prompts.
 
-Decide if the user's prompt is asking to:
-- Generate or enhance an IMAGE or VISUAL (product renders, illustrations, photos, AI image gen, thumbnails, concept art, 3D renders, design mockups, visual effects, video generation prompts) → "visual_generation"
-- Write MARKETING or CREATIVE COPY (ad copy, captions, social media posts, scripts, slogans, written content) → "marketing_copy"
+Classify the user's prompt into exactly ONE of these three categories:
 
-Return ONLY valid JSON with one field. No explanation. No markdown.
-{"intent": "visual_generation"} OR {"intent": "marketing_copy"}"""
+- product_photography: The prompt references a specific real product, item, or object that must be rendered with deterministic accuracy — exact colors, materials, branding. Examples: product hero shots, e-commerce images, brand renders, SKU photography, packaging shots, cosmetic product images.
+- visual_generation: Open-ended visual creation with creative latitude — illustration, concept art, creative scenes, abstract imagery, character design, environment art, thumbnails, 3D environments, creative portraits, mood imagery, video generation prompts.
+- marketing_copy: Written content only — ad copy, social media captions, scripts, slogans, email campaigns, blog posts. NOT about generating images.
+
+Return ONLY valid JSON with two fields. No explanation. No markdown.
+{"intent": "product_photography", "confidence": 0.95}
+confidence is a float 0.0–1.0 representing your certainty. Use lower values when the prompt is ambiguous."""
+
+_VALID_MEDIA_INTENTS = frozenset(["product_photography", "visual_generation", "marketing_copy"])
 
 
-async def _classify_media_intent(raw_prompt: str) -> str:
-    """Classify media intent. Returns 'visual_generation' or 'marketing_copy'.
-    Falls back to 'marketing_copy' on any error to preserve existing behavior.
+async def _classify_media_intent(raw_prompt: str) -> tuple[str, float]:
+    """Classify media intent. Returns (intent, confidence).
+    Falls back to ('visual_generation', 0.0) on any error — safest creative default.
+    Logs a warning when confidence < _INTENT_CONFIDENCE_THRESHOLD so ambiguous
+    cases accumulate in the log for later review.
     """
     try:
         raw = await complete(
             _CLASSIFY_SYSTEM,
-            raw_prompt[:800],  # classifier only needs the gist
+            raw_prompt[:800],
             temperature=0,
-            max_tokens=20,
+            max_tokens=50,
             model=_CLASSIFY_MODEL,
         )
         result = json.loads(raw)
-        intent = result.get("intent", "marketing_copy")
-        return intent if intent in ("visual_generation", "marketing_copy") else "marketing_copy"
+        intent = result.get("intent", "visual_generation")
+        confidence = float(result.get("confidence", 1.0))
+        if intent not in _VALID_MEDIA_INTENTS:
+            intent = "visual_generation"
+            confidence = 0.0
+        if confidence < _INTENT_CONFIDENCE_THRESHOLD:
+            _log.warning(
+                "media_intent: low confidence %.2f for prompt='%.80s' → defaulting to visual_generation",
+                confidence, raw_prompt,
+            )
+            return "visual_generation", confidence
+        return intent, confidence
     except Exception:
-        return "marketing_copy"
+        return "visual_generation", 0.0
 
 
-async def _resolve_bundle(prompt_mode: str, raw_prompt: str) -> tuple[PromptBundle, str]:
-    """Return (bundle, media_intent). media_intent is non-empty only for media mode."""
+async def _resolve_bundle(prompt_mode: str, raw_prompt: str) -> tuple[PromptBundle, str, float]:
+    """Return (bundle, media_intent, media_confidence).
+    media_intent is non-empty only for media mode; confidence is 1.0 for non-media paths.
+    """
     if prompt_mode != "media":
-        return prompt_bundle("enhance", prompt_mode), ""
-    media_intent = await _classify_media_intent(raw_prompt)
+        return prompt_bundle("enhance", prompt_mode), "", 1.0
+    media_intent, confidence = await _classify_media_intent(raw_prompt)
+    if media_intent == "product_photography":
+        return prompt_bundle_internal("enhance", "media_product"), media_intent, confidence
     if media_intent == "visual_generation":
-        return prompt_bundle_internal("enhance", "media_imagegen"), media_intent
-    return prompt_bundle("enhance", "media"), media_intent
+        return prompt_bundle_internal("enhance", "media_imagegen"), media_intent, confidence
+    return prompt_bundle("enhance", "media"), media_intent, confidence
 
 
 async def _repair_output(kind: str, raw: str, repair_prompt: str) -> str:
@@ -93,6 +119,9 @@ class EnhanceRequest(BaseModel):
     incognito: bool = False
     model_override: str | None = None
     attachments: list[AttachmentItem] = Field(default_factory=list)
+    # Pre-fetched context essence injected by the extension bridge (routers/ai/enhance.py).
+    # Merged into the user_context block so personalization is informed by Node backend history.
+    context_hint: str = ""
 
     @field_validator("prompt")
     @classmethod
@@ -198,6 +227,22 @@ def _prepare_enhance_input(request: EnhanceRequest) -> tuple[str, list[dict], st
             user_ctx = {}
         ctx_block = context_loader.format_context_for_prompt(user_ctx, query=clean_prompt)
 
+        # Merge pre-fetched session essence from Node backend context store.
+        # Injected by routers/ai/enhance.py before _to_local() so the LLM
+        # sees the user's cross-session working history, not just local JSON.
+        if request.context_hint:
+            try:
+                if ctx_block:
+                    ctx_dict = json.loads(ctx_block)
+                    ctx_dict["session_essence"] = request.context_hint
+                    ctx_block = json.dumps(ctx_dict, ensure_ascii=False, indent=2)
+                else:
+                    ctx_block = json.dumps(
+                        {"session_essence": request.context_hint}, ensure_ascii=False
+                    )
+            except (json.JSONDecodeError, Exception):
+                pass  # keep existing ctx_block unchanged if merge fails
+
     user_message = build_enhance_user_message(
         clean_prompt,
         request.target_ai,
@@ -294,19 +339,31 @@ async def _run_enhance_once(request: EnhanceRequest, bundle: PromptBundle) -> di
 
 
 async def _generate(request: EnhanceRequest, background_tasks: BackgroundTasks):
-    bundle, media_intent = await _resolve_bundle(request.prompt_mode, request.prompt)
+    t0 = time.perf_counter()
+    bundle, media_intent, media_confidence = await _resolve_bundle(request.prompt_mode, request.prompt)
+    t_intent = time.perf_counter()
+
     clean_prompt, redactions, user_message = _prepare_enhance_input(request)
+    t_prepare = time.perf_counter()
 
     accumulated = ""
     usage_sink: dict = {}
 
     async def event_stream():
         nonlocal accumulated
+        t_llm_start = time.perf_counter()
         try:
             async for chunk in stream_completion(bundle.text, user_message, usage_sink=usage_sink, model=request.model_override):
                 accumulated += chunk
                 payload = json.dumps({"type": "chunk", "content": chunk})
                 yield f"data: {payload}\n\n"
+
+            t_llm_end = time.perf_counter()
+            stage_timings = {
+                "intent_classify_ms": round((t_intent - t0) * 1000),
+                "context_prepare_ms": round((t_prepare - t_intent) * 1000),
+                "llm_stream_ms": round((t_llm_end - t_llm_start) * 1000),
+            }
 
             try:
                 result = await parse_validate_with_repair(
@@ -322,14 +379,29 @@ async def _generate(request: EnhanceRequest, background_tasks: BackgroundTasks):
                 personalization = _personalization_metadata(request)
                 if personalization:
                     result["_personalization_used"] = personalization
-                
+
                 # Phase 3: Traceability
                 if "personalization_trace" in result:
                     result["_personalization_trace"] = result.pop("personalization_trace")
 
                 result["_prompt_files"] = list(bundle.files)
+                result["_stage_timings"] = stage_timings
                 if media_intent:
                     result["_media_intent"] = media_intent
+                    result["_media_confidence"] = round(media_confidence, 3)
+
+                _log.info(
+                    "enhance: %s",
+                    json.dumps({
+                        "stage_timings": stage_timings,
+                        "tokens": usage_sink,
+                        "mode": request.prompt_mode,
+                        "media_intent": media_intent or None,
+                        "media_confidence": round(media_confidence, 3) if media_intent else None,
+                        "user_id": request.user_id,
+                    }, ensure_ascii=False),
+                )
+
                 _record_enhancement(request, result, clean_prompt, usage_sink, background_tasks)
                 payload = json.dumps({"type": "done", "result": result})
                 yield f"data: {payload}\n\n"
@@ -369,10 +441,11 @@ async def compare_enhance_modes(request: EnhanceCompareRequest):
     for i, mode in enumerate(request.modes):
         model = model_overrides[i] if i < len(model_overrides) else None
         mode_request = request.model_copy(update={"prompt_mode": mode, "model_override": model})
-        bundle, media_intent = await _resolve_bundle(mode, clean_prompt)
+        bundle, media_intent, media_confidence = await _resolve_bundle(mode, clean_prompt)
         result = await _run_enhance_once(mode_request, bundle)
         if media_intent:
             result["_media_intent"] = media_intent
+            result["_media_confidence"] = round(media_confidence, 3)
         result.pop("_usage", None)
         results.append(result)
     return {
