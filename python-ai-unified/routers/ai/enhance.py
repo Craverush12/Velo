@@ -125,11 +125,35 @@ async def _fetch_tenant_prompt_suffix(enterprise_id: str) -> str:
         return ""
 
 
+async def _fetch_local_essences(user_id: str, query: str) -> list[str]:
+    """Fetch essences from the local pgvector store. Returns [] on any failure."""
+    try:
+        from routers.context import search_contexts, ContextSearchRequest
+        response = await search_contexts(
+            ContextSearchRequest(user_id=user_id, query=query, limit=3)
+        )
+        results = response.results or []
+        passed = [
+            r for r in results
+            if r.similarity >= CONTEXT_SIMILARITY_THRESHOLD
+            and r.essence
+            and r.essence != "User is working on a task."
+        ]
+        if len(results) > len(passed):
+            logger.debug(
+                "context_hint: gated %d low-relevance local essences (threshold=%.2f)",
+                len(results) - len(passed), CONTEXT_SIMILARITY_THRESHOLD,
+            )
+        return [r.essence for r in passed]
+    except Exception:
+        return []
+
+
 async def _fetch_context_hint(user_id: str, query: str) -> str:
-    """Fetch the top-3 session essences from Node backend context store via in-process search.
+    """Fetch context from local pgvector + Supermemory in parallel.
 
     Returns a JSON string with structured essences + merged entities, or empty string on any
-    failure.  Degrades open — a missing context hint never blocks enhancement.
+    failure. Degrades open — a missing context hint never blocks enhancement.
 
     Output shape (when results exist):
         {"essences": ["...", "..."], "entities": {"frameworks": ["React"], "domain": "saas"}}
@@ -138,16 +162,30 @@ async def _fetch_context_hint(user_id: str, query: str) -> str:
     if not user_id or user_id == "anonymous":
         return ""
     try:
-        from routers.context import search_contexts, ContextSearchRequest
-        response = await search_contexts(
-            ContextSearchRequest(user_id=user_id, query=query, limit=3)
-        )
-        results = response.results or []
-        passed = [r for r in results if r.similarity >= CONTEXT_SIMILARITY_THRESHOLD and r.essence and r.essence != "User is working on a task."]
-        if len(results) > len(passed):
-            logger.debug("context_hint: gated %d low-relevance essences (threshold=%.2f)", len(results) - len(passed), CONTEXT_SIMILARITY_THRESHOLD)
-        essences = [r.essence for r in passed]
-        if not essences:
+        import asyncio as _asyncio
+        from shared.supermemory_client import search_memories as _sm_search
+        from shared.settings import get_settings as _get_settings
+
+        sm_enabled = bool(_get_settings().SUPERMEMORY_API_KEY)
+
+        # Run local and Supermemory retrieval in parallel
+        tasks = [_fetch_local_essences(user_id, query)]
+        if sm_enabled:
+            tasks.append(_sm_search(user_id, query, limit=3))
+
+        results = await _asyncio.gather(*tasks, return_exceptions=True)
+        local_essences: list[str] = results[0] if not isinstance(results[0], Exception) else []
+        sm_snippets: list[str] = (results[1] if len(results) > 1 and not isinstance(results[1], Exception) else [])
+
+        # Merge: local essences take precedence; Supermemory fills when local is empty
+        if local_essences:
+            essences = local_essences
+            if sm_snippets:
+                logger.debug("context_hint: local=%d sm=%d (local wins)", len(local_essences), len(sm_snippets))
+        elif sm_snippets:
+            essences = sm_snippets
+            logger.debug("context_hint: local empty, using %d supermemory snippets", len(sm_snippets))
+        else:
             return ""
 
         # Extract and merge entities across all essences
@@ -167,7 +205,6 @@ async def _fetch_context_hint(user_id: str, query: str) -> str:
                 hint["entities"] = all_entities
             return json.dumps(hint, ensure_ascii=False)
         except Exception:
-            # Fall back to pipe-delimited string on any extraction failure
             return " | ".join(essences)
     except Exception:
         return ""

@@ -1101,6 +1101,27 @@ async def _run_processing_pipeline(
         team_id=team_id,
     )
 
+    # --- Step 11b: Shadow-write to Supermemory (fire-and-forget) ---
+    try:
+        from shared.supermemory_client import add_memory as _sm_add
+        _settings = get_settings()
+        if _settings.SUPERMEMORY_API_KEY:
+            asyncio.create_task(
+                _sm_add(
+                    user_id=request.user_id,
+                    content=embed_essence,
+                    metadata={
+                        "session_id": topic_id,
+                        "intent": primary_intent,
+                        "domains": final_domains,
+                        "platform": request.platform or "unknown",
+                        "source": "thinkvelocity_context_engine",
+                    },
+                )
+            )
+    except Exception:
+        pass  # supermemory write must never affect the main pipeline
+
     # --- Step 12: Enterprise audit log ---
     if is_enterprise:
         try:
@@ -1465,6 +1486,23 @@ async def search_contexts(request: ContextSearchRequest) -> ContextSearchRespons
         total=len(results),
         threshold=threshold,
     )
+
+
+@router.delete("/memories/{document_id}")
+async def delete_user_memory(document_id: str, user_id: str) -> Dict[str, Any]:
+    """
+    Delete a Supermemory document by ID for a given user.
+
+    The extension panel can call this to let users manage their stored memory.
+    Returns 200 with {"deleted": true} on success, 503 when Supermemory is not configured.
+    """
+    from shared.settings import get_settings as _get_settings
+    if not _get_settings().SUPERMEMORY_API_KEY:
+        return {"deleted": False, "reason": "supermemory_not_configured"}
+    from shared.supermemory_client import delete_memory as _sm_delete
+    ok = await _sm_delete(document_id)
+    logger.info("delete_user_memory: doc_id=%s user=%s ok=%s", document_id, user_id, ok)
+    return {"deleted": ok, "document_id": document_id}
 
 
 @router.post("/test/batch-embedding")
