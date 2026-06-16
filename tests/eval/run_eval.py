@@ -8,6 +8,7 @@ Usage:
     python tests/eval/run_eval.py --ids G-001 G-007  # specific cases
     python tests/eval/run_eval.py --mode fast_build  # filter by mode
     python tests/eval/run_eval.py --no-judge         # skip LLM scoring, signal-check only
+    python tests/eval/run_eval.py --output results/2026-06-17.json  # write JSON results
 
 Environment:
     GROQ_API_KEY   required
@@ -22,6 +23,7 @@ import json
 import os
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -107,6 +109,7 @@ async def main():
     parser.add_argument("--ids", nargs="*", help="Run specific case IDs")
     parser.add_argument("--mode", help="Filter by mode (media, fast_build, research, normal)")
     parser.add_argument("--no-judge", action="store_true", help="Skip LLM judge scoring")
+    parser.add_argument("--output", help="Write JSON results to this path (e.g. results/2026-06-17.json)")
     args = parser.parse_args()
 
     cases = _load_cases(args.ids, args.mode)
@@ -173,15 +176,36 @@ async def main():
     if mean_score is not None:
         ok = ok and (mean_score >= PASS_MEAN_THRESHOLD)
 
+    reasons = []
+    if pass_rate < PASS_RATE_THRESHOLD:
+        reasons.append(f"pass rate {pass_rate*100:.0f}% < {PASS_RATE_THRESHOLD*100:.0f}%")
+    if mean_score is not None and mean_score < PASS_MEAN_THRESHOLD:
+        reasons.append(f"mean score {mean_score:.2f} < {PASS_MEAN_THRESHOLD}")
+
+    if args.output:
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        report = {
+            "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "base_url": TV_BASE_URL,
+            "judge_enabled": not args.no_judge,
+            "cases_total": total,
+            "cases_passed": passed_count,
+            "pass_rate": pass_rate,
+            "mean_judge_score": mean_score,
+            "avg_latency_ms": avg_latency,
+            "verdict": "PASS" if ok else "FAIL",
+            "fail_reasons": reasons,
+            "results": results,
+        }
+        output_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"  Results written to {output_path}\n")
+
     if ok:
         print("  ✓ EVAL PASSED\n")
         sys.exit(0)
     else:
-        reasons = []
-        if pass_rate < PASS_RATE_THRESHOLD:
-            reasons.append(f"pass rate {pass_rate*100:.0f}% < {PASS_RATE_THRESHOLD*100:.0f}%")
-        if mean_score is not None and mean_score < PASS_MEAN_THRESHOLD:
-            reasons.append(f"mean score {mean_score:.2f} < {PASS_MEAN_THRESHOLD}")
         print(f"  ✗ EVAL FAILED — {'; '.join(reasons)}\n")
         sys.exit(1)
 

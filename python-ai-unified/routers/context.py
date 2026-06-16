@@ -33,6 +33,7 @@ Enterprise extensions:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -1541,6 +1542,86 @@ async def test_batch_embedding(texts: List[str]) -> Dict[str, Any]:
     except Exception as exc:
         logger.error("test_batch_embedding: failed — %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/attachments")
+async def list_attachments(
+    user_id: str,
+    session_id: Optional[str] = None,
+    limit: int = 50,
+) -> Dict[str, Any]:
+    """List a user's past chat attachments (sanitized content only).
+
+    Reads from the ``attachments`` table populated by the fire-and-forget
+    save in routers/ai/enhance.py::_to_local (right after
+    ``_sanitize_attachment_text_with_count`` runs). Only ever returns the
+    already-PII-redacted ``sanitized_content`` — the raw, unsanitized
+    attachment text is never persisted, so there is nothing else to return.
+
+    Degrades gracefully to an empty list when the DB is not configured or the
+    table does not exist yet (e.g. migration not run), rather than 500ing.
+
+    Query params:
+      user_id:    required — scopes results to one user.
+      session_id: optional — further scopes results to one session.
+      limit:      max rows to return (default 50, capped at 200).
+    """
+    limit = max(1, min(limit, 200))
+
+    try:
+        from shared.db import async_session_maker
+        from sqlalchemy import text as _sql_text
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("list_attachments: DB module unavailable (%s)", exc)
+        return {"user_id": user_id, "session_id": session_id, "attachments": [], "total": 0}
+
+    if async_session_maker is None:
+        logger.warning("list_attachments: PG_CONNECTION not configured — returning empty list")
+        return {"user_id": user_id, "session_id": session_id, "attachments": [], "total": 0}
+
+    params: Dict[str, Any] = {"uid": user_id, "lim": limit}
+    scope = "WHERE user_id = :uid"
+    if session_id:
+        scope += " AND session_id = :sid"
+        params["sid"] = session_id
+
+    sql = (
+        "SELECT id, user_id, session_id, filename, mime_type, sanitized_content,"
+        " content_length, pii_redacted_count, created_at"
+        f" FROM attachments {scope}"
+        " ORDER BY created_at DESC"
+        " LIMIT :lim"
+    )
+
+    try:
+        async with async_session_maker() as session:
+            result = await session.execute(_sql_text(sql), params)
+            rows = result.mappings().all()
+    except Exception as exc:  # noqa: BLE001 - missing table / schema drift degrades open
+        logger.warning("list_attachments: query failed for user=%s (%s)", user_id, exc)
+        return {"user_id": user_id, "session_id": session_id, "attachments": [], "total": 0}
+
+    attachments = [
+        {
+            "id": row["id"],
+            "user_id": row["user_id"],
+            "session_id": row["session_id"],
+            "filename": row["filename"],
+            "mime_type": row["mime_type"],
+            "sanitized_content": row["sanitized_content"],
+            "content_length": row["content_length"],
+            "pii_redacted_count": row["pii_redacted_count"],
+            "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+        }
+        for row in rows
+    ]
+
+    return {
+        "user_id": user_id,
+        "session_id": session_id,
+        "attachments": attachments,
+        "total": len(attachments),
+    }
 
 
 @router.get("/health")

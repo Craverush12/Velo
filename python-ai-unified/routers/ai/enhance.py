@@ -16,6 +16,7 @@ Light rate-limiting is layered on via the shared Redis helper (degrades open).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -103,8 +104,10 @@ async def _fetch_tenant_prompt_suffix(enterprise_id: str) -> str:
     Requires migration: IMPORTANT/migrations/add_tenant_prompt_suffix.sql
     """
     try:
-        from shared.db import async_engine
-        async with AsyncSession(async_engine) as session:
+        from shared.db import engine as _db_engine
+        if _db_engine is None:
+            return ""
+        async with AsyncSession(_db_engine) as session:
             result = await session.execute(
                 text(
                     "SELECT prompt_suffix FROM tenants "
@@ -210,7 +213,7 @@ async def _fetch_context_hint(user_id: str, query: str) -> str:
         return ""
 
 
-def _sanitize_attachment_text(name: str, text: str, user_id: str) -> str:
+def _sanitize_attachment_text_with_count(name: str, text: str, user_id: str) -> tuple[str, int]:
     """Sanitise attachment text before it reaches LLM infrastructure.
 
     Order of operations:
@@ -218,6 +221,9 @@ def _sanitize_attachment_text(name: str, text: str, user_id: str) -> str:
       2. PII redaction — emails, phones, SSNs, card numbers, API keys.
       3. Prompt-injection detection — if matched, replace entire text with a
          policy-violation notice and log a WARNING.
+
+    Returns (sanitized_text, pii_redacted_count) so callers can persist the
+    redaction count for observability without re-running the regex passes.
     """
     # 1. Truncate
     if len(text) > 8000:
@@ -243,9 +249,116 @@ def _sanitize_attachment_text(name: str, text: str, user_id: str) -> str:
                 "attachment_injection: prompt-injection pattern '%s' matched in attachment '%s' for user %s — redacting",
                 pattern, name, user_id,
             )
-            return "[CONTENT REDACTED: policy violation detected in attachment]"
+            return "[CONTENT REDACTED: policy violation detected in attachment]", pii_count
 
-    return text
+    return text, pii_count
+
+
+def _sanitize_attachment_text(name: str, text: str, user_id: str) -> str:
+    """Sanitise attachment text before it reaches LLM infrastructure.
+
+    Thin wrapper over ``_sanitize_attachment_text_with_count`` retained for
+    backward compatibility with existing callers that only need the text.
+    """
+    sanitized, _pii_count = _sanitize_attachment_text_with_count(name, text, user_id)
+    return sanitized
+
+
+_ATTACHMENTS_TABLE_READY = False
+
+
+async def _ensure_attachments_table(session: AsyncSession) -> None:
+    """Best-effort creation of the attachments table (idempotent, IF NOT EXISTS).
+
+    Mirrors the self-healing pattern in routers/ai/context_docs.py::_ensure_table.
+    Runs once per process (cached via the module-level flag) since the
+    migration in IMPORTANT/migrations/add_attachments_table.sql is expected to
+    have already created this table in production.
+    """
+    global _ATTACHMENTS_TABLE_READY
+    if _ATTACHMENTS_TABLE_READY:
+        return
+    try:
+        await session.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS attachments ("
+                " id BIGSERIAL PRIMARY KEY,"
+                " user_id TEXT NOT NULL,"
+                " session_id TEXT,"
+                " filename TEXT,"
+                " mime_type TEXT,"
+                " sanitized_content TEXT NOT NULL,"
+                " content_length INT NOT NULL DEFAULT 0,"
+                " pii_redacted_count INT NOT NULL DEFAULT 0,"
+                " created_at TIMESTAMPTZ NOT NULL DEFAULT now()"
+                ")"
+            )
+        )
+        await session.commit()
+        _ATTACHMENTS_TABLE_READY = True
+    except Exception:  # noqa: BLE001 - table may already exist with prod schema
+        await session.rollback()
+
+
+async def _save_attachment(
+    *,
+    user_id: str,
+    session_id: Optional[str],
+    filename: str,
+    sanitized_text: str,
+    pii_redacted_count: int,
+    mime_type: Optional[str] = None,
+) -> None:
+    """Persist a sanitized attachment to PostgreSQL. Fire-and-forget only.
+
+    Stores ONLY the already-sanitized (PII-redacted, injection-checked) text —
+    never the raw attachment content. Never raises: any failure (missing
+    PG_CONNECTION, schema drift, connection error) is logged as a warning and
+    swallowed so the enhance critical path is never affected.
+
+    Intended to be scheduled via ``asyncio.create_task`` right after
+    ``_sanitize_attachment_text`` is called, mirroring the Supermemory
+    shadow-write pattern in routers/context.py (Step 11b).
+    """
+    try:
+        from shared.db import async_session_maker
+
+        if async_session_maker is None:
+            logger.warning(
+                "_save_attachment: PG_CONNECTION not configured — skipping persist for user=%s",
+                user_id,
+            )
+            return
+
+        async with async_session_maker() as session:
+            await _ensure_attachments_table(session)
+            await session.execute(
+                text(
+                    "INSERT INTO attachments"
+                    " (user_id, session_id, filename, mime_type, sanitized_content,"
+                    "  content_length, pii_redacted_count)"
+                    " VALUES (:uid, :sid, :fn, :mt, :content, :clen, :pii)"
+                ),
+                {
+                    "uid": user_id,
+                    "sid": session_id,
+                    "fn": filename or None,
+                    "mt": mime_type,
+                    "content": sanitized_text,
+                    "clen": len(sanitized_text or ""),
+                    "pii": pii_redacted_count,
+                },
+            )
+            await session.commit()
+        logger.info(
+            "_save_attachment: persisted attachment '%s' for user=%s session=%s (%d chars, %d pii redactions)",
+            filename, user_id, session_id, len(sanitized_text or ""), pii_redacted_count,
+        )
+    except Exception as exc:  # noqa: BLE001 - persistence must never block/raise into enhance path
+        logger.warning(
+            "_save_attachment: failed to persist attachment '%s' for user=%s (%s)",
+            filename, user_id, exc,
+        )
 
 
 def _to_local(
@@ -256,18 +369,37 @@ def _to_local(
 ) -> LocalEnhanceRequest:
     """Translate the extension request into the canonical EnhanceRequest."""
     mode = "media" if force_media else map_mode(req.context.get("mode"))
-    attachments = [
-        LocalAttachmentItem(
-            name=a.get("name", "") if isinstance(a, dict) else "",
-            text=_sanitize_attachment_text(
-                a.get("name", "") if isinstance(a, dict) else "",
-                a.get("text", "") if isinstance(a, dict) else "",
-                req.user_id,
-            ),
-        )
-        for a in (req.attachments or [])
-        if isinstance(a, dict) and a.get("text")
-    ]
+    session_id = (
+        (req.context.get("session_id") or req.context.get("sessionId"))
+        if isinstance(req.context, dict)
+        else None
+    )
+
+    attachments: list[LocalAttachmentItem] = []
+    for a in (req.attachments or []):
+        if not isinstance(a, dict) or not a.get("text"):
+            continue
+        name = a.get("name", "")
+        raw_text = a.get("text", "")
+        sanitized_text, pii_count = _sanitize_attachment_text_with_count(name, raw_text, req.user_id)
+        attachments.append(LocalAttachmentItem(name=name, text=sanitized_text))
+
+        # Fire-and-forget persistence — mirrors the Supermemory shadow-write
+        # pattern in routers/context.py (Step 11b). Never blocks/fails enhance.
+        try:
+            asyncio.create_task(
+                _save_attachment(
+                    user_id=req.user_id,
+                    session_id=session_id,
+                    filename=name,
+                    sanitized_text=sanitized_text,
+                    pii_redacted_count=pii_count,
+                    mime_type=a.get("mime_type") or a.get("type"),
+                )
+            )
+        except Exception:  # noqa: BLE001 - scheduling failure must never affect enhance
+            logger.warning("_to_local: failed to schedule attachment persistence for user=%s", req.user_id)
+
     return LocalEnhanceRequest(
         prompt=req.prompt,
         user_id=req.user_id,
