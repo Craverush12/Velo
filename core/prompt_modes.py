@@ -30,6 +30,7 @@ _INTERNAL_OVERLAY_FILES: dict[str, dict[str, str]] = {
     "enhance": {
         **_OVERLAY_FILES["enhance"],
         "media_imagegen": "enhance_media_imagegen_overlay.md",
+        "media_product": "enhance_media_product_overlay.md",
     },
 }
 

@@ -1,0 +1,90 @@
+# =============================================================================
+# Dockerfile.python-ai — Python FastAPI Unified AI Service
+# Python 3.11-slim
+# Port: 8005
+# Heavy ML deps: torch, sentence-transformers, langchain, groq, openai, anthropic
+# SOC2 CC6.6 P2-T06: non-root user UID 10001
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: builder — install all Python deps and pre-download HuggingFace model
+# -----------------------------------------------------------------------------
+FROM python:3.11-slim AS builder
+
+# Install build tools for native extensions (psycopg binary, etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    git \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Create non-root user so model cache lands in correct home dir
+RUN groupadd -g 10001 nonroot && \
+    useradd -u 10001 -g nonroot -m -s /sbin/nologin nonroot
+
+# Copy requirements first for layer caching
+COPY requirements.txt ./
+
+# Install Python dependencies into a prefix we can copy cleanly
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Pre-download the sentence-transformers model so production starts fast.
+# Runs as nonroot so cache lands in /home/nonroot/.cache/huggingface/
+USER nonroot
+ENV HF_HOME=/home/nonroot/.cache/huggingface
+RUN PYTHONPATH=/install/lib/python3.11/site-packages \
+    python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+
+# -----------------------------------------------------------------------------
+# Stage 2: production — slim runtime image
+# -----------------------------------------------------------------------------
+FROM python:3.11-slim AS production
+
+# Runtime system deps (libpq for psycopg binary, curl for healthcheck)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user/group (SOC2 CC6.6 P2-T06)
+RUN groupadd -g 10001 nonroot && \
+    useradd -u 10001 -g nonroot -m -s /sbin/nologin nonroot
+
+# Copy installed packages from builder
+COPY --from=builder /install /usr/local
+
+# Copy pre-downloaded HuggingFace model cache from builder (nonroot's home)
+COPY --from=builder --chown=nonroot:nonroot \
+    /home/nonroot/.cache/huggingface \
+    /home/nonroot/.cache/huggingface
+
+WORKDIR /app
+
+# Copy application source
+COPY --chown=nonroot:nonroot . .
+
+# Switch to non-root before runtime
+USER nonroot
+
+EXPOSE 8005
+
+ENV APP_ENV=production \
+    PORT=8005 \
+    HF_HOME=/home/nonroot/.cache/huggingface \
+    TRANSFORMERS_CACHE=/home/nonroot/.cache/huggingface \
+    # Prevent torch from writing compiled kernels to read-only paths
+    TORCH_HOME=/tmp/torch \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=60s \
+  CMD curl -sf http://127.0.0.1:8005/health | grep -q ok
+
+# uvicorn handles signals natively; no wrapper needed
+CMD ["uvicorn", "application:app", "--host", "0.0.0.0", "--port", "8005", \
+     "--workers", "2", "--loop", "uvloop", "--log-level", "info"]

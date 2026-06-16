@@ -1,0 +1,776 @@
+/* Velocity in-page popups — bottom-right overlays for chat platforms.
+   See button/js/injection-popups.js for invocation contract. */
+
+.velocity-popup-layer {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column-reverse; /* newest popup sits at the bottom-right */
+  align-items: flex-end;
+  gap: 14px;
+  pointer-events: none;
+  font-family: var(--vel-font, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+}
+
+.velocity-popup {
+  position: relative;
+  width: 320px;
+  max-width: calc(100vw - 40px);
+  pointer-events: auto;
+  padding: 22px 22px 20px;
+  border-radius: 18px;
+  background: #181818;
+  color: #e9edf2;
+  font-size: 13px;
+  line-height: 1.5;
+  /* Layered ring + shadow stack so the popup reads cleanly on any host page
+     background (light/dark/image): 1px white hairline for crisp edge → 1px
+     cyan brand ring → soft cyan glow for depth → strong drop shadow to lift
+     the surface off the page. */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0 0 1px rgba(83, 234, 253, 0.28),
+    0 0 22px rgba(83, 234, 253, 0.22),
+    0 28px 64px rgba(0, 0, 0, 0.7),
+    0 4px 14px rgba(0, 0, 0, 0.45);
+  animation: velocity-popup-in 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  text-align: center;
+}
+
+.velocity-popup.is-leaving {
+  animation: velocity-popup-out 220ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@keyframes velocity-popup-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+@keyframes velocity-popup-out {
+  from { opacity: 1; transform: translateY(0)    scale(1); }
+  to   { opacity: 0; transform: translateY(8px)  scale(0.985); }
+}
+
+/* —— Close button (top-right of each popup) —— */
+.velocity-popup-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(233, 237, 242, 0.55);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.velocity-popup-close:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(233, 237, 242, 0.95);
+}
+
+/* —— Shared text styles —— */
+.velocity-popup-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+  font-family: var(--vel-font-secondary, "Space Grotesk", sans-serif);
+  line-height: 1.25;
+  color: #e9edf2;
+}
+.velocity-popup-title--gold {
+  color: #eec13c;
+}
+.velocity-popup-body {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: rgba(233, 237, 242, 0.7);
+}
+
+/* —— Velocity logo (first-enhance popup) —— */
+.velocity-popup-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 10px;
+  width: 36px;
+  height: 36px;
+}
+.velocity-popup-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 0 8px rgba(83, 234, 253, 0.35));
+}
+
+/* —— Invite-a-friend card —— */
+.velocity-popup-invite-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  margin: 4px 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #e9edf2;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+.velocity-popup-invite-card:hover {
+  background: rgba(83, 234, 253, 0.06);
+  border-color: rgba(83, 234, 253, 0.4);
+  transform: translateY(-1px);
+}
+.velocity-popup-invite-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(83, 234, 253, 0.14);
+  color: #53eafd;
+  flex-shrink: 0;
+}
+.velocity-popup-invite-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+.velocity-popup-invite-headline {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #e9edf2;
+}
+.velocity-popup-invite-sub {
+  font-size: 11.5px;
+  color: rgba(233, 237, 242, 0.65);
+}
+.velocity-popup-invite-chev {
+  color: rgba(233, 237, 242, 0.55);
+  flex-shrink: 0;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+.velocity-popup-invite-card:hover .velocity-popup-invite-chev {
+  transform: translateX(2px);
+  color: #53eafd;
+}
+
+/* —— Primary CTA buttons —— */
+.velocity-popup-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 42px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.velocity-popup-cta--cyan {
+  background: #53eafd;
+  color: #062327;
+  box-shadow: 0 6px 16px rgba(83, 234, 253, 0.28);
+}
+.velocity-popup-cta--cyan:hover {
+  background: #22e0ef;
+  transform: translateY(-1px);
+}
+.velocity-popup-cta--gold {
+  background: linear-gradient(135deg, #f5c842, #eec13c);
+  color: #1a1404;
+  box-shadow: 0 6px 16px rgba(238, 193, 60, 0.32);
+}
+.velocity-popup-cta--gold:hover {
+  background: linear-gradient(135deg, #ffd45a, #f5c842);
+  transform: translateY(-1px);
+}
+
+.velocity-popup-cta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.velocity-popup-cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(233, 237, 242, 0.85);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.velocity-popup-cta-secondary:hover {
+  border-color: rgba(238, 193, 60, 0.55);
+  color: #eec13c;
+  background: rgba(238, 193, 60, 0.06);
+}
+
+/* —— Daily-limit feature row —— */
+.velocity-popup--daily-limit {
+  border: 1px solid rgba(238, 193, 60, 0.42);
+  box-shadow:
+    0 0 0 1px rgba(238, 193, 60, 0.32),
+    0 0 24px rgba(238, 193, 60, 0.22),
+    0 28px 64px rgba(0, 0, 0, 0.7),
+    0 4px 14px rgba(0, 0, 0, 0.45);
+}
+.velocity-popup-features {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.velocity-popup-feature {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 10.5px;
+  line-height: 1.25;
+  color: rgba(233, 237, 242, 0.72);
+  text-align: center;
+}
+.velocity-popup-feature-ico {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(238, 193, 60, 0.14);
+  color: #eec13c;
+}
+
+/* —— QA test buttons (bottom-left) —— */
+.velocity-popup-testbar {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 2147483646;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(24, 24, 24, 0.92);
+  border: 1px dashed rgba(83, 234, 253, 0.45);
+  color: #e9edf2;
+  font-family: var(--vel-font, system-ui, sans-serif);
+  font-size: 11px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+}
+.velocity-popup-testbar-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #53eafd;
+  padding-right: 4px;
+}
+.velocity-popup-testbar button {
+  border: 1px solid rgba(83, 234, 253, 0.35);
+  background: rgba(83, 234, 253, 0.06);
+  color: #e9edf2;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.velocity-popup-testbar button:hover {
+  background: rgba(83, 234, 253, 0.14);
+  border-color: rgba(83, 234, 253, 0.6);
+}
+
+@media (max-width: 480px) {
+  .velocity-popup-layer {
+    right: 12px;
+    bottom: 12px;
+  }
+  .velocity-popup {
+    width: calc(100vw - 24px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .velocity-popup,
+  .velocity-popup.is-leaving {
+    animation: none;
+  }
+}
+
+/* ── Install tutorial overlay (in-page, centered) — DARK THEME ────────────────────── */
+.velocity-tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  font-family: var(--vel-font, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  color: #1f2730;
+  pointer-events: none;
+}
+.velocity-tutorial-overlay.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.velocity-tutorial-overlay.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.velocity-tutorial-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 14, 20, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* Soft-white card surface — uses #f4f5f7 (warm off-white) rather than pure
+   #ffffff so the tutorial reads as a light theme without the glare of a
+   bright-white page. Cyan brand accents are preserved on the active step
+   and the primary CTA. */
+.velocity-tutorial-card {
+  position: relative;
+  width: min(880px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 48px 56px 40px;
+  border-radius: 20px;
+  background: #f4f5f7;
+  color: #1f2730;
+  border: 1px solid rgba(15, 25, 35, 0.06);
+  box-shadow:
+    0 0 0 1px rgba(83, 234, 253, 0.18),
+    0 0 28px rgba(83, 234, 253, 0.12),
+    0 24px 56px rgba(15, 25, 35, 0.18),
+    0 6px 18px rgba(15, 25, 35, 0.1);
+  transform: translateY(10px) scale(0.985);
+  opacity: 0;
+  transition:
+    transform 240ms cubic-bezier(0.2, 0.7, 0.3, 1),
+    opacity 240ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.velocity-tutorial-overlay.is-open .velocity-tutorial-card {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.velocity-tutorial-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(15, 25, 35, 0.5);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.velocity-tutorial-close:hover {
+  background: rgba(15, 25, 35, 0.06);
+  color: rgba(15, 25, 35, 0.9);
+}
+.velocity-tutorial-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.velocity-tutorial-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+/* Title is forced to a single line at the widened 880px card width — the
+   font-size shrink (28→22) + `nowrap` keeps it from wrapping to two lines
+   the way the previous 28px serif-sized headline did. */
+.velocity-tutorial-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--vel-font-secondary, "Space Grotesk", sans-serif);
+  letter-spacing: -0.01em;
+  color: #0f1419;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.velocity-tutorial-title-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  display: inline-block;
+  filter: drop-shadow(0 0 8px rgba(83, 234, 253, 0.35));
+}
+.velocity-tutorial-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(15, 25, 35, 0.62);
+  line-height: 1.5;
+}
+
+.velocity-tutorial-steps-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.velocity-tutorial-steps-heading {
+  margin: 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(15, 25, 35, 0.72);
+}
+.velocity-tutorial-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.velocity-tutorial-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 2px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+.velocity-tutorial-step:hover {
+  background: transparent;
+}
+.velocity-tutorial-step.is-active {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.velocity-tutorial-step-connector {
+  flex: 0 1 56px;
+  height: 0;
+  min-width: 32px;
+  border-top: 2px dashed rgba(15, 25, 35, 0.18);
+  list-style: none;
+  align-self: center;
+  pointer-events: none;
+  transition: border-color 0.2s ease;
+}
+.velocity-tutorial-step-connector.is-passed {
+  border-top-color: #53eafd;
+}
+.velocity-tutorial-step-num {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(15, 25, 35, 0.05);
+  color: rgba(15, 25, 35, 0.6);
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(15, 25, 35, 0.12);
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.velocity-tutorial-step.is-active .velocity-tutorial-step-num {
+  background: #53eafd;
+  color: #062327;
+  border-color: #53eafd;
+  box-shadow: 0 0 0 3px rgba(83, 234, 253, 0.18);
+  transform: none;
+}
+.velocity-tutorial-step.is-active .velocity-tutorial-step-title {
+  color: #0f1419;
+}
+.velocity-tutorial-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 2px;
+}
+.velocity-tutorial-step-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(15, 25, 35, 0.65);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.velocity-tutorial-step-desc {
+  display: none;
+}
+
+.velocity-tutorial-video {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0d0d0d;
+  border: 1px solid rgba(15, 25, 35, 0.1);
+  box-shadow: 0 12px 28px rgba(15, 25, 35, 0.18);
+}
+.velocity-tutorial-video-el {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+.velocity-tutorial-video-el.is-active {
+  opacity: 1;
+}
+.velocity-tutorial-video-fallback {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 20px;
+  background: #0d0d0d;
+}
+.velocity-tutorial-video.is-video-missing .velocity-tutorial-video-fallback {
+  display: flex;
+}
+.velocity-tutorial-video.is-video-missing .velocity-tutorial-video-el {
+  display: none;
+}
+.velocity-tutorial-video-fallback-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 8px rgba(83, 234, 253, 0.35));
+}
+.velocity-tutorial-video-fallback-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(233, 237, 242, 0.9);
+}
+.velocity-tutorial-video-fallback-sub {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(233, 237, 242, 0.55);
+}
+
+.velocity-tutorial-video-progress {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+.velocity-tutorial-video-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.velocity-tutorial-video-dot:hover {
+  transform: scale(1.15);
+}
+.velocity-tutorial-video-dot.is-active {
+  background: #53eafd;
+  border-color: #53eafd;
+}
+
+.velocity-tutorial-cta-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 0;
+}
+.velocity-tutorial-next {
+  appearance: none;
+  border: 1px solid rgba(15, 25, 35, 0.14);
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(15, 25, 35, 0.85);
+  background: rgba(15, 25, 35, 0.03);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.velocity-tutorial-next:hover {
+  background: rgba(83, 234, 253, 0.12);
+  border-color: rgba(83, 234, 253, 0.5);
+  color: #062327;
+  transform: translateY(-1px);
+}
+.velocity-tutorial-next:active {
+  transform: translateY(0);
+}
+.velocity-tutorial-next svg {
+  width: 14px;
+  height: 14px;
+}
+.velocity-tutorial-cta {
+  appearance: none;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 26px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #062327;
+  background: #53eafd;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 6px 18px rgba(83, 234, 253, 0.28);
+  transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.15s ease;
+}
+.velocity-tutorial-cta:hover {
+  background: #22e0ef;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(83, 234, 253, 0.4);
+}
+.velocity-tutorial-cta:active {
+  transform: translateY(0);
+}
+.velocity-tutorial-cta::after {
+  content: "→";
+  font-size: 16px;
+  margin-left: 4px;
+}
+
+@media (max-width: 720px) {
+  .velocity-tutorial-card {
+    padding: 32px 28px 28px;
+    border-radius: 16px;
+    width: min(600px, 100%);
+    gap: 24px;
+  }
+  .velocity-tutorial-header {
+    padding: 0;
+  }
+  .velocity-tutorial-title {
+    font-size: 18px;
+    flex-direction: column;
+    gap: 10px;
+    white-space: normal;
+  }
+  .velocity-tutorial-steps {
+    gap: 8px;
+  }
+  .velocity-tutorial-step {
+    gap: 8px;
+    padding: 6px 0;
+  }
+  .velocity-tutorial-step-title {
+    font-size: 13px;
+  }
+  .velocity-tutorial-step-connector {
+    min-width: 10px;
+  }
+  .velocity-tutorial-cta-row {
+    justify-content: center;
+  }
+  .velocity-tutorial-next,
+  .velocity-tutorial-cta {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .velocity-tutorial-steps {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .velocity-tutorial-step {
+    padding: 8px 0;
+  }
+  .velocity-tutorial-step-connector {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .velocity-tutorial-overlay,
+  .velocity-tutorial-card {
+    transition: none;
+  }
+}

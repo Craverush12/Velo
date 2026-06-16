@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<!--
+  Welcome / install tutorial popup.
+  Opened by background.js on chrome.runtime.onInstalled (reason === "install").
+  X closes the tab. "Start Prompting" routes to the hosted login page.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to Velocity</title>
+  <link rel="stylesheet" href="tutorial.css" />
+</head>
+<body class="tutorial-page">
+  <main class="tutorial-card" role="dialog" aria-labelledby="tutorialTitle">
+    <button
+      type="button"
+      id="tutorialClose"
+      class="tutorial-close"
+      aria-label="Close welcome popup"
+      title="Close"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+
+    <header class="tutorial-header">
+      <h1 id="tutorialTitle" class="tutorial-title">
+        <img
+          class="tutorial-title-logo"
+          src="../../assets/Velocity_logo.png"
+          width="32"
+          height="32"
+          alt=""
+          aria-hidden="true"
+          decoding="async"
+        />
+        <span>Turn lazy prompts into enhanced prompts for any AI</span>
+      </h1>
+    </header>
+
+    <ol class="tutorial-steps" aria-label="How Velocity works">
+      <li class="tutorial-step" data-step="1">
+        <span class="tutorial-step-num" aria-hidden="true">1</span>
+        <div class="tutorial-step-body">
+          <p class="tutorial-step-title">Write or speak your prompt</p>
+          <p class="tutorial-step-desc">Use ChatGPT, Claude, Gemini, or any AI tool normally.</p>
+        </div>
+      </li>
+      <li class="tutorial-step" data-step="2">
+        <span class="tutorial-step-num" aria-hidden="true">2</span>
+        <div class="tutorial-step-body">
+          <p class="tutorial-step-title">Enhance seamlessly</p>
+          <p class="tutorial-step-desc">Your lazy prompt turned into an enhanced prompt effortlessly.</p>
+        </div>
+      </li>
+      <li class="tutorial-step" data-step="3">
+        <span class="tutorial-step-num" aria-hidden="true">3</span>
+        <div class="tutorial-step-body">
+          <p class="tutorial-step-title">Insert &amp; continue</p>
+          <p class="tutorial-step-desc">Drop the upgraded prompt back into the chat instantly.</p>
+        </div>
+      </li>
+    </ol>
+
+    <section class="tutorial-video" aria-label="Velocity preview">
+      <video
+        id="tutorialVideo"
+        class="tutorial-video-el"
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="metadata"
+        poster="../../assets/Velocity_logo.png"
+      >
+        <source id="videoSource" src="../../assets/Extension videos/tutorialvideo_step1.mp4" type="video/mp4" />
+      </video>
+      <div class="tutorial-video-fallback" aria-hidden="true">
+        <img
+          class="tutorial-video-fallback-logo"
+          src="../../assets/Velocity_logo.png"
+          width="64"
+          height="64"
+          alt=""
+          decoding="async"
+        />
+        <p class="tutorial-video-fallback-title">Velocity preview</p>
+        <p class="tutorial-video-fallback-sub">A quick look at the enhance flow inside your AI chat.</p>
+      </div>
+      <div class="tutorial-step-indicator">
+        <span class="tutorial-step-dot is-active" data-dot="1"></span>
+        <span class="tutorial-step-dot" data-dot="2"></span>
+        <span class="tutorial-step-dot" data-dot="3"></span>
+      </div>
+    </section>
+
+    <div class="tutorial-cta-row">
+      <button type="button" id="tutorialNextBtn" class="tutorial-next">
+        Next
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </button>
+      <button type="button" id="tutorialTryBtn" class="tutorial-cta" style="display: none;">
+        Start Prompting
+      </button>
+    </div>
+  </main>
+
+  <script src="../../utils/thinkvelocity-urls.js"></script>
+  <script src="tutorial.js"></script>
+</body>
+</html>

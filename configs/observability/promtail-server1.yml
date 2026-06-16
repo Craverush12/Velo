@@ -1,0 +1,97 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions-server1.yaml
+
+# Ship logs to Loki on Server 2 via WireGuard (10.100.0.1 = Server 2 WG IP)
+# REQUIRES: WireGuard tunnel active between Server 1 and Server 2
+clients:
+  - url: http://10.100.0.1:3100/loki/api/v1/push
+
+scrape_configs:
+  # -----------------------------------------------------------------------
+  # Docker container logs
+  # -----------------------------------------------------------------------
+  - job_name: docker-containers
+    pipeline_stages:
+      - docker: {}
+      - json:
+          expressions:
+            log: log
+            stream: stream
+            time: time
+      - timestamp:
+          source: time
+          format: RFC3339Nano
+      - output:
+          source: log
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: docker
+          server: server1
+          role: extension-api
+          __path__: /var/lib/docker/containers/*/*-json.log
+
+  # -----------------------------------------------------------------------
+  # Nginx access log
+  # -----------------------------------------------------------------------
+  - job_name: nginx-access
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          log_type: access
+          server: server1
+          role: extension-api
+          __path__: /var/log/nginx/access.log
+
+  # -----------------------------------------------------------------------
+  # Nginx error log
+  # -----------------------------------------------------------------------
+  - job_name: nginx-error
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          log_type: error
+          server: server1
+          role: extension-api
+          __path__: /var/log/nginx/error.log
+
+  # -----------------------------------------------------------------------
+  # Additional Nginx vhost logs (wildcard)
+  # -----------------------------------------------------------------------
+  - job_name: nginx-vhosts
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          log_type: vhost
+          server: server1
+          role: extension-api
+          __path__: /var/log/nginx/*.log
+
+  # -----------------------------------------------------------------------
+  # Systemd Journal
+  # -----------------------------------------------------------------------
+  - job_name: journal
+    journal:
+      max_age: 12h
+      labels:
+        job: systemd-journal
+        server: server1
+        role: extension-api
+    relabel_configs:
+      - source_labels: ['__journal__systemd_unit']
+        target_label: unit
+      - source_labels: ['__journal__hostname']
+        target_label: hostname
+      - source_labels: ['__journal_priority_keyword']
+        target_label: priority

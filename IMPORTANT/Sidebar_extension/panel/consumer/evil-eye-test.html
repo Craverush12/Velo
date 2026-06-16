@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>EvilEye Test</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #120F17; overflow: hidden; }
+  #viewHome {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .home-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    color: rgba(255,255,255,0.85);
+    font-family: system-ui, sans-serif;
+  }
+  h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 8px; }
+  p  { font-size: 0.85rem; opacity: 0.55; }
+</style>
+</head>
+<body>
+<div id="viewHome">
+  <div class="home-content">
+    <h1>Hi there, let's build something brilliant</h1>
+    <p>EvilEye WebGL background test</p>
+  </div>
+</div>
+<script src="evil-eye-bg.js"></script>
+</body>
+</html>

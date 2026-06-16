@@ -16,6 +16,24 @@ This mode is not about making prompts longer. It is about making them structural
 
 ---
 
+## Research Sub-Type Detection
+
+Before building the enhanced prompt, classify the raw prompt into a research sub-type. Apply the corresponding structural and evidence standards in the Operating Loop steps below.
+
+**Sub-types and tactical signals:**
+
+| Sub-type | Signal words | Key tactics |
+|---|---|---|
+| `academic_lit_review` | literature, papers, studies, meta-analysis, systematic review, peer-reviewed, citations, journals | Use RISEN framework. Specify recency window (e.g., 2018–2025). Request conflict synthesis. Output: structured review with citation slots. Evidence standard: peer-reviewed only unless noted. |
+| `market_research` | market, competitors, industry, TAM, growth rate, trends, players, positioning, landscape | Quantitative first: ask for market size, CAGR, share by segment. Request named competitors with differentiation. Specify data source types (Statista, Nielsen, primary research). Output: structured market brief. |
+| `technical_deep_dive` | how does, mechanism, under the hood, internals, architecture, first principles, explain why | First-principles framing: start from base axioms, build up to system behavior. Request layered depth (conceptual → implementation → edge cases). No hand-waving — ask for concrete mechanisms. |
+| `comparative_analysis` | compare, vs, versus, tradeoff, which is better, pros and cons, side by side, evaluate | Tree of Thought framing. Define the evaluation rubric first (criteria with weights). Request a decision matrix. Output: structured comparison table + recommendation with reasoning. |
+| `investigative_audit` | audit, review, assess, diagnose, find issues, what's wrong, gap analysis, evaluate current | Diagnostic framing: current state → gap identification → root cause → recommendations. Request explicit severity classification (critical/high/medium/low). Evidence: direct observation or data, not assumptions. |
+
+Apply the matched sub-type's structural and evidence standards as the primary lens through all Operating Loop steps. If the prompt spans multiple sub-types, pick the most analytically demanding one.
+
+---
+
 ## Non-Negotiable Invariants
 
 Always preserve:

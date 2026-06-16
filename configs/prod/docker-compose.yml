@@ -1,0 +1,339 @@
+# =============================================================================
+# docker-compose.yml — ThinkVelocity Production Server (Consolidated)
+# Target: 8GB Lightsail instance (ap-south-1)
+# Services: 5 app containers + PostgreSQL + Redis (all on 127.0.0.1)
+# Replaces: Servers 1 + 2 + 3 (3 separate instances → 1)
+#
+# DEPLOY:
+#   1. Copy to /var/www/thinkvelocity/docker-compose.yml on new prod server
+#   2. Create .env file with values from AWS Secrets Manager
+#   3. docker compose up -d
+#   4. docker compose ps  ← all must show "healthy"
+#
+# RESOURCE ALLOCATION (8GB server):
+#   PostgreSQL:        2GB RAM reserved
+#   Redis:             512MB
+#   Node.js backend:   1.5GB
+#   Python AI:         2GB  (LLM inference is memory-heavy)
+#   NestJS enterprise: 1GB
+#   Extension API:     512MB
+#   OS + Nginx:        ~512MB
+#   Total:             ~8GB (fits, ~200MB headroom)
+# =============================================================================
+
+name: thinkvelocity-prod
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "5"
+    labels: "service"
+
+x-restart: &restart-policy
+  restart: unless-stopped
+
+x-healthcheck-defaults: &hc-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 45s
+
+services:
+
+  # ===========================================================================
+  # PostgreSQL 17 — Single instance, 4 schemas
+  # All services connect via 127.0.0.1:5432 (never exposed to internet)
+  # SOC2: CC6.3 (per-service users), CC6.6 (no public port)
+  # ===========================================================================
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: tv-postgres
+    <<: *restart-policy
+    security_opt:
+      - "no-new-privileges:true"
+    environment:
+      POSTGRES_DB: thinkvelocity_prod
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro  # runs 001-006 on first boot
+    ports:
+      - "127.0.0.1:5432:5432"    # Never 0.0.0.0 — SOC2 CC6.6
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d thinkvelocity_prod"]
+      <<: *hc-defaults
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+        reservations:
+          memory: 1G
+    logging: *default-logging
+    labels:
+      service: "postgres"
+
+  # ===========================================================================
+  # Redis 7 — Session cache, rate limiting, job queues
+  # SOC2: CC6.6 (no public port), configured with requirepass
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: tv-redis
+    <<: *restart-policy
+    security_opt:
+      - "no-new-privileges:true"
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --appendonly yes
+      --appendfsync everysec
+      --loglevel warning
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"    # Never 0.0.0.0 — SOC2 CC6.6
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      <<: *hc-defaults
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+    logging: *default-logging
+    labels:
+      service: "redis"
+
+  # ===========================================================================
+  # Node.js Consumer Backend — Express.js
+  # Handles: auth, subscriptions, prompts, marketplace, payments
+  # Source: /var/www/backend-V1-D/ (Server 2 current location)
+  # DB user: app_consumer
+  # ===========================================================================
+  consumer-backend:
+    image: thinkvelocity/consumer-backend:${VERSION:-latest}
+    container_name: tv-consumer-backend
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.consumer-backend
+    <<: *restart-policy
+    security_opt:
+      - "no-new-privileges:true"
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+      DATABASE_URL: postgresql://app_consumer:${APP_CONSUMER_DB_PASSWORD}@127.0.0.1:5432/thinkvelocity_prod
+      DB_SCHEMA: consumer
+      REDIS_URL: redis://:${REDIS_PASSWORD}@127.0.0.1:6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      ALLOWED_ORIGINS: "https://thinkvelocity.in,https://www.thinkvelocity.in"
+      LOG_LEVEL: info
+    ports:
+      - "127.0.0.1:3005:3005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:3005/health | grep -q ok"]
+      <<: *hc-defaults
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+          cpus: "1.5"
+        reservations:
+          memory: 512M
+    logging: *default-logging
+    labels:
+      service: "consumer-backend"
+
+  # ===========================================================================
+  # Python AI Unified — FastAPI
+  # Merges: python-backend-container (:8005) + context-engine (:8001) + prompt-enhance (:3002)
+  # Router namespaces: /ai/, /context/, /prompt/
+  # DB user: app_consumer (same — context engine is consumer-facing)
+  # ===========================================================================
+  python-ai:
+    image: thinkvelocity/python-ai:${VERSION:-latest}
+    container_name: tv-python-ai
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.python-ai
+    <<: *restart-policy
+    security_opt:
+      - "no-new-privileges:true"
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      APP_ENV: production
+      PORT: 8005
+      DATABASE_URL: postgresql://app_consumer:${APP_CONSUMER_DB_PASSWORD}@127.0.0.1:5432/thinkvelocity_prod
+      DB_SCHEMA: consumer
+      REDIS_URL: redis://:${REDIS_PASSWORD}@127.0.0.1:6379
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ALLOWED_ORIGINS: "https://thinkvelocity.in,https://www.thinkvelocity.in,chrome-extension://"
+      LOG_LEVEL: info
+      # Context engine settings
+      EMBEDDING_MODEL: all-MiniLM-L6-v2
+      EMBEDDING_DIM: 1024
+      MAX_CONTEXT_WINDOW: 10
+    ports:
+      - "127.0.0.1:8005:8005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8005/health | grep -q ok"]
+      <<: *hc-defaults
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+        reservations:
+          memory: 1G
+    logging: *default-logging
+    labels:
+      service: "python-ai"
+
+  # ===========================================================================
+  # NestJS Enterprise Backend
+  # Source: /var/www/enterprise-backend/ (Server 3 current location)
+  # DB user: app_enterprise (schema: enterprise)
+  # ===========================================================================
+  enterprise-backend:
+    image: thinkvelocity/enterprise-backend:${VERSION:-latest}
+    container_name: tv-enterprise-backend
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.enterprise-backend
+    <<: *restart-policy
+    security_opt:
+      - "no-new-privileges:true"
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://app_enterprise:${APP_ENTERPRISE_DB_PASSWORD}@127.0.0.1:5432/thinkvelocity_prod?schema=enterprise
+      REDIS_URL: redis://:${REDIS_PASSWORD}@127.0.0.1:6379
+      JWT_SECRET: ${ENTERPRISE_JWT_SECRET}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ALLOWED_ORIGINS: "https://enterprise.thinkvelocity.in"
+      LOG_LEVEL: info
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:3000/backend/health | grep -q ok"]
+      <<: *hc-defaults
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 512M
+    logging: *default-logging
+    labels:
+      service: "enterprise-backend"
+
+  # ===========================================================================
+  # Extension API — FastAPI
+  # Source: /var/www/ext-api/ (Server 1 current location)
+  # DB user: app_extension
+  # ===========================================================================
+  extension-api:
+    image: thinkvelocity/extension-api:${VERSION:-latest}
+    container_name: tv-extension-api
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.extension-api
+    <<: *restart-policy
+    security_opt:
+      - "no-new-privileges:true"
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      APP_ENV: production
+      PORT: 8000
+      DATABASE_URL: postgresql://app_extension:${APP_EXTENSION_DB_PASSWORD}@127.0.0.1:5432/thinkvelocity_prod
+      DB_SCHEMA: extension
+      REDIS_URL: redis://:${REDIS_PASSWORD}@127.0.0.1:6379
+      JWT_SECRET: ${JWT_SECRET}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      ALLOWED_ORIGINS: "https://thinkvelocity.in,chrome-extension://"
+      LOG_LEVEL: info
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8000/health | grep -q ok"]
+      <<: *hc-defaults
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+    logging: *default-logging
+    labels:
+      service: "extension-api"
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/postgresql/thinkvelocity_prod  # explicit path for backup scripts
+
+  redis_data:
+    driver: local
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

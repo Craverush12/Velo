@@ -1,0 +1,68 @@
+# =============================================================================
+# Dockerfile.extension-api — Extension FastAPI Service
+# Python 3.11-slim
+# Port: 8000
+# Lighter deps: fastapi, uvicorn, httpx, groq, psycopg[binary], redis, boto3
+# SOC2 CC6.6 P2-T06: non-root user UID 10001
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: builder — install Python dependencies
+# -----------------------------------------------------------------------------
+FROM python:3.11-slim AS builder
+
+# Build tools needed for psycopg binary + any C-extension wheels
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy requirements first for layer caching
+COPY requirements.txt ./
+
+# Install dependencies into an isolated prefix
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# -----------------------------------------------------------------------------
+# Stage 2: production — slim runtime image
+# -----------------------------------------------------------------------------
+FROM python:3.11-slim AS production
+
+# Runtime libs (libpq for psycopg binary, curl for healthcheck)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user/group (SOC2 CC6.6 P2-T06)
+RUN groupadd -g 10001 nonroot && \
+    useradd -u 10001 -g nonroot -m -s /sbin/nologin nonroot
+
+# Copy installed packages from builder stage
+COPY --from=builder /install /usr/local
+
+WORKDIR /app
+
+# Copy application source
+COPY --chown=nonroot:nonroot . .
+
+USER nonroot
+
+EXPOSE 8000
+
+ENV APP_ENV=production \
+    PORT=8000 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=45s \
+  CMD curl -sf http://127.0.0.1:8000/health | grep -q ok
+
+# uvicorn handles SIGTERM/SIGINT correctly without a wrapper
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", \
+     "--workers", "2", "--loop", "uvloop", "--log-level", "info"]

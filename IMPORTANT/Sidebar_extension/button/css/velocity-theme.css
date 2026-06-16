@@ -1,0 +1,89 @@
+/* Injection bar — dark pill with cyan inner blur (host page overlay) */
+.velocity-injection-bar {
+  --vel-bg-deep: #101010;
+  --vel-surface: #181818;
+  --vel-surface-elevated: #232323;
+  --vel-text: #ffffff;
+  --vel-text-secondary: #bac9cc;
+  --vel-border: rgba(255, 255, 255, 0.08);
+  --vel-border-strong: rgba(83, 234, 253, 0.45);
+  --vel-cyan: #19d8e6;
+  --vel-cyan-2: #58f5ff;
+  --vel-cyan-glow: #53eafd;
+  --vel-cyan-soft: rgba(83, 234, 253, 0.12);
+  --vel-cyan-mid: rgba(83, 234, 253, 0.22);
+  --vel-hover: rgba(255, 255, 255, 0.06);
+  --vel-pro-gold: #eec13c;
+  --vel-pro-gold-bright: #f5c842;
+  --vel-pro-gold-glow: #f2cf6a;
+  --vel-pro-gold-soft: rgba(238, 193, 60, 0.14);
+  --vel-pro-gold-mid: rgba(238, 193, 60, 0.22);
+  --vel-pro-gold-strong: rgba(238, 193, 60, 0.45);
+  --vel-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(83, 234, 253, 0.22),
+    inset 0 0 22px rgba(83, 234, 253, 0.32);
+  --vel-shadow-lg:
+    0 22px 56px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(83, 234, 253, 0.32),
+    inset 0 0 28px rgba(83, 234, 253, 0.42);
+  --vel-radius: 999px;
+  --vel-radius-pill: 999px;
+  /* Figma pill: fill #181818, drop + inner shadow (no stroke) */
+  --vel-injection-elev:
+    0 4px 4px 0 rgba(0, 0, 0, 0.52),
+    inset 0 4px 4px 0 rgba(255, 255, 255, 0.22);
+  --vel-injection-elev-hover:
+    0 6px 8px 0 rgba(0, 0, 0, 0.55),
+    inset 0 4px 5px 0 rgba(255, 255, 255, 0.28);
+  --vel-injection-divider: rgba(255, 255, 255, 0.1);
+  --vel-font: "DM Sans", "Inter", "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+  --vel-font-secondary: "Space Grotesk", "DM Sans", sans-serif;
+}
+
+/* Modal — dark surface aligned with the sidebar extension theme
+   (matches --tv-bg / --tv-surface-* / --tv-brand from panel/consumer/sidebar.css). */
+.velocity-injection-modal-root {
+  --vm-bg: #101010;
+  --vm-surface: #181818;
+  --vm-surface-2: #232323;
+  --vm-text: #ffffff;
+  --vm-text-muted: #bac9cc;
+  --vm-text-soft: rgba(186, 201, 204, 0.62);
+  --vm-border: rgba(255, 255, 255, 0.1);
+  --vm-border-strong: rgba(255, 255, 255, 0.2);
+  --vm-border-focus: #19d8e6;
+  --vm-cyan: #19d8e6;
+  --vm-cyan-bright: #19d8e6;
+  --vm-cyan-soft: rgba(25, 216, 230, 0.12);
+  --vm-cyan-mid: rgba(25, 216, 230, 0.22);
+  --vm-highlight: rgba(238, 193, 60, 0.18);
+  --vm-highlight-border: rgba(238, 193, 60, 0.4);
+  --vm-pro-gold: #eec13c;
+  --vm-pro-gold-bright: #f5c842;
+  --vm-pro-gold-glow: #f2cf6a;
+  --vm-pro-gold-soft: rgba(238, 193, 60, 0.14);
+  --vm-pro-gold-strong: rgba(238, 193, 60, 0.45);
+  --vm-shadow:
+    0 24px 56px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(83, 234, 253, 0.22),
+    inset 0 0 22px rgba(83, 234, 253, 0.08);
+  --vm-font: "DM Sans", "Inter", "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+  --vm-font-secondary: "Space Grotesk", "DM Sans", sans-serif;
+}
+
+.velocity-injection-modal-root.light-mode {
+  --vm-bg: #f9fafb;
+  --vm-surface: #ffffff;
+  --vm-surface-2: #f3f4f6;
+  --vm-text: #111827;
+  --vm-text-muted: #4b5563;
+  --vm-text-soft: rgba(75, 85, 99, 0.62);
+  --vm-border: rgba(0, 0, 0, 0.1);
+  --vm-border-strong: rgba(0, 0, 0, 0.2);
+  --vm-cyan-soft: rgba(25, 216, 230, 0.15);
+  --vm-cyan-mid: rgba(25, 216, 230, 0.25);
+  --vm-shadow:
+    0 24px 56px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+}

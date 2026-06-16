@@ -1,0 +1,96 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions-server2.yaml
+
+# Ship logs to Loki running locally on Server 2
+clients:
+  - url: http://localhost:3100/loki/api/v1/push
+
+scrape_configs:
+  # -----------------------------------------------------------------------
+  # Docker container logs
+  # -----------------------------------------------------------------------
+  - job_name: docker-containers
+    pipeline_stages:
+      - docker: {}
+      - json:
+          expressions:
+            log: log
+            stream: stream
+            time: time
+      - timestamp:
+          source: time
+          format: RFC3339Nano
+      - output:
+          source: log
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: docker
+          server: server2
+          __path__: /var/lib/docker/containers/*/*-json.log
+    relabel_configs:
+      - source_labels: [__path__]
+        regex: '/var/lib/docker/containers/([^/]+)/.*'
+        target_label: container_id
+      - source_labels: [container_id]
+        target_label: __tmp_container_id
+    # NOTE: to get the friendly container name, deploy with
+    # docker run -v /var/lib/docker/containers:/var/lib/docker/containers:ro
+    # and ensure Promtail runs as root or with appropriate group membership.
+
+  # -----------------------------------------------------------------------
+  # Apache HTTP Server logs (AlmaLinux default paths)
+  # -----------------------------------------------------------------------
+  - job_name: apache-access
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: apache
+          log_type: access
+          server: server2
+          __path__: /var/log/httpd/access_log
+
+  - job_name: apache-error
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: apache
+          log_type: error
+          server: server2
+          __path__: /var/log/httpd/error_log
+
+  # -----------------------------------------------------------------------
+  # PostgreSQL 17 logs
+  # -----------------------------------------------------------------------
+  - job_name: postgresql
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: postgresql
+          server: server2
+          __path__: /var/lib/pgsql/17/data/log/*.log
+
+  # -----------------------------------------------------------------------
+  # Systemd Journal
+  # -----------------------------------------------------------------------
+  - job_name: journal
+    journal:
+      max_age: 12h
+      labels:
+        job: systemd-journal
+        server: server2
+    relabel_configs:
+      - source_labels: ['__journal__systemd_unit']
+        target_label: unit
+      - source_labels: ['__journal__hostname']
+        target_label: hostname
+      - source_labels: ['__journal_priority_keyword']
+        target_label: priority

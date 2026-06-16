@@ -1,0 +1,136 @@
+# =============================================================================
+# Fail2ban jail.local — Consolidated Production Server (Nginx + AlmaLinux)
+# Deploy to: /etc/fail2ban/jail.local
+# After deploying: sudo systemctl restart fail2ban
+#
+# SOC2: CC6.6 (Intrusion Detection) — 8 jails: sshd + 7 nginx jails
+# =============================================================================
+
+[DEFAULT]
+# Ban duration in seconds (3600 = 1 hour; 86400 = 24 hours for severe)
+bantime  = 3600
+# Time window in seconds to count failures (600 = 10 minutes)
+findtime  = 600
+# Number of failures before ban
+maxretry = 5
+# Use systemd journal as log backend (correct for AlmaLinux)
+backend = systemd
+# Action: ban via iptables (nftables not default on AlmaLinux 9)
+banaction = iptables-multiport
+
+# =============================================================================
+# SSH
+# =============================================================================
+
+[sshd]
+enabled  = true
+port     = ssh
+logpath  = %(sshd_log)s
+maxretry = 4
+bantime  = 7200
+
+# =============================================================================
+# Nginx — Auth / Login Rate Abuse
+# Matches 429 Too Many Requests returned from Node.js auth endpoints
+# or 401/403 from repeated failed logins
+# =============================================================================
+
+[nginx-auth]
+enabled  = true
+port     = http,https
+filter   = nginx-auth
+logpath  = /var/log/nginx/thinkvelocity-access.log
+           /var/log/nginx/enterprise-access.log
+           /var/log/nginx/api-access.log
+# 5 auth failures within 10 minutes → 2-hour ban
+maxretry = 5
+findtime = 600
+bantime  = 7200
+
+# =============================================================================
+# Nginx — HTTP 400 / Bad Request flooding
+# Catches malformed requests and protocol abuse
+# =============================================================================
+
+[nginx-http-auth]
+enabled  = true
+port     = http,https
+filter   = nginx-http-auth
+logpath  = /var/log/nginx/thinkvelocity-error.log
+           /var/log/nginx/enterprise-error.log
+           /var/log/nginx/api-error.log
+maxretry = 6
+
+# =============================================================================
+# Nginx — Botscan / Path Traversal / Scanner Detection
+# Blocks IPs probing for wp-admin, .env files, PHP paths, etc.
+# =============================================================================
+
+[nginx-botscan]
+enabled  = true
+port     = http,https
+filter   = nginx-botscan
+logpath  = /var/log/nginx/thinkvelocity-access.log
+           /var/log/nginx/enterprise-access.log
+           /var/log/nginx/api-access.log
+# One scan attempt = instant ban for 24 hours
+maxretry = 1
+bantime  = 86400
+
+# =============================================================================
+# Nginx — 404 Flood (path enumeration)
+# =============================================================================
+
+[nginx-404]
+enabled  = true
+port     = http,https
+filter   = nginx-404
+logpath  = /var/log/nginx/thinkvelocity-access.log
+           /var/log/nginx/enterprise-access.log
+           /var/log/nginx/api-access.log
+maxretry = 20
+findtime = 60
+bantime  = 3600
+
+# =============================================================================
+# Nginx — Request Rate Limit Exceeded (429)
+# When Nginx returns 429 from limit_req, the IP is already being rate-limited;
+# if it keeps hitting 429s aggressively, ban it
+# =============================================================================
+
+[nginx-ratelimit]
+enabled  = true
+port     = http,https
+filter   = nginx-ratelimit
+logpath  = /var/log/nginx/thinkvelocity-error.log
+           /var/log/nginx/api-error.log
+maxretry = 30
+findtime = 60
+bantime  = 3600
+
+# =============================================================================
+# Nginx — noscript (requests for .cgi, .pl, .aspx, etc.)
+# These indicate scanners; real users don't hit these paths
+# =============================================================================
+
+[nginx-noscript]
+enabled  = true
+port     = http,https
+filter   = nginx-noscript
+logpath  = /var/log/nginx/thinkvelocity-access.log
+           /var/log/nginx/api-access.log
+maxretry = 2
+bantime  = 86400
+
+# =============================================================================
+# PostgreSQL — Auth failures (relevant when port 5432 is still accessible
+# from WireGuard peers; blocks repeated failed psql connection attempts)
+# =============================================================================
+
+[postgresql]
+enabled  = true
+port     = 5432
+filter   = postgresql
+logpath  = /var/lib/postgresql/thinkvelocity_prod/pg_log/postgresql-*.log
+maxretry = 5
+bantime  = 7200

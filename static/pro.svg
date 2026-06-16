@@ -1,0 +1,5 @@
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="24" cy="22" r="18" fill="#1e1e1e" />
+  <rect x="10" y="32" width="28" height="12" rx="6" fill="#ffd700" />
+  <text x="24" y="41" font-family="sans-serif" font-size="9" font-weight="bold" fill="#000" text-anchor="middle">Pro</text>
+</svg>

@@ -1,0 +1,189 @@
+groups:
+  # =========================================================================
+  # Infrastructure — Critical
+  # =========================================================================
+  - name: infrastructure.critical
+    rules:
+
+      - alert: ServerDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Server/exporter down — {{ $labels.job }} on {{ $labels.instance }}"
+          description: >
+            The scrape target {{ $labels.instance }} (job: {{ $labels.job }},
+            server: {{ $labels.server }}) has been unreachable for more than 2 minutes.
+            Check the exporter service and host connectivity.
+
+      - alert: DiskCritical
+        expr: >
+          (
+            node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs",mountpoint!~"/boot.*"}
+            /
+            node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs",mountpoint!~"/boot.*"}
+          ) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk critically low on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: >
+            Filesystem {{ $labels.mountpoint }} on {{ $labels.instance }}
+            (server: {{ $labels.server }}) has less than 10% space available.
+            Current free: {{ $value | printf "%.1f" }}%.
+            Immediate action required to avoid service disruption.
+
+      - alert: MemoryCritical
+        expr: >
+          (
+            node_memory_MemAvailable_bytes
+            /
+            node_memory_MemTotal_bytes
+          ) * 100 < 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Memory critically low on {{ $labels.instance }}"
+          description: >
+            Available memory on {{ $labels.instance }} (server: {{ $labels.server }})
+            has dropped below 5%. Current available: {{ $value | printf "%.1f" }}%.
+            OOM kills may occur imminently.
+
+      - alert: ContainerDown
+        expr: >
+          time() - container_last_seen{name!=""} > 120
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container down — {{ $labels.name }} on {{ $labels.instance }}"
+          description: >
+            Container {{ $labels.name }} on {{ $labels.instance }}
+            (server: {{ $labels.server }}) has not been seen by cAdvisor
+            for more than 2 minutes. The container may have crashed or been removed.
+
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL exporter unreachable on {{ $labels.instance }}"
+          description: >
+            The postgres_exporter on {{ $labels.instance }} (server: {{ $labels.server }})
+            is reporting that PostgreSQL is down or unreachable.
+            Investigate the PostgreSQL 17 service on Server 2 (13.203.181.76) immediately.
+
+  # =========================================================================
+  # Infrastructure — Warning
+  # =========================================================================
+  - name: infrastructure.warning
+    rules:
+
+      - alert: DiskWarning
+        expr: >
+          (
+            node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs",mountpoint!~"/boot.*"}
+            /
+            node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs",mountpoint!~"/boot.*"}
+          ) * 100 < 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space low on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: >
+            Filesystem {{ $labels.mountpoint }} on {{ $labels.instance }}
+            (server: {{ $labels.server }}) has less than 20% space available.
+            Current free: {{ $value | printf "%.1f" }}%.
+            Plan disk clean-up or expansion before this becomes critical.
+
+      - alert: MemoryWarning
+        expr: >
+          (
+            node_memory_MemAvailable_bytes
+            /
+            node_memory_MemTotal_bytes
+          ) * 100 < 15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory usage high on {{ $labels.instance }}"
+          description: >
+            Available memory on {{ $labels.instance }} (server: {{ $labels.server }})
+            has been below 15% for 10 minutes.
+            Current available: {{ $value | printf "%.1f" }}%.
+            Review running processes and container memory limits.
+
+      - alert: SwapHigh
+        expr: >
+          (
+            (node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes)
+            /
+            node_memory_SwapTotal_bytes
+          ) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Swap heavily used on {{ $labels.instance }}"
+          description: >
+            Swap usage on {{ $labels.instance }} (server: {{ $labels.server }})
+            has exceeded 80% for 5 minutes. Current usage: {{ $value | printf "%.1f" }}%.
+            Heavy swap usage indicates memory pressure; performance may be degraded.
+
+      - alert: HighCPU
+        expr: >
+          100 - (avg by(instance, server) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU usage very high on {{ $labels.instance }}"
+          description: >
+            CPU usage on {{ $labels.instance }} (server: {{ $labels.server }})
+            has been above 90% for 10 minutes.
+            Current usage: {{ $value | printf "%.1f" }}%.
+            Identify runaway processes or consider scaling.
+
+      - alert: SSLCertExpiringSoon
+        expr: >
+          probe_ssl_earliest_cert_expiry - time() < 14 * 24 * 3600
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "SSL certificate expiring soon on {{ $labels.instance }}"
+          description: >
+            The SSL certificate for {{ $labels.instance }} will expire in less than 14 days.
+            Days remaining: {{ $value | humanizeDuration }}.
+            Run certbot renew or check certificate auto-renewal.
+
+      - alert: PostgreSQLConnectionsHigh
+        expr: pg_stat_activity_count > 150
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL connection count high on {{ $labels.instance }}"
+          description: >
+            PostgreSQL on {{ $labels.instance }} (server: {{ $labels.server }})
+            has {{ $value }} active connections, exceeding the threshold of 150.
+            Review connection pool settings (PgBouncer) or long-running queries.
+
+      - alert: ContainerRestarting
+        expr: >
+          increase(container_start_time_seconds{name!=""}[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container restarting frequently — {{ $labels.name }} on {{ $labels.instance }}"
+          description: >
+            Container {{ $labels.name }} on {{ $labels.instance }}
+            (server: {{ $labels.server }}) has restarted more than once in the last 5 minutes.
+            Check container logs: docker logs {{ $labels.name }} --tail 100

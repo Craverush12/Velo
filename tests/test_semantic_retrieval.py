@@ -64,7 +64,7 @@ class SemanticRetrievalTests(unittest.TestCase):
             user_id=user_id,
         )
         _, _, user_message = _prepare_enhance_input(request)
-        payload = json.loads(user_message.split("\n", 3)[3])
+        payload = json.loads(user_message[user_message.index("{"):])
         recent_work = payload["user_context"]["recent_work"]
         summaries = [item["summary"] for item in recent_work]
 

@@ -1,0 +1,99 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: production
+    region: ap-south-1
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['localhost:9093']
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  # -----------------------------------------------------------------------
+  # Prometheus self-monitoring
+  # -----------------------------------------------------------------------
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # -----------------------------------------------------------------------
+  # Host metrics — node_exporter
+  # -----------------------------------------------------------------------
+  - job_name: 'node-server2'
+    static_configs:
+      - targets: ['localhost:9100']
+        labels:
+          server: 'server2'
+          role: 'production-hub'
+          public_ip: '13.203.181.76'
+
+  - job_name: 'node-server1'
+    # Requires WireGuard tunnel to be active (10.100.0.2)
+    static_configs:
+      - targets: ['10.100.0.2:9100']
+        labels:
+          server: 'server1'
+          role: 'extension-api'
+          public_ip: '13.234.212.59'
+
+  - job_name: 'node-server3'
+    # Requires WireGuard tunnel to be active (10.100.0.3)
+    static_configs:
+      - targets: ['10.100.0.3:9100']
+        labels:
+          server: 'server3'
+          role: 'enterprise'
+          public_ip: '13.233.86.137'
+
+  # -----------------------------------------------------------------------
+  # Container metrics — cAdvisor
+  # -----------------------------------------------------------------------
+  - job_name: 'cadvisor-server2'
+    static_configs:
+      - targets: ['localhost:9200']
+        labels:
+          server: 'server2'
+          role: 'production-hub'
+
+  - job_name: 'cadvisor-server1'
+    # Requires WireGuard tunnel to be active (10.100.0.2)
+    static_configs:
+      - targets: ['10.100.0.2:9200']
+        labels:
+          server: 'server1'
+          role: 'extension-api'
+
+  - job_name: 'cadvisor-server3'
+    # Requires WireGuard tunnel to be active (10.100.0.3)
+    static_configs:
+      - targets: ['10.100.0.3:9200']
+        labels:
+          server: 'server3'
+          role: 'enterprise'
+
+  # -----------------------------------------------------------------------
+  # PostgreSQL metrics — postgres_exporter (Server 2)
+  # -----------------------------------------------------------------------
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['localhost:9187']
+        labels:
+          server: 'server2'
+          role: 'production-hub'
+
+  # -----------------------------------------------------------------------
+  # Application health endpoints
+  # -----------------------------------------------------------------------
+  - job_name: 'app-health'
+    metrics_path: /health
+    static_configs:
+      - targets:
+          - 'localhost:3005'       # nodejs-pg-backend-container (Server 2)
+          - 'localhost:8005'       # python-backend-container (Server 2)
+          - '10.100.0.3:3000'     # enterprise-backend / NestJS (Server 3, via WireGuard)
+          - '10.100.0.2:8000'     # FastAPI extension API (Server 1, via WireGuard)

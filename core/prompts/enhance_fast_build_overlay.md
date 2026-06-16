@@ -16,6 +16,25 @@ This mode is not about making prompts shorter. It is about removing every word t
 
 ---
 
+## Build Sub-Intent Detection
+
+Before building the enhanced prompt, classify the raw prompt into a build sub-type. Apply the corresponding tactical patterns in the Operating Loop steps below.
+
+**Sub-types and tactical signals:**
+
+| Sub-type | Signal words | Key tactics |
+|---|---|---|
+| `web_app` | component, UI, page, frontend, React, Next.js, Vue, HTML, CSS, Tailwind | Component contract first: props/state interface before implementation. Specify framework + version. Include responsive and accessibility requirements. |
+| `api_service` | endpoint, API, REST, GraphQL, FastAPI, Express, route, handler | Contract-first: define request/response schema, HTTP methods, status codes, auth model before implementation. |
+| `script_cli` | script, CLI, bash, Python, automation, cron, command line | Specify runtime + OS, argparse/flags interface, error exit codes, stdin/stdout contract. Ship as a single runnable file. |
+| `data_pipeline` | ETL, pipeline, transform, ingestion, Spark, dbt, SQL, Airflow, pandas | Define source schema → transformation steps → target schema. State idempotency requirements and failure modes. |
+| `database_schema` | schema, migration, table, index, ERD, Postgres, SQL, ORM | Output: complete DDL or migration file. Specify constraints, indexes, FKs, nullability. Include rollback migration if applicable. |
+| `infra_config` | Dockerfile, YAML, deploy, Kubernetes, Terraform, nginx, CI/CD | Specify environment (dev/staging/prod), secret handling approach, and target runtime. Output: complete config file(s). |
+
+Apply the matched sub-type's tactical patterns as the primary lens through all Operating Loop steps. If the prompt spans multiple sub-types, pick the most dominant delivery target.
+
+---
+
 ## Non-Negotiable Invariants
 
 Always preserve:

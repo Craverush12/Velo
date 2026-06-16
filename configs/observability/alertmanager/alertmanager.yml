@@ -1,0 +1,121 @@
+global:
+  resolve_timeout: 5m
+  # Slack API URL injected at deploy time — see DEPLOY.md Step 4
+  slack_api_url: "REPLACE_WITH_SM_KEY_slack_webhook"
+
+# =============================================================================
+# Routing tree
+# =============================================================================
+route:
+  # Default receiver for anything that doesn't match a child route
+  receiver: slack-warning
+
+  # Group alerts by service (compose label) + alertname so each
+  # service fires its own notification thread
+  group_by:
+    - alertname
+    - service
+
+  # Batch window for a new group before first notification
+  group_wait: 30s
+
+  # How long to wait before sending about new alerts in an existing group
+  group_interval: 5m
+
+  # Default repeat interval — overridden per route below
+  repeat_interval: 12h
+
+  routes:
+    # -------------------------------------------------------------------------
+    # Critical severity — fire immediately, repeat every 4h
+    # -------------------------------------------------------------------------
+    - matchers:
+        - severity = critical
+      receiver: slack-critical
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 4h
+      continue: false
+
+    # -------------------------------------------------------------------------
+    # Warning severity — 5-minute wait, repeat every 12h
+    # -------------------------------------------------------------------------
+    - matchers:
+        - severity = warning
+      receiver: slack-warning
+      group_wait: 5m
+      group_interval: 5m
+      repeat_interval: 12h
+      continue: false
+
+# =============================================================================
+# Inhibition rules
+# =============================================================================
+inhibit_rules:
+  # If ServiceDown fires for an instance, suppress lower-priority alerts
+  # for the same instance (avoid alert flood when a container is completely gone)
+  - source_matchers:
+      - alertname = ServiceDown
+    target_matchers:
+      - alertname != ServiceDown
+    equal:
+      - instance
+
+# =============================================================================
+# Receivers
+# =============================================================================
+receivers:
+
+  # ---------------------------------------------------------------------------
+  # Critical — immediate Slack notification with red badge
+  # ---------------------------------------------------------------------------
+  - name: slack-critical
+    slack_configs:
+      - api_url: "REPLACE_WITH_SM_KEY_slack_webhook"
+        channel: "#thinkvelocity-alerts"
+        send_resolved: true
+        icon_emoji: ":rotating_light:"
+        username: "ThinkVelocity Alertmanager"
+        title: >-
+          [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}]
+          {{ .GroupLabels.alertname }}
+          — {{ .GroupLabels.service | default "infra" }}
+        text: |
+          {{ range .Alerts }}
+          *Severity:* {{ .Labels.severity | toUpper }}
+          *Service:* {{ .Labels.service | default "—" }}
+          *Instance:* {{ .Labels.instance | default "—" }}
+          *SOC2:* {{ .Labels.soc2 | default "—" }}
+          *Summary:* {{ .Annotations.summary }}
+          *Detail:* {{ .Annotations.description }}
+          *Fired:* {{ .StartsAt | since | humanizeDuration }} ago
+          {{ if .Annotations.runbook }}*Runbook:* `{{ .Annotations.runbook }}`{{ end }}
+          ─────
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+
+  # ---------------------------------------------------------------------------
+  # Warning — batched Slack notification with yellow badge
+  # ---------------------------------------------------------------------------
+  - name: slack-warning
+    slack_configs:
+      - api_url: "REPLACE_WITH_SM_KEY_slack_webhook"
+        channel: "#thinkvelocity-alerts"
+        send_resolved: true
+        icon_emoji: ":warning:"
+        username: "ThinkVelocity Alertmanager"
+        title: >-
+          [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}]
+          {{ .GroupLabels.alertname }}
+          — {{ .GroupLabels.service | default "infra" }}
+        text: |
+          {{ range .Alerts }}
+          *Severity:* {{ .Labels.severity | toUpper }}
+          *Service:* {{ .Labels.service | default "—" }}
+          *Instance:* {{ .Labels.instance | default "—" }}
+          *Summary:* {{ .Annotations.summary }}
+          *Detail:* {{ .Annotations.description }}
+          *Fired:* {{ .StartsAt | since | humanizeDuration }} ago
+          ─────
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'

@@ -1,0 +1,1202 @@
+/* Velocity prompt modal — light "Improve/Refine" card layout */
+.velocity-injection-modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-family: var(--vm-font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.velocity-injection-modal-root.is-open {
+  pointer-events: auto;
+}
+
+.velocity-injection-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 12, 16, 0.52);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.velocity-injection-modal-root.is-open .velocity-injection-modal-backdrop {
+  opacity: 1;
+}
+
+.velocity-injection-modal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(520px, calc(100vw - 28px));
+  max-height: min(620px, calc(100vh - 40px));
+  background: var(--vm-bg);
+  border-radius: 18px;
+  box-shadow: var(--vm-shadow);
+  color: var(--vm-text);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(10px) scale(0.985);
+  transition: opacity 0.22s ease, transform 0.22s ease, width 0.25s ease, height 0.25s ease;
+}
+
+.velocity-injection-modal-root.is-open .velocity-injection-modal {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.velocity-injection-modal.is-result-height {
+  height: min(460px, calc(100vh - 40px));
+  max-height: calc(100vh - 40px);
+}
+
+.velocity-injection-modal.is-large {
+  width: 80vw;
+  height: 80vh;
+  max-width: 80vw;
+  max-height: 80vh;
+}
+
+.velocity-injection-modal.is-dragging {
+  transition: none;
+  cursor: grabbing;
+}
+
+/* —— Header (3-column grid: tabs | drag | actions) —— */
+.velocity-injection-modal-header {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: var(--vm-bg);
+  border-bottom: 1px solid var(--vm-border);
+}
+
+.velocity-injection-modal-header-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px 10px;
+}
+
+/* —— Brand label (left side of header) —— */
+.velocity-injection-modal-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  justify-self: start;
+  user-select: none;
+}
+
+.velocity-injection-modal-brand-ico {
+  font-size: 16px;
+  line-height: 1;
+  color: var(--vm-pro-gold-bright, #EEC13C);
+  filter: drop-shadow(0 0 5px rgba(238, 193, 60, 0.5));
+}
+
+.velocity-injection-modal-brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--vm-font-secondary, 'Space Grotesk', 'DM Sans', sans-serif);
+  color: var(--vm-text);
+  letter-spacing: -0.02em;
+}
+
+/* —— Drag handle (6 dots in 3×2 grid) —— */
+.velocity-injection-modal-drag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  padding: 4px 8px;
+}
+
+.velocity-injection-modal-drag:active {
+  cursor: grabbing;
+}
+
+.velocity-injection-modal-drag-dots {
+  display: grid;
+  grid-template-columns: repeat(3, 5px);
+  grid-template-rows: repeat(2, 5px);
+  gap: 3px;
+}
+
+.velocity-injection-modal-drag-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--vm-text-soft);
+  opacity: 0.5;
+}
+
+/* —— Header actions (right side) —— */
+.velocity-injection-modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: end;
+}
+
+.velocity-injection-modal-remaining {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--vm-font-secondary, 'Space Grotesk', 'DM Sans', sans-serif);
+  color: var(--vm-pro-gold-bright, #EEC13C);
+  margin-right: 2px;
+  letter-spacing: 0.01em;
+}
+
+.velocity-injection-modal-remaining strong {
+  font-weight: 700;
+  color: inherit;
+}
+
+/* —— Free Prompts CTA (centered empty state) —— */
+.velocity-injection-modal-free-prompts-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 11px 28px;
+  margin: 6px 0 14px;
+  border: 1.5px solid rgba(25, 216, 230, 0.45);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(25, 216, 230, 0.12) 0%, rgba(25, 216, 230, 0.05) 100%);
+  color: var(--vm-cyan, #19d8e6);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--vm-font-secondary, 'Space Grotesk', 'DM Sans', sans-serif);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+  box-shadow: 0 0 0 0 rgba(25, 216, 230, 0);
+}
+
+.velocity-injection-modal-free-prompts-cta:hover {
+  background: linear-gradient(135deg, rgba(25, 216, 230, 0.22) 0%, rgba(25, 216, 230, 0.1) 100%);
+  border-color: var(--vm-cyan, #19d8e6);
+  box-shadow: 0 0 18px rgba(25, 216, 230, 0.22), 0 2px 8px rgba(25, 216, 230, 0.15);
+  transform: translateY(-1px);
+}
+
+.velocity-injection-modal-free-prompts-cta:active {
+  transform: translateY(0);
+}
+
+/* —— Explore Prompts button (secondary, below free CTA) —— */
+.velocity-injection-modal-explore-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 24px;
+  margin: 0 0 0;
+  border: 1px solid var(--vm-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--vm-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--vm-font-secondary, 'Space Grotesk', 'DM Sans', sans-serif);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease, transform 0.12s ease;
+}
+
+.velocity-injection-modal-explore-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.14s ease;
+}
+
+.velocity-injection-modal-explore-btn:hover {
+  background: var(--vm-surface);
+  border-color: var(--vm-text-muted);
+  color: var(--vm-text);
+  transform: translateY(-1px);
+}
+
+.velocity-injection-modal-explore-btn:hover svg {
+  opacity: 1;
+}
+
+.velocity-injection-modal-explore-btn:active {
+  transform: translateY(0);
+}
+
+/* Old header signin button — keep hidden now that it's in center */
+.velocity-injection-modal-signin {
+  display: none !important;
+}
+
+.velocity-injection-modal-icon-btn {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--vm-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.velocity-injection-modal-icon-btn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.velocity-injection-modal-icon-btn:hover {
+  background: var(--vm-surface);
+  color: var(--vm-text);
+}
+
+.velocity-injection-modal-icon-btn[data-close]:hover {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+}
+
+/* —— Toolbar button states (shape comes from feedback-btn below) ——
+   Edit / Save / Copy share the feedback-btn shape, but expose their own
+   state hooks so the JS can flash, mark active, indicate saving, etc. */
+.velocity-injection-modal-toolbar.is-hidden {
+  display: none;
+}
+
+.velocity-injection-modal-toolbar-btn.is-flash,
+.velocity-injection-modal-toolbar-btn.is-active {
+  background: var(--vm-cyan-soft);
+  border-color: var(--vm-cyan);
+  color: var(--vm-cyan);
+}
+
+.velocity-injection-modal-toolbar-btn.is-saving {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.velocity-injection-modal-toolbar-btn.is-saved {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #fff;
+}
+
+.velocity-injection-modal-toolbar-btn.is-error {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #fff;
+}
+
+/* Save-to-Collection — sits flush with Edit / Copy in the toolbar; no
+   permanent cyan ring at rest. Active/saved/error feedback still comes from
+   the `is-flash`, `is-saved`, `is-error`, `is-saving` rules above. */
+.velocity-injection-modal-feedback-btn[data-save]:focus-visible {
+  outline: none;
+  border-color: var(--vm-cyan);
+  box-shadow: 0 0 0 2px rgba(25, 216, 230, 0.35);
+}
+
+/* —— Feedback form (dislike popup) —— */
+.velocity-injection-modal-feedback-form {
+  background: var(--vm-surface);
+  border: 1px solid var(--vm-border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.velocity-injection-modal-feedback-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.velocity-injection-modal-feedback-title {
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--vm-font-secondary);
+  color: var(--vm-text);
+}
+
+.velocity-injection-modal-feedback-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vm-text-muted);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.velocity-injection-modal-feedback-close:hover {
+  background: var(--vm-surface-2);
+  color: var(--vm-text);
+}
+
+.velocity-injection-modal-feedback-textarea {
+  width: 100%;
+  min-height: 70px;
+  padding: 10px 12px;
+  border: 1px solid var(--vm-border);
+  border-radius: 8px;
+  background: var(--vm-bg);
+  color: var(--vm-text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.12s ease;
+}
+
+.velocity-injection-modal-feedback-textarea:focus {
+  border-color: var(--vm-cyan);
+}
+
+.velocity-injection-modal-feedback-textarea::placeholder {
+  color: var(--vm-text-soft);
+}
+
+.velocity-injection-modal-feedback-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  gap: 12px;
+}
+
+.velocity-injection-modal-feedback-status {
+  font-size: 12px;
+  color: var(--vm-text-muted);
+}
+
+.velocity-injection-modal-feedback-status.is-success {
+  color: #22c55e;
+}
+
+.velocity-injection-modal-feedback-status.is-error {
+  color: #ef4444;
+}
+
+.velocity-injection-modal-feedback-send {
+  height: 34px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 8px;
+  background: var(--vm-cyan-bright);
+  color: #061018;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s ease;
+  flex-shrink: 0;
+}
+
+.velocity-injection-modal-feedback-send:hover:not(:disabled) {
+  background: #58f5ff;
+}
+
+.velocity-injection-modal-feedback-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* —— Body —— */
+.velocity-injection-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--vm-bg);
+}
+
+.velocity-injection-modal-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 12px 18px 16px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.velocity-injection-modal-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* —— Editor content —— */
+.velocity-injection-modal-editor {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--vm-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.velocity-injection-modal-editor p {
+  margin: 0 0 12px;
+}
+
+.velocity-injection-modal-editor p:last-child {
+  margin-bottom: 0;
+}
+
+.velocity-injection-modal-editor mark {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  color: inherit;
+  font-weight: inherit;
+}
+
+.velocity-injection-modal-editor-textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 120px;
+  background: transparent;
+  color: var(--vm-text);
+  border: none;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.65;
+  resize: none;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  word-break: break-word;
+  white-space: pre-wrap;
+  overflow: hidden;
+}
+
+.velocity-injection-modal-editor .enh-section-label {
+  color: var(--vm-cyan);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* In-place edit affordance: the formatted DOM stays rendered (headings,
+   numbered rows, bullets, bold runs) and the whole block becomes a
+   contenteditable surface so the user edits where they read. */
+.velocity-injection-modal-editor.is-editing {
+  background: var(--vm-surface);
+  border-radius: 8px;
+  padding: 12px;
+  outline: 1px solid var(--vm-cyan);
+  caret-color: var(--vm-cyan);
+  cursor: text;
+  min-height: 160px;
+}
+
+.velocity-injection-modal-editor.is-editing:focus,
+.velocity-injection-modal-editor.is-editing:focus-visible {
+  outline: 1px solid var(--vm-cyan);
+  box-shadow: 0 0 0 2px rgba(25, 216, 230, 0.18);
+}
+
+.velocity-injection-modal-editor.is-editing * {
+  cursor: text;
+}
+
+/* —— Structured prompt rendering (shared with sidebar Output tab) ——
+   Mirrors panel/consumer/sidebar.css `.out-enhanced-body .fmt-*` styles,
+   themed against the modal's dark surface tokens. */
+.velocity-injection-modal-editor .formatted-content {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--vm-text);
+}
+
+.velocity-injection-modal-editor .fmt-paragraph {
+  margin: 0 0 12px;
+}
+
+.velocity-injection-modal-editor .formatted-content > .fmt-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.velocity-injection-modal-editor .fmt-section-head {
+  margin: 14px 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vm-cyan);
+}
+
+.velocity-injection-modal-editor .formatted-content > .fmt-section-head:first-child {
+  margin-top: 0;
+}
+
+.velocity-injection-modal-editor .fmt-num-row,
+.velocity-injection-modal-editor .fmt-bullet-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.velocity-injection-modal-editor .fmt-num {
+  flex-shrink: 0;
+  min-width: 18px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--vm-cyan);
+}
+
+.velocity-injection-modal-editor .fmt-num-body,
+.velocity-injection-modal-editor .fmt-bullet-body {
+  flex: 1;
+  min-width: 0;
+  color: var(--vm-text);
+}
+
+.velocity-injection-modal-editor .fmt-bullet {
+  flex-shrink: 0;
+  margin-top: 6px;
+  font-size: 7px;
+  line-height: 1;
+  color: var(--vm-cyan);
+}
+
+.velocity-injection-modal-editor .fmt-bullet--nested {
+  color: rgba(25, 216, 230, 0.55);
+}
+
+.velocity-injection-modal-editor .fmt-strong {
+  font-weight: 700;
+  color: var(--vm-text);
+}
+
+/* Pro mode: gold section heads / accents (matches sidebar Output Pro skin). */
+.velocity-injection-modal-root.is-pro .velocity-injection-modal-editor .fmt-section-head,
+.velocity-injection-modal-root.is-pro .velocity-injection-modal-editor .fmt-num,
+.velocity-injection-modal-root.is-pro .velocity-injection-modal-editor .fmt-bullet {
+  color: var(--vm-pro-gold);
+}
+
+/* —— Centered states (empty / sign-in / error) —— */
+.velocity-injection-modal-center {
+  margin: auto;
+  max-width: 320px;
+  text-align: center;
+  padding: 32px 12px;
+}
+
+.velocity-injection-modal-empty-ico {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--vm-surface);
+  border: 1px solid var(--vm-border);
+  color: var(--vm-cyan);
+}
+
+.velocity-injection-modal-empty-ico svg {
+  width: 22px;
+  height: 22px;
+}
+
+.velocity-injection-modal-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+  font-family: var(--vm-font-secondary);
+  color: var(--vm-text);
+  letter-spacing: -0.01em;
+}
+
+.velocity-injection-modal-text {
+  margin: 0 0 18px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--vm-text-muted);
+}
+
+.velocity-injection-modal-link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border: 1px solid var(--vm-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--vm-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.velocity-injection-modal-link-btn:hover {
+  border-color: var(--vm-cyan);
+  background: var(--vm-cyan-soft);
+}
+
+.velocity-injection-modal-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  background: var(--vm-cyan-bright);
+  color: #061018;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 4px 12px rgba(25, 216, 230, 0.32);
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+
+.velocity-injection-modal-btn-primary:hover {
+  background: #58f5ff;
+  box-shadow: 0 6px 16px rgba(25, 216, 230, 0.45);
+}
+
+/* —— Social proof grid (sign-in wall) —— */
+.velocity-injection-modal-social {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 0 0 20px;
+  text-align: left;
+}
+
+.velocity-injection-modal-social-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--vm-border);
+  border-radius: 10px;
+  background: var(--vm-surface);
+}
+
+.velocity-injection-modal-social-ico {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.velocity-injection-modal-social-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--vm-text-muted);
+}
+
+.velocity-injection-modal-social-text strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--vm-text);
+}
+
+/* —— Loading skeleton —— */
+.velocity-injection-modal-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.velocity-injection-modal-skeleton-line {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--vm-surface) 0%, var(--vm-surface-2) 50%, var(--vm-surface) 100%);
+  background-size: 200% 100%;
+  animation: vm-shimmer 1.2s ease-in-out infinite;
+}
+
+.velocity-injection-modal-skeleton-line.w-90 { width: 90%; }
+.velocity-injection-modal-skeleton-line.w-75 { width: 75%; }
+.velocity-injection-modal-skeleton-line.w-60 { width: 60%; }
+
+@keyframes vm-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.velocity-injection-modal-loading-label {
+  text-align: center;
+  font-size: 12px;
+  color: var(--vm-text-soft);
+  padding: 8px 0 0;
+  margin: 0;
+}
+
+/* —— Composer bar (feedback + toolbar + Apply button) —— */
+.velocity-injection-modal-composer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px 14px;
+  background: var(--vm-bg);
+  flex-shrink: 0;
+  border-top: 1px solid var(--vm-border);
+}
+
+.velocity-injection-modal-composer.is-hidden {
+  display: none;
+}
+
+/* Left action cluster: like + dislike + edit + save + copy, grouped together
+   and pushed against the Apply button on the right via margin-left:auto. */
+.velocity-injection-modal-composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.velocity-injection-modal-composer-actions.is-hidden {
+  display: none;
+}
+
+.velocity-injection-modal-feedback {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.velocity-injection-modal-feedback-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--vm-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.velocity-injection-modal-feedback-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.velocity-injection-modal-feedback-btn:hover {
+  background: var(--vm-surface);
+  color: var(--vm-text);
+}
+
+.velocity-injection-modal-feedback-btn[data-like]:hover {
+  border-color: #22c55e;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.velocity-injection-modal-feedback-btn[data-like].is-active {
+  border-color: #22c55e;
+  color: #fff;
+  background: #22c55e;
+}
+
+.velocity-injection-modal-feedback-btn[data-dislike]:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.velocity-injection-modal-feedback-btn[data-dislike].is-active {
+  border-color: #ef4444;
+  color: #fff;
+  background: #ef4444;
+}
+
+.velocity-injection-modal-apply {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 124px;
+  padding: 9px 26px;
+  border: none;
+  border-radius: 999px;
+  background: var(--vm-pro-gold-bright);
+  color: #061018;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 4px 12px rgba(238, 193, 60, 0.22);
+  transition: transform 0.1s ease, background 0.12s ease, box-shadow 0.12s ease, min-width 0.2s ease, padding 0.2s ease;
+}
+
+.velocity-injection-modal-apply:hover {
+  background: var(--vm-pro-gold-glow);
+  box-shadow: 0 6px 16px rgba(238, 193, 60, 0.35);
+  transform: translateY(-1px);
+}
+
+.velocity-injection-modal-apply:active {
+  transform: translateY(1px);
+}
+
+.velocity-injection-modal-apply:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.velocity-injection-modal-apply .apply-label {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.velocity-injection-modal-apply .apply-hint {
+  font-size: 9px;
+  font-weight: 600;
+  opacity: 0.85;
+  line-height: 1;
+  padding: 2px 6px;
+  margin-top: 2px;
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+}
+
+/* —— Fullscreen (is-large) scale-up ——————————————————————————
+   The expand button toggles `is-large` on the modal element which jumps the
+   surface from ~460px to 80vh × 80vw. At that size the default 14px body
+   font + 36px action buttons + 90px Apply pill feel undersized. Scope a
+   set of targeted overrides so reading + the primary CTA stay comfortable
+   without affecting the regular compact mode. */
+.velocity-injection-modal.is-large .velocity-injection-modal-scroll {
+  padding: 18px 28px 22px;
+}
+
+.velocity-injection-modal.is-large .velocity-injection-modal-editor,
+.velocity-injection-modal.is-large .velocity-injection-modal-editor .formatted-content {
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.velocity-injection-modal.is-large .velocity-injection-modal-editor .fmt-section-head {
+  font-size: 13px;
+}
+
+.velocity-injection-modal.is-large .velocity-injection-modal-editor .fmt-num {
+  font-size: 15px;
+  min-width: 22px;
+}
+
+.velocity-injection-modal.is-large .velocity-injection-modal-editor .fmt-bullet {
+  font-size: 9px;
+  margin-top: 8px;
+}
+
+.velocity-injection-modal.is-large .velocity-injection-modal-composer {
+  gap: 14px;
+  padding: 16px 20px 18px;
+}
+
+.velocity-injection-modal.is-large .velocity-injection-modal-feedback-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.velocity-injection-modal.is-large .velocity-injection-modal-feedback-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.velocity-injection-modal.is-large .velocity-injection-modal-apply {
+  min-width: 168px;
+  padding: 12px 32px;
+}
+
+.velocity-injection-modal.is-large .velocity-injection-modal-apply .apply-label {
+  font-size: 15px;
+}
+
+.velocity-injection-modal.is-large .velocity-injection-modal-apply .apply-hint {
+  font-size: 12px;
+}
+
+/* —— Thought Process loader (shared with sidebar) —— */
+.velocity-injection-modal-scroll .thought-process-panel {
+  padding: 14px 12px;
+  margin: 8px 0 0;
+  border-radius: 12px;
+  border: 1px solid var(--vm-border);
+  background: var(--vm-surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.velocity-injection-modal-scroll .thought-process-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.velocity-injection-modal-scroll .thought-process-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vm-cyan);
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(25, 216, 230, 0.7);
+  animation: vm-thought-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes vm-thought-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.75); }
+}
+
+.velocity-injection-modal-scroll .thought-process-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--vm-cyan);
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+.velocity-injection-modal-scroll .thought-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--vm-border);
+}
+
+.velocity-injection-modal-scroll .thought-step:last-child {
+  border-bottom: none;
+}
+
+.velocity-injection-modal-scroll .thought-step-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  background: var(--vm-surface-2);
+  color: var(--vm-text-muted);
+}
+
+.velocity-injection-modal-scroll .thought-step--done .thought-step-icon {
+  background: var(--vm-cyan-soft);
+  color: var(--vm-cyan);
+  border-radius: 999px;
+}
+
+.velocity-injection-modal-scroll .thought-step--running .thought-step-icon {
+  background: var(--vm-cyan-soft);
+  color: var(--vm-cyan);
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px rgba(25, 216, 230, 0.35), 0 0 10px rgba(25, 216, 230, 0.45);
+  animation: vm-thought-pulse 1.2s ease-in-out infinite;
+}
+
+.velocity-injection-modal-scroll .thought-step-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.velocity-injection-modal-scroll .thought-step-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vm-text);
+  line-height: 1.3;
+}
+
+.velocity-injection-modal-scroll .thought-step--queued .thought-step-label {
+  color: var(--vm-text-muted);
+}
+
+.velocity-injection-modal-scroll .thought-step-badge {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 7px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.velocity-injection-modal-scroll .badge--done {
+  background: var(--vm-cyan-soft);
+  color: var(--vm-cyan);
+  border: 1px solid rgba(25, 216, 230, 0.3);
+}
+
+.velocity-injection-modal-scroll .badge--running {
+  background: var(--vm-cyan-soft);
+  color: var(--vm-cyan);
+  border: 1px solid rgba(25, 216, 230, 0.35);
+}
+
+.velocity-injection-modal-scroll .badge--queued {
+  background: var(--vm-surface);
+  color: var(--vm-text-muted);
+  border: 1px solid var(--vm-border);
+}
+
+.velocity-injection-modal-scroll .thought-step-progress {
+  height: 2px;
+  border-radius: 999px;
+  background: var(--vm-surface-2);
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.velocity-injection-modal-scroll .thought-step-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  width: 0%;
+  background: linear-gradient(90deg, var(--vm-cyan-soft), var(--vm-cyan));
+}
+
+.velocity-injection-modal-scroll .thought-step--done .thought-step-progress-bar {
+  width: 100%;
+  background: var(--vm-cyan);
+  transition: width 0.3s ease;
+}
+
+.velocity-injection-modal-scroll .thought-step--running .thought-step-progress-bar {
+  animation: vm-thought-progress 1.8s ease-in-out infinite;
+}
+
+@keyframes vm-thought-progress {
+  0% { width: 0%; }
+  50% { width: 65%; }
+  100% { width: 90%; }
+}
+
+/* —— Pro theme (gold accents) —— */
+.velocity-injection-modal-root.is-pro {
+  --vm-cyan: var(--vm-pro-gold);
+  --vm-cyan-bright: var(--vm-pro-gold-bright);
+  --vm-cyan-soft: var(--vm-pro-gold-soft);
+  --vm-border-focus: var(--vm-pro-gold-glow);
+}
+
+.velocity-injection-modal-root.is-pro .velocity-injection-modal-tab.is-active {
+  background: transparent;
+  border: none;
+  color: var(--vm-pro-gold);
+}
+
+.velocity-injection-modal-root.is-pro .velocity-injection-modal-apply {
+  box-shadow: 0 4px 12px rgba(238, 193, 60, 0.32);
+}
+
+.velocity-injection-modal-root.is-pro .velocity-injection-modal-apply:hover {
+  box-shadow: 0 6px 16px rgba(238, 193, 60, 0.45);
+}
+
+.velocity-injection-modal-root.is-pro .velocity-injection-modal-btn-primary {
+  box-shadow: 0 4px 12px rgba(238, 193, 60, 0.32);
+}
+
+.velocity-injection-modal-root.is-pro .velocity-injection-modal-btn-primary:hover {
+  box-shadow: 0 6px 16px rgba(238, 193, 60, 0.45);
+}
+
+/* —— Accessibility —— */
+@media (prefers-reduced-motion: reduce) {
+  .velocity-injection-modal,
+  .velocity-injection-modal-backdrop,
+  .velocity-injection-modal-skeleton-line {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* —— Annotated segments —— */
+.vm-annotated-body {
+  line-height: 1.85;
+  font-size: 0.875rem;
+  word-break: break-word;
+  padding: 4px 0;
+}
+
+.vm-seg {
+  display: inline;
+  background: var(--seg-bg, transparent);
+  border-radius: 3px;
+  padding: 2px 4px;
+  color: #ffffff;
+  cursor: default;
+  transition: filter 0.15s ease;
+}
+
+.vm-seg:hover {
+  filter: brightness(1.2);
+}
+
+.vm-seg--original {
+  background: transparent;
+  color: inherit;
+  opacity: 0.55;
+  padding: 0;
+}
+
+/* Floating tooltip — appended to document.body, above the modal z-index */
+.vm-seg-tooltip {
+  position: fixed;
+  z-index: 2147483647;
+  max-width: 260px;
+  background: #131f26;
+  border: 1px solid color-mix(in srgb, var(--tv-text) 12%, transparent);
+  border-radius: 8px;
+  padding: 8px 12px;
+  pointer-events: none;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+  display: none;
+}
+
+.vm-seg-tooltip__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #00d4ff;
+  margin-bottom: 5px;
+}
+
+.vm-seg-tooltip__reason {
+  font-size: 0.78rem;
+  color: color-mix(in srgb, var(--tv-text) 78%, transparent);
+  line-height: 1.45;
+}

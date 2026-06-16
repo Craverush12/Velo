@@ -1,0 +1,78 @@
+# =============================================================================
+# Dockerfile.enterprise-backend — NestJS Enterprise Backend
+# Node.js 20 LTS / Alpine
+# Port: 3000
+# TypeScript build required. Prisma with schema=enterprise.
+# SOC2 CC6.6 P2-T06: non-root user UID 10001
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: builder — TypeScript compile + Prisma generate
+# -----------------------------------------------------------------------------
+FROM node:20-alpine AS builder
+
+WORKDIR /build
+
+# Install build tools for native modules
+RUN apk add --no-cache python3 make g++ openssl
+
+# Copy manifests first for layer caching
+COPY package.json package-lock.json* ./
+
+# Install all dependencies including devDependencies (need tsc, @types/*, etc.)
+RUN npm ci --ignore-scripts
+
+# Copy Prisma schema before generation
+COPY prisma ./prisma
+
+# Generate Prisma client (must run before TypeScript compile so types are available)
+RUN npx prisma generate
+
+# Copy full TypeScript source
+COPY . .
+
+# Compile TypeScript → dist/
+RUN npm run build
+
+# Prune devDependencies — only production deps remain
+RUN npm prune --omit=dev
+
+# -----------------------------------------------------------------------------
+# Stage 2: production — copy compiled dist/ + prod node_modules only
+# -----------------------------------------------------------------------------
+FROM node:20-alpine AS production
+
+# Install dumb-init (signal forwarding) and curl (healthcheck)
+RUN apk add --no-cache dumb-init curl
+
+# Create non-root user/group (SOC2 CC6.6 P2-T06)
+RUN addgroup -g 10001 -S nonroot && \
+    adduser -u 10001 -S nonroot -G nonroot
+
+WORKDIR /app
+
+# Copy compiled output
+COPY --from=builder --chown=nonroot:nonroot /build/dist ./dist
+
+# Copy production node_modules (includes generated Prisma client)
+COPY --from=builder --chown=nonroot:nonroot /build/node_modules ./node_modules
+
+# Copy package.json so Node.js can resolve the package name if needed
+COPY --chown=nonroot:nonroot package.json ./
+
+# Prisma schema is needed at runtime for migrations / introspection
+COPY --from=builder --chown=nonroot:nonroot /build/prisma ./prisma
+
+USER nonroot
+
+EXPOSE 3000
+
+ENV NODE_ENV=production \
+    PORT=3000
+
+# Health check — NestJS serves health at /backend/health
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=45s \
+  CMD curl -sf http://127.0.0.1:3000/backend/health | grep -q ok
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "dist/main.js"]

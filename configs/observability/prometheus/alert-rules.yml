@@ -1,0 +1,308 @@
+groups:
+
+  # ===========================================================================
+  # Availability — SOC2 CC7.2
+  # ===========================================================================
+  - name: availability.critical
+    rules:
+
+      # -----------------------------------------------------------------------
+      # Any scrape target (exporter, app) has been down for > 1 minute
+      # -----------------------------------------------------------------------
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          soc2: CC7.2
+        annotations:
+          summary: "Service down — {{ $labels.job }} on {{ $labels.instance }}"
+          description: >
+            Scrape target {{ $labels.instance }} (job={{ $labels.job }},
+            service={{ $labels.service | default "unknown" }}) has been
+            unreachable for more than 1 minute.
+            Check the container and host connectivity immediately.
+          runbook: "docker compose -f /opt/observability/docker-compose.yml ps"
+
+      # -----------------------------------------------------------------------
+      # Container has not been seen by cAdvisor — likely crashed/OOMkilled
+      # -----------------------------------------------------------------------
+      - alert: ContainerUnhealthy
+        expr: time() - container_last_seen{name!=""} > 60
+        for: 1m
+        labels:
+          severity: critical
+          soc2: CC7.2
+        annotations:
+          summary: "Container disappeared — {{ $labels.name }}"
+          description: >
+            Container {{ $labels.name }} has not been seen by cAdvisor
+            for more than 1 minute. It may have crashed or been removed.
+            Check with: docker ps -a | grep {{ $labels.name }}
+          runbook: "docker logs {{ $labels.name }} --tail 100"
+
+      # -----------------------------------------------------------------------
+      # Container restarted more than 3 times in a 5-minute window
+      # -----------------------------------------------------------------------
+      - alert: ContainerRestartingFrequently
+        expr: increase(container_start_time_seconds{name!=""}[5m]) > 3
+        for: 0m
+        labels:
+          severity: critical
+          soc2: CC7.2
+        annotations:
+          summary: "Container restarting too often — {{ $labels.name }}"
+          description: >
+            Container {{ $labels.name }} has started more than 3 times in
+            the last 5 minutes (restarts={{ $value | printf "%.0f" }}).
+            This indicates a crash loop.
+            Check logs: docker logs {{ $labels.name }} --tail 200
+
+  # ===========================================================================
+  # Infrastructure — disk / memory
+  # ===========================================================================
+  - name: infrastructure.critical
+    rules:
+
+      # -----------------------------------------------------------------------
+      # Disk usage > 80% on root partition
+      # -----------------------------------------------------------------------
+      - alert: DiskUsageHigh
+        expr: >
+          (
+            1 - (
+              node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs|overlay",mountpoint="/"}
+              /
+              node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs|overlay",mountpoint="/"}
+            )
+          ) * 100 > 80
+        for: 5m
+        labels:
+          severity: critical
+          soc2: CC7.2
+        annotations:
+          summary: "Disk usage above 80% on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: >
+            Filesystem {{ $labels.mountpoint }} on {{ $labels.instance }}
+            is {{ $value | printf "%.1f" }}% full (threshold: 80%).
+            Run: df -h / && docker system prune -f to free space.
+
+      # -----------------------------------------------------------------------
+      # Memory usage > 90%
+      # -----------------------------------------------------------------------
+      - alert: MemoryUsageHigh
+        expr: >
+          (
+            1 - (
+              node_memory_MemAvailable_bytes
+              /
+              node_memory_MemTotal_bytes
+            )
+          ) * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+          soc2: CC7.2
+        annotations:
+          summary: "Memory usage above 90% on {{ $labels.instance }}"
+          description: >
+            Memory usage on {{ $labels.instance }} is
+            {{ $value | printf "%.1f" }}% (threshold: 90%).
+            Available: {{ $value | humanize1024 }}. OOM kills are imminent.
+            Run: docker stats --no-stream to identify memory hogs.
+
+  # ===========================================================================
+  # Application — HTTP error rate and latency
+  # SOC2 CC7.2 (availability) + PI1.1 (processing integrity)
+  # ===========================================================================
+  - name: application.critical
+    rules:
+
+      # -----------------------------------------------------------------------
+      # HTTP 5xx error rate > 5% in a 5-minute window
+      # Requires prometheus_fastapi_instrumentator / prom-client http_requests_total
+      # Labels expected: status_code or status, service
+      # -----------------------------------------------------------------------
+      - alert: HTTP5xxErrorRateHigh
+        expr: >
+          (
+            sum by (service, instance) (
+              rate(http_requests_total{status_code=~"5.."}[5m])
+            )
+            /
+            sum by (service, instance) (
+              rate(http_requests_total[5m])
+            )
+          ) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          soc2: PI1.1
+        annotations:
+          summary: "High HTTP 5xx error rate — {{ $labels.service }}"
+          description: >
+            Service {{ $labels.service }} on {{ $labels.instance }}
+            is returning {{ $value | printf "%.1f" }}% 5xx errors
+            (threshold: 5%) over the last 5 minutes.
+            Investigate application logs in Grafana/Loki immediately.
+
+      # -----------------------------------------------------------------------
+      # API latency p95 > 2000ms
+      # Requires http_request_duration_seconds histogram
+      # -----------------------------------------------------------------------
+      - alert: APILatencyHigh
+        expr: >
+          histogram_quantile(0.95,
+            sum by (service, instance, le) (
+              rate(http_request_duration_seconds_bucket[5m])
+            )
+          ) * 1000 > 2000
+        for: 5m
+        labels:
+          severity: critical
+          soc2: CC7.2
+        annotations:
+          summary: "API p95 latency > 2s — {{ $labels.service }}"
+          description: >
+            95th-percentile response time for {{ $labels.service }}
+            on {{ $labels.instance }} is {{ $value | printf "%.0f" }}ms
+            (threshold: 2000ms). Check for slow queries or resource exhaustion.
+
+  # ===========================================================================
+  # Database — PostgreSQL
+  # ===========================================================================
+  - name: database.critical
+    rules:
+
+      # -----------------------------------------------------------------------
+      # PostgreSQL connection count > 150
+      # Requires postgres_exporter running (port 9187)
+      # -----------------------------------------------------------------------
+      - alert: PostgreSQLConnectionsHigh
+        expr: pg_stat_activity_count > 150
+        for: 2m
+        labels:
+          severity: critical
+          soc2: CC7.2
+        annotations:
+          summary: "PostgreSQL connection count high ({{ $value | printf \"%.0f\" }})"
+          description: >
+            PostgreSQL has {{ $value | printf "%.0f" }} active connections
+            (threshold: 150). Check for connection leaks, missing pgBouncer, or
+            long-running transactions.
+            Run: SELECT count(*), state FROM pg_stat_activity GROUP BY state;
+
+      # -----------------------------------------------------------------------
+      # PostgreSQL exporter unreachable
+      # -----------------------------------------------------------------------
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          soc2: CC7.2
+        annotations:
+          summary: "PostgreSQL exporter unreachable"
+          description: >
+            The postgres_exporter is reporting pg_up=0. PostgreSQL may be down
+            or the exporter lost its connection string.
+            Check: docker compose ps postgres && docker logs postgres --tail 50
+
+  # ===========================================================================
+  # Security / TLS
+  # ===========================================================================
+  - name: security.warning
+    rules:
+
+      # -----------------------------------------------------------------------
+      # SSL certificate expiring in < 14 days
+      # Requires blackbox_exporter with ssl probe OR custom cert metric.
+      # If blackbox_exporter is not deployed, this rule will simply never fire
+      # (probe_ssl_earliest_cert_expiry metric won't exist) — safe to leave in.
+      # -----------------------------------------------------------------------
+      - alert: SSLCertExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 14 * 24 * 3600
+        for: 1h
+        labels:
+          severity: critical
+          soc2: CC7.2
+        annotations:
+          summary: "SSL cert expiring in < 14 days — {{ $labels.instance }}"
+          description: >
+            Certificate for {{ $labels.instance }} expires in
+            {{ $value | humanizeDuration }}. Run certbot renew immediately
+            or check auto-renewal: systemctl status certbot.timer
+
+  # ===========================================================================
+  # Infrastructure — warning tier
+  # ===========================================================================
+  - name: infrastructure.warning
+    rules:
+
+      - alert: DiskUsageWarning
+        expr: >
+          (
+            1 - (
+              node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs|overlay",mountpoint="/"}
+              /
+              node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs|overlay",mountpoint="/"}
+            )
+          ) * 100 > 70
+        for: 10m
+        labels:
+          severity: warning
+          soc2: CC7.2
+        annotations:
+          summary: "Disk usage above 70% on {{ $labels.instance }}"
+          description: >
+            Filesystem {{ $labels.mountpoint }} is {{ $value | printf "%.1f" }}% full.
+            Plan clean-up before this becomes critical (>80%).
+
+      - alert: MemoryUsageWarning
+        expr: >
+          (
+            1 - (
+              node_memory_MemAvailable_bytes
+              /
+              node_memory_MemTotal_bytes
+            )
+          ) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          soc2: CC7.2
+        annotations:
+          summary: "Memory usage above 80% on {{ $labels.instance }}"
+          description: >
+            Memory usage is {{ $value | printf "%.1f" }}% (warning threshold: 80%).
+            Monitor for further growth; consider reducing container memory limits.
+
+      - alert: HighCPU
+        expr: >
+          100 - (
+            avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100
+          ) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU usage above 85% on {{ $labels.instance }}"
+          description: >
+            CPU has been above 85% for 10 minutes (current: {{ $value | printf "%.1f" }}%).
+            Identify runaway processes: top -b -n 1 | head -20
+
+      - alert: SwapUsageHigh
+        expr: >
+          (
+            (node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes)
+            /
+            node_memory_SwapTotal_bytes
+          ) * 100 > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Swap usage above 60% on {{ $labels.instance }}"
+          description: >
+            Swap usage is {{ $value | printf "%.1f" }}%. Heavy swap activity
+            indicates memory pressure and will degrade service performance.

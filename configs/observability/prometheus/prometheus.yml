@@ -1,0 +1,160 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    environment: production
+    region: ap-south-1
+    server: thinkvelocity-prod
+
+# ---------------------------------------------------------------------------
+# Alerting — send firing rules to Alertmanager
+# ---------------------------------------------------------------------------
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+      timeout: 10s
+
+# ---------------------------------------------------------------------------
+# Rule files
+# ---------------------------------------------------------------------------
+rule_files:
+  - /etc/prometheus/alert-rules.yml
+
+# ---------------------------------------------------------------------------
+# Scrape configurations
+# ---------------------------------------------------------------------------
+scrape_configs:
+
+  # ---
+  # Prometheus self-monitoring
+  # ---
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090
+        labels:
+          service: prometheus
+
+  # ---
+  # Host OS metrics — node_exporter (bound to 127.0.0.1:9100 on host network)
+  # node_exporter runs in host-network mode; reachable at host.docker.internal
+  # or via the gateway IP. Using host.docker.internal (works on Linux with
+  # --add-host set in compose, or use 172.17.0.1 fallback).
+  # ---
+  - job_name: node_exporter
+    static_configs:
+      - targets:
+          - 172.17.0.1:9100
+        labels:
+          service: node_exporter
+          instance: thinkvelocity-prod
+
+  # ---
+  # Container metrics — cAdvisor
+  # ---
+  - job_name: cadvisor
+    static_configs:
+      - targets:
+          - cadvisor:8080
+        labels:
+          service: cadvisor
+          instance: thinkvelocity-prod
+
+  # ---
+  # Application: consumer-backend (Node.js :3005)
+  # Expects /metrics endpoint (prom-client)
+  # ---
+  - job_name: consumer_backend
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 172.17.0.1:3005
+        labels:
+          service: consumer-backend
+          runtime: nodejs
+          instance: thinkvelocity-prod
+
+  # ---
+  # Application: python-ai (FastAPI :8005)
+  # Expects /metrics endpoint (prometheus_fastapi_instrumentator)
+  # ---
+  - job_name: python_ai
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 172.17.0.1:8005
+        labels:
+          service: python-ai
+          runtime: fastapi
+          instance: thinkvelocity-prod
+
+  # ---
+  # Application: enterprise-backend (NestJS :3000)
+  # Expects /metrics endpoint (prom-client or nestjs-prometheus)
+  # ---
+  - job_name: enterprise_backend
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 172.17.0.1:3000
+        labels:
+          service: enterprise-backend
+          runtime: nestjs
+          instance: thinkvelocity-prod
+
+  # ---
+  # Application: extension-api (FastAPI :8000)
+  # ---
+  - job_name: extension_api
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 172.17.0.1:8000
+        labels:
+          service: extension-api
+          runtime: fastapi
+          instance: thinkvelocity-prod
+
+  # ---
+  # Health probes — /health endpoints for uptime tracking
+  # These use the default metrics_path; services must return 200 on /health.
+  # Prometheus will track the `up` metric per target.
+  # ---
+  - job_name: app_health
+    metrics_path: /health
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 172.17.0.1:3005
+          - 172.17.0.1:8005
+          - 172.17.0.1:3000
+          - 172.17.0.1:8000
+        labels:
+          instance: thinkvelocity-prod
+
+  # ---
+  # Alertmanager self-monitoring
+  # ---
+  - job_name: alertmanager
+    static_configs:
+      - targets:
+          - alertmanager:9093
+        labels:
+          service: alertmanager
+
+  # ---
+  # Loki self-monitoring
+  # ---
+  - job_name: loki
+    static_configs:
+      - targets:
+          - loki:3100
+        labels:
+          service: loki

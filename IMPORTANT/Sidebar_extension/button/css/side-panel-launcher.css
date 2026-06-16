@@ -1,0 +1,287 @@
+/**
+ * Velocity side-panel launcher — pinned to the right edge of the viewport.
+ *
+ * Theme: mirrors the inline injection pill (button/css/injection-button.css):
+ *   - Flat #181818 surface (no cyan halo ring on the body)
+ *   - Drop shadow + inner white highlight via --vel-injection-elev
+ *   - Velocity logo with cyan drop-shadow filter, same scale as the inline pill
+ *   - DM Sans / Inter font stack
+ *   - Cyan accents only on text and the hidden discovery pulse, not on the pill
+ */
+
+.velocity-launcher {
+  /* Local palette — keep values identical to velocity-theme.css so the
+     launcher reads as the same component family as the inline pill. */
+  --vl-surface: #181818;
+  --vl-surface-elevated: #232323;
+  --vl-text: #ffffff;
+  --vl-text-soft: #bac9cc;
+  --vl-cyan: #19d8e6;
+  --vl-cyan-bright: #58f5ff;
+  --vl-cyan-glow: #53eafd;
+  --vl-elev:
+    0 4px 4px 0 rgba(0, 0, 0, 0.52),
+    inset 0 4px 4px 0 rgba(255, 255, 255, 0.22);
+  --vl-elev-hover:
+    0 6px 8px 0 rgba(0, 0, 0, 0.55),
+    inset 0 4px 5px 0 rgba(255, 255, 255, 0.28);
+  --vl-divider: rgba(255, 255, 255, 0.1);
+  --vl-font: "DM Sans", "Inter", "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  position: fixed;
+  top: 50%;
+  right: 0;
+  z-index: 2147483600;
+  /* Default: the entire 44px orb capsule is visible flush against the right
+     edge of the viewport. Only the label + grip + close stay hidden off-screen
+     until hover. */
+  transform: translate(calc(100% - 48px), -50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 44px;
+  padding: 6px 18px 6px 13px;
+  background: var(--vl-surface);
+  border: none;
+  border-radius: 999px 0 0 999px;
+  box-shadow: var(--vl-elev);
+  font-family: var(--vl-font);
+  color: var(--vl-text);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  opacity: 0;
+  pointer-events: none;
+  overflow: visible;
+  isolation: isolate;
+  transition:
+    transform 280ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    box-shadow 220ms ease,
+    opacity 220ms ease;
+  will-change: transform, opacity;
+}
+
+.velocity-launcher.is-ready {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.velocity-launcher.is-positioned {
+  transform: translate(calc(100% - 48px), 0);
+}
+
+.velocity-launcher.is-hidden {
+  transform: translate(100%, -50%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.velocity-launcher.is-positioned.is-hidden {
+  transform: translate(100%, 0);
+}
+
+.velocity-launcher:hover,
+.velocity-launcher.is-expanded {
+  transform: translate(0, -50%);
+}
+
+.velocity-launcher.is-positioned:hover,
+.velocity-launcher.is-positioned.is-expanded {
+  transform: translate(0, 0);
+}
+
+.velocity-launcher.is-dragging {
+  transition: opacity 0.2s ease, box-shadow 0.2s ease !important;
+  cursor: grabbing;
+}
+
+/* Logo holder — matches .velocity-injection-logo: a small flat mark sitting
+   inside the 44px pill with even visual padding. The orb hosts the periodic
+   shake driven by JS (see .is-shaking below) instead of a continuous halo. */
+.velocity-launcher-orb {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  pointer-events: none;
+  transition: filter 0.18s ease;
+}
+
+.velocity-launcher-orb img {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 0 6px rgba(83, 234, 253, 0.35));
+  pointer-events: none;
+}
+
+/* While the side panel is open the launcher pill should read as inert — the
+   panel itself is the "active" surface, so we drop the cyan drop-shadow on
+   the orb logo, mute the pill body, and let the small flat icon speak for
+   itself. */
+.velocity-launcher.is-sidebar-active .velocity-launcher-orb img {
+  filter: none !important;
+}
+
+.velocity-launcher.is-sidebar-active {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  opacity: 0.7;
+}
+
+.velocity-launcher.is-sidebar-active:hover {
+  opacity: 1;
+  box-shadow: var(--vl-elev-hover);
+}
+
+.velocity-launcher.is-sidebar-active:hover .velocity-launcher-orb img {
+  filter: drop-shadow(0 0 6px rgba(83, 234, 253, 0.35)) !important;
+}
+
+/* Label revealed on hover/expanded — typography matches the inline pill */
+.velocity-launcher-label {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 2px 0;
+  white-space: nowrap;
+  line-height: 1.15;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity 200ms ease 60ms,
+    transform 200ms ease 60ms;
+  pointer-events: none;
+}
+
+.velocity-launcher:hover .velocity-launcher-label,
+.velocity-launcher.is-expanded .velocity-launcher-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.velocity-launcher-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--vl-text);
+  line-height: 1.1;
+}
+
+.velocity-launcher-subtitle {
+  font-size: 9.5px;
+  font-weight: 500;
+  color: var(--vl-cyan-glow);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+/* Drag handle — six dots styled like the inline pill's drag dots */
+.velocity-launcher-grip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 5px;
+  margin-left: 4px;
+  cursor: grab;
+  border-radius: 6px;
+  color: var(--vl-cyan-glow);
+  opacity: 0.55;
+  touch-action: none;
+  transition: opacity 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.velocity-launcher:hover .velocity-launcher-grip {
+  opacity: 0.85;
+}
+
+.velocity-launcher-grip:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--vl-cyan-bright);
+}
+
+.velocity-launcher-grip-row {
+  display: flex;
+  gap: 3px;
+}
+
+.velocity-launcher-grip-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.velocity-launcher.is-dragging .velocity-launcher-grip {
+  cursor: grabbing;
+}
+
+/* Re-show tab — thin cyan strip on the right edge when launcher is hidden */
+.velocity-launcher-restore {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  z-index: 2147483599;
+  width: 6px;
+  height: 48px;
+  border-radius: 4px 0 0 4px;
+  background: var(--vl-cyan-glow);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  transform: translateY(-50%);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease, width 220ms ease, background 220ms ease;
+}
+
+.velocity-launcher-restore.is-visible {
+  opacity: 0.75;
+  pointer-events: auto;
+}
+
+.velocity-launcher-restore:hover {
+  opacity: 1;
+  width: 10px;
+  background: var(--vl-cyan-bright);
+}
+
+/* Periodic attention nudge — a very short horizontal shake applied to the
+   orb only. The pill itself uses `transform` to slide in/out from the edge,
+   so we shake the inner orb instead of the root to avoid clobbering that
+   positioning transform. JS toggles `.is-shaking` on a ~10s cadence while
+   the launcher is idle (not hovered, dragging, or sidebar-active). */
+.velocity-launcher-orb.is-shaking {
+  animation: velocity-launcher-shake 480ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes velocity-launcher-shake {
+  0%, 100% { transform: translateX(0); }
+  15%      { transform: translateX(-2px); }
+  30%      { transform: translateX(2px); }
+  45%      { transform: translateX(-1.5px); }
+  60%      { transform: translateX(1.5px); }
+  75%      { transform: translateX(-1px); }
+  90%      { transform: translateX(1px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .velocity-launcher,
+  .velocity-launcher-label,
+  .velocity-launcher-restore {
+    transition: none;
+  }
+  .velocity-launcher-orb.is-shaking {
+    animation: none;
+  }
+}

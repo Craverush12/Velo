@@ -1,0 +1,77 @@
+# =============================================================================
+# Dockerfile.consumer-backend — Node.js Express Consumer Backend
+# Node.js 20 LTS / Alpine
+# Port: 3005
+# SOC2 CC6.6 P2-T06: non-root user UID 10001
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: builder — install all deps including devDependencies for Prisma gen
+# -----------------------------------------------------------------------------
+FROM node:20-alpine AS builder
+
+WORKDIR /build
+
+# Install build dependencies for native modules (bcrypt, pg, etc.)
+RUN apk add --no-cache python3 make g++ openssl
+
+# Copy manifests first for layer caching
+COPY package.json package-lock.json* ./
+
+# Install all dependencies (including dev for prisma generate)
+RUN npm ci --ignore-scripts
+
+# Copy Prisma schema before generate
+COPY prisma ./prisma
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Copy rest of source
+COPY . .
+
+# Prune devDependencies for production artifact
+RUN npm prune --omit=dev
+
+# -----------------------------------------------------------------------------
+# Stage 2: production — minimal runtime image
+# -----------------------------------------------------------------------------
+FROM node:20-alpine AS production
+
+# Install dumb-init for proper signal forwarding (PID 1 problem)
+RUN apk add --no-cache dumb-init curl
+
+# Create non-root user/group (SOC2 CC6.6 P2-T06)
+RUN addgroup -g 10001 -S nonroot && \
+    adduser -u 10001 -S nonroot -G nonroot
+
+WORKDIR /app
+
+# Copy production node_modules + generated Prisma client from builder
+COPY --from=builder --chown=nonroot:nonroot /build/node_modules ./node_modules
+COPY --from=builder --chown=nonroot:nonroot /build/prisma ./prisma
+
+# Copy application source
+COPY --chown=nonroot:nonroot src ./src
+COPY --chown=nonroot:nonroot package.json ./
+
+# Copy startup wrapper if present (secrets injection)
+# configs/secrets/nodejs/consumer-backend-startup.js is mounted at runtime
+# so we just ensure the source entry point exists
+# Entry is: dumb-init node src/index.js
+
+# Switch to non-root before runtime
+USER nonroot
+
+EXPOSE 3005
+
+ENV NODE_ENV=production \
+    PORT=3005
+
+# Health check — /health must return 200 with body containing "ok"
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=45s \
+  CMD curl -sf http://127.0.0.1:3005/health | grep -q ok
+
+# dumb-init is PID 1 — forwards signals correctly to Node.js child
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "src/index.js"]

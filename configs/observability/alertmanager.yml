@@ -1,0 +1,105 @@
+global:
+  # How long to wait before sending a notification for a newly firing alert
+  # (override per route)
+  resolve_timeout: 5m
+
+# -----------------------------------------------------------------------
+# Routing tree
+# -----------------------------------------------------------------------
+route:
+  # Catch-all receiver
+  receiver: slack-warning
+
+  # Group alerts by alertname + server so each server/alert combo fires
+  # its own notification thread
+  group_by: ['alertname', 'server']
+
+  # How long to wait for more alerts of the same group before sending
+  group_wait: 30s
+
+  # How long to wait before sending a notification about new alerts
+  # in an existing group
+  group_interval: 5m
+
+  # How long to wait before re-sending an already-firing notification
+  repeat_interval: 12h
+
+  routes:
+    # Critical severity — fire immediately, repeat every 4h
+    - match:
+        severity: critical
+      receiver: slack-critical
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 4h
+      continue: false
+
+    # Warning severity — batch & repeat every 12h (inherits root)
+    - match:
+        severity: warning
+      receiver: slack-warning
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      continue: false
+
+# -----------------------------------------------------------------------
+# Inhibition rules
+# -----------------------------------------------------------------------
+inhibit_rules:
+  # If a ServerDown is firing for an instance, suppress all other
+  # alerts from the same instance so we don't get a flood
+  - source_match:
+      alertname: 'ServerDown'
+    target_match_re:
+      alertname: '.+'
+    equal: ['instance']
+
+# -----------------------------------------------------------------------
+# Receivers
+# -----------------------------------------------------------------------
+receivers:
+  # --- Critical ---
+  - name: slack-critical
+    slack_configs:
+      - api_url: "REPLACE_WITH_SLACK_WEBHOOK_URL"
+        # Set SLACK_WEBHOOK_URL in the environment and replace this value at
+        # deploy time.  Example:
+        #   sed -i "s|REPLACE_WITH_SLACK_WEBHOOK_URL|${SLACK_WEBHOOK_URL}|" alertmanager.yml
+        channel: "#thinkvelocity-alerts"
+        send_resolved: true
+        icon_emoji: ":rotating_light:"
+        username: "ThinkVelocity Alertmanager"
+        title: "[{{ .Status | toUpper }}{{ if eq .Status \"firing\" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}"
+        text: |
+          {{ range .Alerts }}
+          *Severity:* {{ .Labels.severity | toUpper }}
+          *Server:* {{ .Labels.server | default "unknown" }} ({{ .Labels.instance }})
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Started:* {{ .StartsAt | since | humanizeDuration }} ago
+          {{ if .Annotations.runbook }}*Runbook:* {{ .Annotations.runbook }}{{ end }}
+          ---
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+
+  # --- Warning ---
+  - name: slack-warning
+    slack_configs:
+      - api_url: "REPLACE_WITH_SLACK_WEBHOOK_URL"
+        channel: "#thinkvelocity-alerts"
+        send_resolved: true
+        icon_emoji: ":warning:"
+        username: "ThinkVelocity Alertmanager"
+        title: "[{{ .Status | toUpper }}{{ if eq .Status \"firing\" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}"
+        text: |
+          {{ range .Alerts }}
+          *Severity:* {{ .Labels.severity | toUpper }}
+          *Server:* {{ .Labels.server | default "unknown" }} ({{ .Labels.instance }})
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Started:* {{ .StartsAt | since | humanizeDuration }} ago
+          {{ if .Annotations.runbook }}*Runbook:* {{ .Annotations.runbook }}{{ end }}
+          ---
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'

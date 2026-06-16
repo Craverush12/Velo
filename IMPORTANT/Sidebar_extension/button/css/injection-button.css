@@ -1,0 +1,656 @@
+/* Velocity floating bar — Figma #181818 pill: drop + inner shadow, no border */
+.velocity-injection-bar {
+  position: fixed;
+  z-index: 2147483646;
+  display: inline-flex;
+  align-items: center;
+  height: 42px;
+  padding: 0;
+  border-radius: var(--vel-radius-pill);
+  background: var(--vel-surface, #181818) !important;
+  border: none;
+  box-shadow: var(--vel-injection-elev);
+  font-family: var(--vel-font);
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: visible;
+  isolation: isolate;
+  transition:
+    opacity 0.2s ease,
+    padding 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* No overlay on the pill — fill stays exactly #181818. */
+.velocity-injection-bar::before {
+  content: none;
+}
+
+.velocity-injection-bar.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.velocity-injection-bar.is-expanded {
+  border: none;
+  box-shadow: var(--vel-injection-elev);
+}
+
+.velocity-injection-bar.is-dragging {
+  cursor: grabbing;
+  transition: opacity 0.2s ease, box-shadow 0.2s ease;
+}
+
+.velocity-injection-drag {
+  touch-action: none;
+}
+
+.velocity-injection-actions {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  overflow: visible;
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-actions {
+  overflow: visible;
+}
+
+.velocity-injection-core {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  flex-shrink: 0;
+  height: 100%;
+}
+
+.velocity-injection-expandable {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  max-width: 0;
+  opacity: 0;
+  overflow-x: clip;
+  overflow-y: visible;
+  pointer-events: none;
+  transition:
+    max-width 0.34s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.26s ease;
+}
+
+/* Invisible hover bridge between core and left-expanded tools */
+.velocity-injection-bar.is-expanded .velocity-injection-actions::before {
+  content: "";
+  position: absolute;
+  right: 100%;
+  top: 0;
+  width: 80px;
+  height: 100%;
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-expandable {
+  max-width: 96px;
+  opacity: 1;
+  pointer-events: auto;
+  overflow: visible;
+}
+
+@keyframes velocity-tool-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Reveal animation runs inside-out: voice (nth-child 2, closest to Enhance)
+ * fades in first, then Prompt Library (nth-child 1, outermost). Matches the
+ * spec: "first mic should appear, then prompt library". */
+.velocity-injection-bar.is-expanded .velocity-injection-expandable .velocity-injection-tool-btn:nth-child(2) {
+  animation: velocity-tool-in 0.28s cubic-bezier(0.4, 0, 0.2, 1) 0.04s both;
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-expandable .velocity-injection-tool-btn:nth-child(1) {
+  animation: velocity-tool-in 0.28s cubic-bezier(0.4, 0, 0.2, 1) 0.09s both;
+}
+
+.velocity-injection-tool-btn,
+.velocity-injection-enhance,
+.velocity-injection-drag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  cursor: pointer;
+  color: var(--vel-text);
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+/* Collapsed core: [ ✨ Enhance ] | [ ⋮⋮ Drag ] */
+.velocity-injection-enhance {
+  position: relative;
+}
+
+.velocity-injection-bar:not(.is-expanded) .velocity-injection-core {
+  gap: 0;
+}
+
+.velocity-injection-bar:not(.is-expanded) .velocity-injection-enhance {
+  width: 52px;
+  height: 42px;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--vel-cyan-glow, var(--vel-cyan));
+}
+
+.velocity-injection-bar:not(.is-expanded) .velocity-injection-enhance::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 1px;
+  background: var(--vel-injection-divider);
+}
+
+.velocity-injection-bar:not(.is-expanded) .velocity-injection-drag {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--vel-cyan-glow, var(--vel-cyan));
+  cursor: grab;
+}
+
+/* Expanded: same sizes as collapsed — backgrounds stay transparent so the
+   pill reads as a single capsule with cyan icons on it. */
+.velocity-injection-bar.is-expanded .velocity-injection-enhance {
+  width: 52px;
+  height: 42px;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+  color: var(--vel-cyan-glow, var(--vel-cyan));
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-enhance::before {
+  display: none;
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-drag {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+  color: var(--vel-cyan-glow, var(--vel-cyan));
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-tool-btn {
+  box-sizing: border-box;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 999px;
+  background: var(--vel-surface, #181818);
+  border: none;
+  box-shadow: var(--vel-injection-elev);
+  color: var(--vel-cyan-glow, var(--vel-cyan));
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-core {
+  gap: 0;
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-tool-btn:hover {
+  background: var(--vel-surface, #181818);
+  border: none;
+  box-shadow: var(--vel-injection-elev-hover);
+  color: var(--vel-cyan-2);
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-drag:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--vel-cyan-2);
+}
+
+.velocity-injection-enhance:hover .velocity-injection-sparkle {
+  filter: drop-shadow(0 0 8px rgba(83, 234, 253, 0.75));
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-enhance:hover {
+  background: var(--vel-cyan-soft);
+  border: none;
+  box-shadow: none;
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-enhance:hover .velocity-injection-sparkle svg .vel-sparkle-main,
+.velocity-injection-bar.is-expanded .velocity-injection-enhance:hover .velocity-injection-sparkle svg .vel-sparkle-sub {
+  fill: var(--vel-cyan-2);
+}
+
+.velocity-injection-enhance.is-loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.velocity-injection-enhance.is-loading .velocity-injection-sparkle {
+  animation: velocity-sparkle-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes velocity-sparkle-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.75;
+  }
+}
+
+.velocity-injection-tool-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--vel-surface-elevated);
+  border: none;
+  box-shadow: var(--vel-injection-elev);
+  color: var(--vel-text);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  z-index: 2147483647;
+  font-family: var(--vel-font);
+  max-width: none;
+  width: max-content;
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-tool-btn {
+  position: relative;
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-tool-btn:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.velocity-injection-enhance::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%) translateY(6px);
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: var(--vel-surface-elevated);
+  border: none;
+  color: var(--vel-text);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+  box-shadow: var(--vel-injection-elev);
+  z-index: 2147483647;
+  font-family: var(--vel-font);
+  max-width: none;
+  width: max-content;
+}
+
+.velocity-injection-enhance:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.velocity-injection-sparkle,
+.velocity-injection-tool-icon {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.velocity-injection-sparkle svg,
+.velocity-injection-tool-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Image-backed tool icons (e.g. Prompt Library uses the shared cyan PNG asset
+   from assets/Extension icons/ so it matches the sidebar rail). */
+.velocity-injection-tool-icon--img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  /* Cyan PNG on the dark pill already matches the surrounding stroke icons. */
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-tool-btn:hover .velocity-injection-tool-icon--img img {
+  filter: drop-shadow(0 0 4px rgba(83, 234, 253, 0.55));
+}
+
+/* Velocity logo (default state — shown when the bar is not hover-expanded) */
+/* Size is intentionally smaller than the surrounding pill so the V mark reads
+   as an icon (not a slab) next to the drag-dots handle. The Velocity_logo.png
+   is now a tight-cropped 1:1 PNG, so the rendered glyph fills this box. */
+.velocity-injection-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.velocity-injection-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Default (collapsed / no hover): show Velocity logo, hide sparkle */
+.velocity-injection-bar:not(.is-expanded) .velocity-injection-logo {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.velocity-injection-bar:not(.is-expanded) .velocity-injection-sparkle {
+  display: none;
+}
+
+/* Hover (expanded): show sparkle, hide logo */
+.velocity-injection-bar.is-expanded .velocity-injection-logo {
+  display: none;
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-sparkle {
+  display: inline-flex;
+}
+
+/* Position both icons inside the enhance button (only one is visible at a time) */
+.velocity-injection-enhance .velocity-injection-logo,
+.velocity-injection-enhance .velocity-injection-sparkle {
+  position: relative;
+}
+
+.velocity-injection-sparkle svg .vel-sparkle-main {
+  fill: var(--vel-cyan-glow, var(--vel-cyan));
+}
+
+.velocity-injection-sparkle svg .vel-sparkle-sub {
+  fill: var(--vel-cyan-2);
+}
+
+.velocity-injection-sparkle svg path {
+  transition: fill 0.18s ease;
+}
+
+.velocity-injection-drag:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--vel-cyan-2);
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-drag {
+  cursor: grab;
+}
+
+.velocity-injection-drag:active,
+.velocity-injection-bar.is-dragging .velocity-injection-drag {
+  cursor: grabbing;
+}
+
+.velocity-drag-dots {
+  display: grid;
+  grid-template-columns: repeat(2, 3.5px);
+  grid-template-rows: repeat(3, 3.5px);
+  gap: 2.5px;
+}
+
+.velocity-drag-dots span {
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.velocity-injection-bar.has-status::before {
+  content: attr(data-status);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--vel-surface-elevated);
+  border: none;
+  color: var(--vel-text);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: var(--vel-injection-elev);
+  pointer-events: none;
+  font-family: var(--vel-font);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .velocity-injection-bar,
+  .velocity-injection-expandable {
+    transition-duration: 0.01ms !important;
+    animation: none !important;
+  }
+}
+
+/* Note: the injection bar intentionally stays cyan in all states (Free and
+   Pro). Only the enhancement popup modal switches to gold for Pro users;
+   see `.velocity-injection-modal-root.is-pro` in `injection-modal.css`. */
+
+/* ──────────────────────────────────────────────────────────
+   Post-install welcome coachmark
+   Shown once next to the Velocity bar after the user is
+   redirected to a chat platform via the install tutorial.
+   ────────────────────────────────────────────────────────── */
+.velocity-welcome-coachmark {
+  position: fixed;
+  z-index: 2147483647;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  padding: 14px 16px 14px;
+  border-radius: 14px;
+  background: #181818;
+  border: 1px solid rgba(83, 234, 253, 0.45);
+  box-shadow:
+    0 0 0 1px rgba(83, 234, 253, 0.18),
+    0 22px 48px rgba(0, 0, 0, 0.55),
+    0 0 28px rgba(83, 234, 253, 0.22);
+  color: var(--vel-text, #e9edf2);
+  font-family: var(--vel-font, system-ui, sans-serif);
+  font-size: 13px;
+  line-height: 1.45;
+  animation: velocity-welcome-pop 220ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@keyframes velocity-welcome-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.velocity-welcome-coachmark-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(233, 237, 242, 0.55);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.velocity-welcome-coachmark-close:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(233, 237, 242, 0.95);
+}
+
+.velocity-welcome-coachmark-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding-right: 22px;
+}
+
+.velocity-welcome-coachmark-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #53eafd;
+  box-shadow: 0 0 10px rgba(83, 234, 253, 0.7);
+  animation: velocity-welcome-dot 1.6s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes velocity-welcome-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.75); }
+}
+
+.velocity-welcome-coachmark-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #53eafd;
+  letter-spacing: 0.01em;
+}
+
+.velocity-welcome-coachmark-body {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  color: rgba(233, 237, 242, 0.78);
+}
+
+.velocity-welcome-coachmark-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 999px;
+  background: #53eafd;
+  color: #062327;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(83, 234, 253, 0.28);
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+
+.velocity-welcome-coachmark-cta:hover {
+  background: #22e0ef;
+  transform: translateY(-1px);
+}
+
+.velocity-welcome-coachmark-arrow {
+  position: absolute;
+  left: var(--vel-coachmark-arrow-x, 50%);
+  width: 12px;
+  height: 12px;
+  background: #181818;
+  border-left: 1px solid rgba(83, 234, 253, 0.45);
+  border-top: 1px solid rgba(83, 234, 253, 0.45);
+  transform: translate(-50%, -50%) rotate(45deg);
+  pointer-events: none;
+}
+
+.velocity-welcome-coachmark[data-placement="below"] .velocity-welcome-coachmark-arrow {
+  top: 0;
+}
+
+.velocity-welcome-coachmark[data-placement="above"] .velocity-welcome-coachmark-arrow {
+  top: 100%;
+  border-left: none;
+  border-top: none;
+  border-right: 1px solid rgba(83, 234, 253, 0.45);
+  border-bottom: 1px solid rgba(83, 234, 253, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .velocity-welcome-coachmark {
+    animation: none;
+  }
+  .velocity-welcome-coachmark-dot {
+    animation: none;
+  }
+}
+
+/* Voice button */
+.velocity-injection-voice-btn .velocity-injection-tool-icon {
+  color: var(--vel-cyan, #53eafd);
+}
+
+.velocity-injection-voice-btn .velocity-injection-tool-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.velocity-injection-bar.is-expanded .velocity-injection-voice-btn:hover .velocity-injection-tool-icon {
+  color: #fff;
+}
+
+.velocity-injection-voice-btn.is-recording {
+  background: rgba(239, 68, 68, 0.15) !important;
+}
+
+.velocity-injection-voice-btn.is-recording .velocity-injection-tool-icon {
+  color: #ef4444;
+  animation: velocity-voice-pulse 1s ease-in-out infinite;
+}
+
+@keyframes velocity-voice-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
