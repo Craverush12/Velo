@@ -14,6 +14,12 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
+# Playwright (added for scripts/outbound_browser_runner.py) needs its browser
+# binary + OS deps downloaded separately from the pip package itself.
+# --with-deps pulls the apt packages Chromium needs; must run as root (still
+# the active user at this point in the build, before USER app below).
+RUN playwright install --with-deps chromium
+
 COPY . .
 
 RUN mkdir -p /data \
