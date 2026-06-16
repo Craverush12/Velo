@@ -1,0 +1,225 @@
+# =============================================================================
+# docker-compose-new-server.yml — ThinkVelocity Production (thinkvelocity-prod-v2)
+# Target : 8GB Lightsail (ap-south-1), Ubuntu 24.04
+# Services: node-backend · python-ai-unified · nestjs-enterprise · extension-api
+#
+# IMPORTANT: PostgreSQL 17 and Redis 7 are NOT in this compose file.
+# They are run as standalone Docker containers, bound to 127.0.0.1, started
+# by bootstrap-new-server.sh (Step 7 and Step 8).
+#   postgres17: pgvector/pgvector:pg17 → 127.0.0.1:5432
+#   redis7:     redis:7-alpine         → 127.0.0.1:6379
+#
+# All app ports bound to 127.0.0.1 — never exposed to the public internet.
+# Nginx (host) handles all inbound TLS and proxies to these addresses.
+#
+# DEPLOY:
+#   1. scp configs/ to /opt/deploy/thinkvelocity/ on the new server
+#   2. Populate env files: /opt/deploy/node.env, /opt/deploy/python-ai.env,
+#                          /opt/deploy/enterprise.env, /opt/deploy/extension-api.env
+#   3. docker compose -f docker-compose-new-server.yml up -d
+#   4. docker compose -f docker-compose-new-server.yml ps   ← all must be "healthy"
+#
+# SOC2 controls implemented here:
+#   CC6.6  — no public app ports (127.0.0.1 bind)
+#   CC6.6  — no-new-privileges secopt on every container
+#   CC6.6  — read_only filesystem + tmpfs for writable paths (python-ai-unified)
+#   CC7.2  — healthchecks on every service for automated recovery detection
+#   A1.2   — resource limits (mem_limit, cpus) prevent OOM cascade
+#
+# RESOURCE ALLOCATION (8GB server):
+#   postgres17 (standalone)   1 GB  RAM
+#   redis7     (standalone)   256 MB RAM
+#   node-backend              512 MB RAM
+#   python-ai-unified         1 GB  RAM  (Groq SDK + requests in flight)
+#   nestjs-enterprise         512 MB RAM
+#   extension-api             256 MB RAM
+#   OS + Nginx + headroom     ~4.5 GB
+# =============================================================================
+
+name: thinkvelocity-prod
+
+# ---------------------------------------------------------------------------
+# Shared logging config — JSON driver, 5 × 50 MB files per container
+# ---------------------------------------------------------------------------
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "5"
+    labels: "service"
+
+services:
+
+  # ===========================================================================
+  # node-backend — Node.js Express consumer API
+  # Handles: auth, subscriptions, prompts, payments, extension endpoints
+  # Image: pre-built from Docker Hub (CI/CD pushes thinkvelocity24/thinkvelocity-backend)
+  # Port:  127.0.0.1:3005
+  # DB:    connects to standalone postgres17 at host.docker.internal:5432
+  # SOC2:  CC6.6 (no public port), CC6.2 (auth isolation — different JWT secret)
+  # ===========================================================================
+  node-backend:
+    image: thinkvelocity24/thinkvelocity-backend:latest
+    container_name: tv-node-backend
+    restart: unless-stopped
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 512m
+    cpus: "1.0"
+    env_file:
+      - /opt/deploy/node.env
+    ports:
+      - "127.0.0.1:3005:3005"
+    networks:
+      - tv-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    labels:
+      service: "node-backend"
+
+  # ===========================================================================
+  # python-ai-unified — FastAPI AI service
+  # Merges: python-backend :8005 + context-engine :8001 + prompt-enhance :3002
+  # Build:  repo root as context (copies core/ + api/ into image via Dockerfile)
+  # Port:   127.0.0.1:8005
+  # DB:     connects to standalone postgres17 at host.docker.internal:5432
+  # Redis:  connects to standalone redis7 at host.docker.internal:6379
+  # SOC2:   CC6.6 (read_only + tmpfs), CC6.6 (no public port)
+  # ===========================================================================
+  python-ai-unified:
+    build:
+      context: /opt/deploy/thinkvelocity
+      dockerfile: python-ai-unified/Dockerfile
+    container_name: tv-python-ai-unified
+    restart: unless-stopped
+    security_opt:
+      - "no-new-privileges:true"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/logs
+    mem_limit: 1g
+    cpus: "2.0"
+    env_file:
+      - /opt/deploy/python-ai.env
+    ports:
+      - "127.0.0.1:8005:8005"
+    networks:
+      - tv-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    logging: *default-logging
+    labels:
+      service: "python-ai-unified"
+
+  # ===========================================================================
+  # nestjs-enterprise — NestJS enterprise backend
+  # Handles: RBAC, guardrail pipeline, audit logs, company policies
+  # Image:   enterprise-backend:latest (built separately, loaded on server)
+  # Port:    127.0.0.1:3000
+  # DB:      connects to standalone postgres17 at host.docker.internal:5432
+  # SOC2:    CC6.2 (different JWT secret from consumer), CC6.3 (app_enterprise DB user)
+  # Note:    Prisma runs migrations at startup — may take ~45s on first boot.
+  # ===========================================================================
+  nestjs-enterprise:
+    image: enterprise-backend:latest
+    container_name: tv-nestjs-enterprise
+    restart: unless-stopped
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 512m
+    cpus: "1.0"
+    env_file:
+      - /opt/deploy/enterprise.env
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - tv-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging: *default-logging
+    labels:
+      service: "nestjs-enterprise"
+
+  # ===========================================================================
+  # extension-api — FastAPI extension / MCP server (this repo)
+  # Source: repo root (same codebase — api/enhance.py, api/refine.py, etc.)
+  # Port:   127.0.0.1:8000
+  # Note:   storage/store.py falls back to JSON if PG is not ready (lazy connect).
+  # ===========================================================================
+  extension-api:
+    build:
+      context: /opt/deploy/thinkvelocity
+      dockerfile: Dockerfile
+    container_name: tv-extension-api
+    restart: unless-stopped
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 256m
+    cpus: "1.0"
+    env_file:
+      - /opt/deploy/extension-api.env
+    ports:
+      - "127.0.0.1:8000:8000"
+    networks:
+      - tv-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    labels:
+      service: "extension-api"
+
+# =============================================================================
+# NETWORKS — tv-net is the pre-existing external network that postgres17 and
+# redis7 (standalone containers, started by bootstrap-new-server.sh) are
+# attached to. All four app services MUST be on tv-net to resolve the
+# postgres17 / redis7 hostnames used in their DATABASE_URL / REDIS_URL env
+# vars — this is NOT optional, despite the file header's host.docker.internal
+# comments (those are stale; real env config uses container hostnames).
+#
+# Without this explicit declaration, `docker compose up -d --force-recreate`
+# on a single service silently creates/uses a project-default network
+# instead of tv-net, breaking DB/Redis connectivity for that service with no
+# error until a connection pool needs to reconnect. Discovered 2026-06-16
+# when a python-ai-unified recreate (to refresh NVIDIA_API_KEY) landed on
+# thinkvelocity-prod_default and lost Redis; nestjs-enterprise was found to
+# already be in this broken state, surviving only on stale open connections.
+# =============================================================================
+networks:
+  tv-net:
+    external: true
+    name: tv-net
+
+# =============================================================================
+# VOLUMES — none required here; standalone postgres17/redis7 manage their own.
+# Declared empty so compose validation passes cleanly.
+# =============================================================================
+volumes:
+  postgres-data:
+    external: true
+    name: postgres-data
