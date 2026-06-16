@@ -12,6 +12,21 @@ API base: https://api.supermemory.ai/v3
 
 Enabled only when SUPERMEMORY_API_KEY is set. All functions degrade silently
 (log warning, return empty) when the key is missing or the API is unreachable.
+
+SECURITY (fixed 2026-06-16): isolation between users is done via Supermemory's
+`containerTags` field, NOT a top-level `userId` field. The original
+implementation sent `userId` in both /documents and /search payloads —
+Supermemory's API accepts that field but does not use it to scope search
+results, meaning every user's query searched and could return EVERY other
+user's stored memories (verified live: a query with a never-used random
+user_id returned real production users' memories). containerTags is the
+correct, verified-isolating mechanism — confirmed by a live two-user test
+where each user's search only ever returned their own tagged content.
+
+Memories written before this fix have no containerTags and are therefore
+unreachable by any containerTags-scoped search going forward (effectively
+quarantined, not deleted) — this stops the leak immediately without needing
+a backfill, though it also means pre-fix memories are now orphaned data.
 """
 
 from __future__ import annotations
@@ -57,9 +72,13 @@ async def add_memory(
     if not content or not user_id:
         return None
 
-    payload = {"content": content, "userId": user_id}
-    if metadata:
-        payload["metadata"] = metadata
+    # containerTags is what actually isolates this memory to this user on
+    # search — see module docstring. userId is kept in metadata for
+    # observability/debugging only; it is NOT a search filter.
+    payload = {"content": content, "containerTags": [user_id]}
+    meta = dict(metadata or {})
+    meta.setdefault("user_id", user_id)
+    payload["metadata"] = meta
 
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
@@ -93,7 +112,9 @@ async def search_memories(
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.post(
                 f"{_BASE}/search",
-                json={"q": query, "userId": user_id, "limit": limit},
+                # containerTags scopes results to this user only — see module
+                # docstring for why userId alone does not isolate searches.
+                json={"q": query, "containerTags": [user_id], "limit": limit},
                 headers=_headers(),
             )
             resp.raise_for_status()
