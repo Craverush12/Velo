@@ -213,6 +213,59 @@ async def _fetch_context_hint(user_id: str, query: str) -> str:
         return ""
 
 
+# NODE BACKEND DEPENDENCY (not yet implemented — see PERSONA_NODE_ENDPOINT_SPEC.md):
+# GET {NODE_BACKEND_URL}/api/v1/personalization/public/{user_id}
+# Public (no-auth), read-only, mirrors the existing processed-context/public/*
+# pattern. Expected 200 response shape:
+#   {"onboarding": {"llm_platform": str|null, "occupation": str|null,
+#                    "ai_familiarity": str|null} | null,
+#    "personalization": {"preferred_name": str|null, "professional_world": str|null,
+#                         "velocity_traits": str|null, "personal_life": str|null,
+#                         "hobbies": str|null, "primary_model": str|null} | null}
+# 404 (user has neither row) is expected and treated as "no persona yet" — not an error.
+async def _fetch_user_persona(user_id: str) -> str:
+    """Fetch stable user persona (onboarding + personalization profile) from Node backend.
+
+    Returns a compact JSON string for prompt injection, or "" on any failure /
+    missing data / incognito. Degrades open — a missing persona never blocks
+    enhancement or refinement. This is intentionally separate from
+    _fetch_context_hint: persona is "who the user is" (stable across topics),
+    context_hint is "what they're working on right now" (session-scoped).
+    """
+    if not user_id or user_id == "anonymous":
+        return ""
+    try:
+        from shared.node_client import node_get
+        data = await node_get(f"/api/v1/personalization/public/{user_id}")
+        if not isinstance(data, dict):
+            return ""
+
+        persona: dict = {}
+        onboarding = data.get("onboarding") or {}
+        if isinstance(onboarding, dict):
+            for key in ("occupation", "ai_familiarity", "llm_platform"):
+                val = onboarding.get(key)
+                if val:
+                    persona[key] = val
+
+        personalization = data.get("personalization") or {}
+        if isinstance(personalization, dict):
+            for key in (
+                "preferred_name", "professional_world", "velocity_traits",
+                "personal_life", "hobbies", "primary_model",
+            ):
+                val = personalization.get(key)
+                if val:
+                    persona[key] = val
+
+        if not persona:
+            return ""
+        return json.dumps(persona, ensure_ascii=False)
+    except Exception as exc:
+        logger.debug("persona_hint: fetch failed for user=%s — %s", user_id, exc)
+        return ""
+
+
 def _sanitize_attachment_text_with_count(name: str, text: str, user_id: str) -> tuple[str, int]:
     """Sanitise attachment text before it reaches LLM infrastructure.
 
@@ -366,6 +419,7 @@ def _to_local(
     *,
     force_media: bool = False,
     context_hint: str = "",
+    persona_hint: str = "",
 ) -> LocalEnhanceRequest:
     """Translate the extension request into the canonical EnhanceRequest."""
     mode = "media" if force_media else map_mode(req.context.get("mode"))
@@ -407,6 +461,7 @@ def _to_local(
         prompt_mode=mode,
         attachments=attachments,
         context_hint=context_hint,
+        persona_hint=persona_hint,
     )
 
 
@@ -589,8 +644,11 @@ async def enhance_stream(
     if effective_prompt != request.prompt:
         request = request.model_copy(update={"prompt": effective_prompt})
 
-    # Fetch session essence from Node backend context store (best-effort, degrades open).
-    context_hint = await _fetch_context_hint(request.user_id, effective_prompt)
+    # Fetch session essence + stable persona in parallel (both best-effort, degrade open).
+    context_hint, persona_hint = await asyncio.gather(
+        _fetch_context_hint(request.user_id, effective_prompt),
+        _fetch_user_persona(request.user_id),
+    )
 
     # Fetch per-tenant system prompt suffix (enterprise only; degrades open).
     tenant_suffix = await _fetch_tenant_prompt_suffix(request.enterprise_id) if request.enterprise_id else ""
@@ -602,7 +660,7 @@ async def enhance_stream(
         )
 
     inner: StreamingResponse = await _generate(
-        _to_local(request, context_hint=context_hint), background_tasks
+        _to_local(request, context_hint=context_hint, persona_hint=persona_hint), background_tasks
     )
     return StreamingResponse(
         _adapt_stream(inner, extra_meta=extra_meta),
@@ -637,7 +695,10 @@ async def enhance_chat(
 
     if effective_prompt != request.prompt:
         request = request.model_copy(update={"prompt": effective_prompt})
-    context_hint = await _fetch_context_hint(request.user_id, effective_prompt)
+    context_hint, persona_hint = await asyncio.gather(
+        _fetch_context_hint(request.user_id, effective_prompt),
+        _fetch_user_persona(request.user_id),
+    )
 
     # Fetch per-tenant system prompt suffix (enterprise only; degrades open).
     tenant_suffix = await _fetch_tenant_prompt_suffix(request.enterprise_id) if request.enterprise_id else ""
@@ -649,7 +710,7 @@ async def enhance_chat(
         )
 
     inner: StreamingResponse = await _generate(
-        _to_local(request, force_media=force_media, context_hint=context_hint), background_tasks
+        _to_local(request, force_media=force_media, context_hint=context_hint, persona_hint=persona_hint), background_tasks
     )
     enhanced_prompt = ""
     metadata: dict[str, Any] = {}

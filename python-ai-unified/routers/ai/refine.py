@@ -31,7 +31,7 @@ from shared.redis_cache import rate_limit_check
 # Canonical refine contract + handler (single source of truth per D-019).
 from local_app import RefineRequest, refine_fn
 
-from .enhance import _deduct_tokens, _fetch_context_hint
+from .enhance import _deduct_tokens, _fetch_context_hint, _fetch_user_persona
 
 router = APIRouter(tags=["refine"])
 
@@ -41,19 +41,26 @@ REFINE_RATE_WINDOW = 60
 
 
 async def _attach_context_hint(request: RefineRequest) -> RefineRequest:
-    """Populate request.context_hint from local pgvector + Supermemory (D-110).
+    """Populate request.context_hint and request.persona_hint (D-110 / persona feature).
 
     Mirrors the enhance pipeline's personalization step so refinements stay
     consistent with what the user's prior sessions establish (stack, domain,
-    terminology). Skipped for incognito requests. Degrades open — any failure
-    in context fetch leaves context_hint empty, never blocks refinement.
+    terminology) and who the user is (occupation, AI familiarity). Skipped for
+    incognito requests. Degrades open — any failure leaves the hint empty,
+    never blocks refinement.
     """
     if request.incognito or not request.user_id or request.user_id == "anonymous":
         return request
     try:
-        hint = await _fetch_context_hint(request.user_id, request.original_prompt)
+        import asyncio as _asyncio
+        hint, persona = await _asyncio.gather(
+            _fetch_context_hint(request.user_id, request.original_prompt),
+            _fetch_user_persona(request.user_id),
+        )
         if hint:
             request.context_hint = hint
+        if persona:
+            request.persona_hint = persona
     except Exception:
         pass  # refine must never fail because personalization lookup failed
     return request

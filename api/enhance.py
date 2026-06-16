@@ -122,6 +122,11 @@ class EnhanceRequest(BaseModel):
     # Pre-fetched context essence injected by the extension bridge (routers/ai/enhance.py).
     # Merged into the user_context block so personalization is informed by Node backend history.
     context_hint: str = ""
+    # Pre-fetched user persona (onboarding data + personalization profile + cross-session
+    # entity history) injected by the extension bridge. Unlike context_hint (what the
+    # user is working on right now), this is stable "who this user is" data — occupation,
+    # AI familiarity, preferred traits — that should persist across sessions and topics.
+    persona_hint: str = ""
 
     @field_validator("prompt")
     @classmethod
@@ -239,6 +244,21 @@ def _prepare_enhance_input(request: EnhanceRequest) -> tuple[str, list[dict], st
                 else:
                     ctx_block = json.dumps(
                         {"session_essence": request.context_hint}, ensure_ascii=False
+                    )
+            except (json.JSONDecodeError, Exception):
+                pass  # keep existing ctx_block unchanged if merge fails
+
+        # Merge pre-fetched user persona (onboarding + personalization profile).
+        # Stable across sessions — distinct from session_essence (current topic).
+        if request.persona_hint:
+            try:
+                if ctx_block:
+                    ctx_dict = json.loads(ctx_block)
+                    ctx_dict["user_persona"] = request.persona_hint
+                    ctx_block = json.dumps(ctx_dict, ensure_ascii=False, indent=2)
+                else:
+                    ctx_block = json.dumps(
+                        {"user_persona": request.persona_hint}, ensure_ascii=False
                     )
             except (json.JSONDecodeError, Exception):
                 pass  # keep existing ctx_block unchanged if merge fails
