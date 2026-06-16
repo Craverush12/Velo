@@ -13,3 +13,4 @@ requests>=2.31.0
 SQLAlchemy>=2.0.30,<3
 psycopg[binary]>=3.1.18,<4
 markitdown==0.1.5
+playwright>=1.45.0,<2
