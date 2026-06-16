@@ -300,7 +300,7 @@ function reply(sendResponse, requestId, success, data, error) {
   sendResponse(out);
 }
 
-const SUB_STATUS_CACHE_MS = 5 * 60 * 1000;
+const SUB_STATUS_CACHE_MS = 15 * 60 * 1000;
 
 async function readCachedUserStatus() {
   const TV = globalThis.TV;
