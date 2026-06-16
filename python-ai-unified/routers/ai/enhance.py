@@ -38,14 +38,25 @@ _PII_PATTERNS = [
     (r'\b(?:sk-|ghp_|gho_|AKIA|Bearer\s+)[A-Za-z0-9_\-]{16,}\b', '[PII:api_key]'),
 ]
 
+# Fixed 2026-06-16: the original patterns (bare 'disregard', 'new instructions',
+# 'ignore.{0,10}previous', etc.) matched ordinary business writing — "Please
+# disregard the earlier draft", "Team received new instructions from
+# leadership" — causing the ENTIRE attachment to be silently replaced with
+# "[CONTENT REDACTED]" on a false positive (see DECISIONS.md / incident trace
+# for user feedback this surfaced as "bad formatting": a meeting-notes
+# attachment got wiped because the notes mentioned "new instructions from
+# leadership"). Real injection attempts target the model directly — they
+# pair the trigger word with "instructions"/"system prompt" in a directive
+# structure. These patterns require that structure instead of a single
+# common word anywhere in the text.
 _INJECTION_PATTERNS = [
-    r'ignore.{0,10}previous',
-    r'system prompt',
-    r'you are now',
-    r'disregard',
-    r'forget.{0,10}instructions',
-    r'new instructions',
-    r'ignore.{0,10}instructions',
+    r'ignore\s+(?:your|all|the|any)?\s*(?:previous|prior|above)\s+instructions?',
+    r'disregard\s+(?:your|all|the|any)?\s*(?:previous|prior|above)\s+instructions?',
+    r'forget\s+(?:your|all|the|any)?\s*(?:previous|prior|above)\s+instructions?',
+    r'(?:reveal|show|print|output|disregard|ignore)\s+(?:me|us)?\s*(?:the\s+|your\s+)?system\s+prompt',
+    r'\byou\s+are\s+now\s+(?:a|an|in|no longer)\b',
+    r'(?:ignore|disregard|forget)\s+(?:everything|all)\s+(?:above|before|previously)\s+and\s+(?:follow|do|use)',
+    r'new\s+instructions?\s*:\s*(?:ignore|disregard|you\s+must|you\s+are)',
 ]
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
