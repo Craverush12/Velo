@@ -797,6 +797,16 @@ async def enhance_chat(
         try:
             from shared.prompt_trace_store import get_default_store as _get_trace_store
             _store = _get_trace_store()
+
+            _raw = request.prompt or ""
+            _enh = enhanced_prompt or ""
+            _expansion_ratio = round(len(_enh) / len(_raw), 3) if _raw else 0.0
+            _constraint_words = {"must", "only", "never", "always", "do not", "avoid", "require", "ensure"}
+            _enh_lower = _enh.lower()
+            _constraint_count = sum(_enh_lower.count(w) for w in _constraint_words)
+            _placeholder_count = len(re.findall(r'\[[A-Z_]{3,}\]', _enh))
+            _technique_count = len(annotated)
+
             background_tasks.add_task(
                 _store.record,
                 {
@@ -806,9 +816,15 @@ async def enhance_chat(
                     "prompt_mode": request.context.get("mode", "") if isinstance(request.context, dict) else "",
                     "target_ai": request.target_ai,
                     "model": "llama-3.3-70b-versatile",
-                    "input": {"raw_prompt": request.prompt if os.getenv("PROMPT_TRACE_CAPTURE_FULL_TEXT", "").lower() in ("1", "true", "yes") else ""},
-                    "output": {"final_text": enhanced_prompt, "quality_score": None},
-                    "before_after": {"before": request.prompt, "after": enhanced_prompt},
+                    "input": {"raw_prompt": _raw if os.getenv("PROMPT_TRACE_CAPTURE_FULL_TEXT", "").lower() in ("1", "true", "yes") else ""},
+                    "output": {"final_text": _enh, "quality_score": None},
+                    "before_after": {"before": _raw, "after": _enh},
+                    "metrics": {
+                        "expansion_ratio": _expansion_ratio,
+                        "constraint_count": _constraint_count,
+                        "placeholder_count": _placeholder_count,
+                        "technique_count": _technique_count,
+                    },
                     "status": "completed",
                 },
             )
