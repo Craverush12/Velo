@@ -9,6 +9,8 @@ venv/
 # Storage (user data - not committed)
 storage/data/*.json
 storage/data/*.tmp
+storage/traces/*.jsonl
+storage/traces/*.tmp
 
 # Runtime logs
 *.log

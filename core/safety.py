@@ -1,8 +1,8 @@
 import re
 
 _PATTERNS = [
-    (r'sk-[A-Za-z0-9]{20,}', 'api_key'),
-    (r'pk_[A-Za-z0-9]{20,}', 'api_key'),
+    (r'sk-[A-Za-z0-9]{16,}', 'api_key'),
+    (r'pk_(?:live|test)_[A-Za-z0-9]{16,}|pk_[A-Za-z0-9]{16,}', 'api_key'),
     (r'Bearer\s+[A-Za-z0-9\-._~+/]{20,}', 'bearer_token'),
     (r'-----BEGIN\s+\w+\s+KEY-----[\s\S]*?-----END\s+\w+\s+KEY-----', 'private_key'),
     (r'10\.\d{1,3}\.\d{1,3}\.\d{1,3}', 'internal_ip'),

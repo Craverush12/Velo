@@ -18,6 +18,7 @@ from core.source_catalog import load_source_catalog
 from storage import store as velocity_store
 from storage.admin_store import AdminStore, get_default_store
 from storage.db import normalize_database_url
+from storage.prompt_trace_store import PromptTraceStore, get_default_store as get_default_trace_store
 
 _PROD_ENGINE = None
 
@@ -108,6 +109,10 @@ def get_admin_store() -> AdminStore:
     return get_default_store()
 
 
+def get_prompt_trace_store() -> PromptTraceStore:
+    return get_default_trace_store()
+
+
 def _bootstrap_if_configured(store: AdminStore) -> None:
     if store.count_active_admin_users() > 0:
         return
@@ -158,6 +163,29 @@ def require_admin(permission: str | None = None, *, csrf: bool = False):
         if permission and not admin_auth.role_has_permission(admin["role"], permission):
             raise HTTPException(status_code=403, detail="Admin role does not have permission")
         return {"admin": store.public_admin(admin), "session": session}
+
+    return dependency
+
+
+def require_prompt_trace_reader(permission: str = "operations:view"):
+    def dependency(
+        request: Request,
+        authorization: str | None = Header(default=None, alias="Authorization"),
+        store: AdminStore = Depends(get_admin_store),
+    ) -> dict[str, Any]:
+        configured_token = os.getenv("PROMPT_ANALYTICS_API_TOKEN", "").strip()
+        if configured_token and authorization:
+            scheme, _, token = authorization.partition(" ")
+            if scheme.lower() == "bearer" and hmac.compare_digest(token.strip(), configured_token):
+                return {
+                    "auth_type": "bearer",
+                    "admin": {
+                        "id": "prompt-analytics-token",
+                        "email": "prompt-analytics-token",
+                        "role": "analytics_reader",
+                    },
+                }
+        return require_admin(permission)(request=request, x_csrf_token=None, store=store)
 
     return dependency
 
@@ -299,6 +327,64 @@ def audit_logs(
     current: dict[str, Any] = Depends(require_admin("audit:view")),
 ):
     return store.list_audit_logs(search=search, page=page, page_size=page_size)
+
+
+@router.get("/prompt-traces")
+def prompt_traces(
+    flow: str = "",
+    status: str = "",
+    user_id: str = "",
+    prompt_mode: str = "",
+    search: str = "",
+    page: int = 1,
+    page_size: int = 25,
+    include_payload: bool = False,
+    trace_store: PromptTraceStore = Depends(get_prompt_trace_store),
+    current: dict[str, Any] = Depends(require_prompt_trace_reader()),
+):
+    return trace_store.list_traces(
+        flow=flow,
+        status=status,
+        user_id=user_id,
+        prompt_mode=prompt_mode,
+        search=search,
+        page=page,
+        page_size=page_size,
+        include_payload=include_payload,
+    )
+
+
+@router.get("/prompt-traces/{trace_id}")
+def prompt_trace_detail(
+    trace_id: str,
+    trace_store: PromptTraceStore = Depends(get_prompt_trace_store),
+    current: dict[str, Any] = Depends(require_prompt_trace_reader()),
+):
+    trace = trace_store.get(trace_id)
+    if trace is None:
+        raise HTTPException(status_code=404, detail="Prompt trace not found")
+    return {"trace": trace}
+
+
+@router.get("/prompt-traces/{trace_id}/diff")
+def prompt_trace_diff(
+    trace_id: str,
+    trace_store: PromptTraceStore = Depends(get_prompt_trace_store),
+    current: dict[str, Any] = Depends(require_prompt_trace_reader()),
+):
+    diff = trace_store.diff(trace_id)
+    if diff is None:
+        raise HTTPException(status_code=404, detail="Prompt trace not found")
+    return diff
+
+
+@router.get("/prompt-metrics")
+def prompt_metrics(
+    days: int | None = None,
+    trace_store: PromptTraceStore = Depends(get_prompt_trace_store),
+    current: dict[str, Any] = Depends(require_prompt_trace_reader()),
+):
+    return {"metrics": trace_store.metrics(days=days)}
 
 
 @router.get("/users")
