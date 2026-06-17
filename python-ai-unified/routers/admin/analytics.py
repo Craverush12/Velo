@@ -216,15 +216,15 @@ async def enhance_pairs(
     count_sql = _text(f"""
         SELECT COUNT(*)
         FROM save_enhance_prompt sep
-        JOIN user_prompts up ON up.conversation_id = sep.conversation_id
+        JOIN user_prompts up ON up.prompt_id = sep.prompt_id
         WHERE {where_clause}
     """)
 
     data_sql = _text(f"""
         SELECT
-            sep.id,
+            sep.enhanced_prompt_id AS id,
             sep.user_id,
-            sep.conversation_id,
+            up.conversation_id,
             up.user_prompt AS raw_prompt,
             sep.enhanced_prompt,
             sep.domain,
@@ -232,7 +232,7 @@ async def enhance_pairs(
             sep.feedback,
             sep.created_at
         FROM save_enhance_prompt sep
-        JOIN user_prompts up ON up.conversation_id = sep.conversation_id
+        JOIN user_prompts up ON up.prompt_id = sep.prompt_id
         WHERE {where_clause}
         ORDER BY sep.created_at DESC
         LIMIT :limit OFFSET :offset
