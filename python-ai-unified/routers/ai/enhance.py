@@ -19,7 +19,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
+import uuid
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -744,6 +746,7 @@ async def enhance_chat(
             else f"[TENANT_CONSTRAINTS]\n{tenant_suffix}"
         )
 
+    trace_id = str(uuid.uuid4())
     inner: StreamingResponse = await _generate(
         _to_local(request, force_media=force_media, context_hint=context_hint, persona_hint=persona_hint), background_tasks
     )
@@ -789,11 +792,35 @@ async def enhance_chat(
                 error = event.get("message", "enhancement failed")
     if error:
         raise HTTPException(status_code=502, detail=error)
+
+    if os.getenv("PROMPT_TRACE_ENABLED", "").lower() in ("1", "true", "yes"):
+        try:
+            from shared.prompt_trace_store import get_default_store as _get_trace_store
+            _store = _get_trace_store()
+            background_tasks.add_task(
+                _store.record,
+                {
+                    "trace_id": trace_id,
+                    "flow": "enhance_chat",
+                    "user_id": request.user_id or "anonymous",
+                    "prompt_mode": request.context.get("mode", "") if isinstance(request.context, dict) else "",
+                    "target_ai": request.target_ai,
+                    "model": "llama-3.3-70b-versatile",
+                    "input": {"raw_prompt": request.prompt if os.getenv("PROMPT_TRACE_CAPTURE_FULL_TEXT", "").lower() in ("1", "true", "yes") else ""},
+                    "output": {"final_text": enhanced_prompt, "quality_score": None},
+                    "before_after": {"before": request.prompt, "after": enhanced_prompt},
+                    "status": "completed",
+                },
+            )
+        except Exception:
+            pass
+
     return {
         "enhanced_prompt": enhanced_prompt,
         "annotated_segments": annotated,
         "metadata": metadata,
         "tokens": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+        "_trace_id": trace_id,
     }
 
 
