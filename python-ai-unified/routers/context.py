@@ -1186,6 +1186,22 @@ async def _run_manual_essence_pipeline(
     )
 
     await _save_to_node(ctx, request.auth_token)
+    try:
+        from shared.supermemory_client import add_memory as _sm_add
+        _settings = get_settings()
+        if _settings.SUPERMEMORY_API_KEY:
+            asyncio.create_task(
+                _sm_add(
+                    user_id=request.user_id,
+                    content=request.essence,
+                    metadata={
+                        "platform": request.platform or "velocity",
+                        "source": "manual_essence",
+                    },
+                )
+            )
+    except Exception:
+        pass
     return ctx
 
 

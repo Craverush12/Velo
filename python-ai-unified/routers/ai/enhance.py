@@ -235,7 +235,7 @@ async def _fetch_context_hint(user_id: str, query: str) -> str:
 #                         "hobbies": str|null, "primary_model": str|null} | null}
 # 404 (user has neither row) is expected and treated as "no persona yet" — not an error.
 async def _fetch_user_persona(user_id: str) -> str:
-    """Fetch stable user persona (onboarding + personalization profile) from Node backend.
+    """Fetch stable user persona (onboarding + personalization profile) from Postgres.
 
     Returns a compact JSON string for prompt injection, or "" on any failure /
     missing data / incognito. Degrades open — a missing persona never blocks
@@ -246,28 +246,44 @@ async def _fetch_user_persona(user_id: str) -> str:
     if not user_id or user_id == "anonymous":
         return ""
     try:
-        from shared.node_client import node_get
-        data = await node_get(f"/api/v1/personalization/public/{user_id}")
-        if not isinstance(data, dict):
+        from shared.db import async_session_maker
+        if async_session_maker is None:
             return ""
 
         persona: dict = {}
-        onboarding = data.get("onboarding") or {}
-        if isinstance(onboarding, dict):
-            for key in ("occupation", "ai_familiarity", "llm_platform"):
-                val = onboarding.get(key)
-                if val:
-                    persona[key] = val
 
-        personalization = data.get("personalization") or {}
-        if isinstance(personalization, dict):
-            for key in (
-                "preferred_name", "professional_world", "velocity_traits",
-                "personal_life", "hobbies", "primary_model",
-            ):
-                val = personalization.get(key)
-                if val:
-                    persona[key] = val
+        async with async_session_maker() as session:
+            ob_result = await session.execute(
+                text(
+                    "SELECT occupation, ai_familiarity, llm_platform"
+                    " FROM onboarding_data WHERE user_id = :uid LIMIT 1"
+                ),
+                {"uid": user_id},
+            )
+            ob_row = ob_result.mappings().first()
+            if ob_row:
+                for key in ("occupation", "ai_familiarity", "llm_platform"):
+                    val = ob_row.get(key)
+                    if val:
+                        persona[key] = val
+
+            p_result = await session.execute(
+                text(
+                    "SELECT preferred_name, professional_world, velocity_traits,"
+                    " personal_life, hobbies, primary_model"
+                    " FROM personalization WHERE user_id = :uid LIMIT 1"
+                ),
+                {"uid": user_id},
+            )
+            p_row = p_result.mappings().first()
+            if p_row:
+                for key in (
+                    "preferred_name", "professional_world", "velocity_traits",
+                    "personal_life", "hobbies", "primary_model",
+                ):
+                    val = p_row.get(key)
+                    if val:
+                        persona[key] = val
 
         if not persona:
             return ""
@@ -673,6 +689,14 @@ async def enhance_stream(
     inner: StreamingResponse = await _generate(
         _to_local(request, context_hint=context_hint, persona_hint=persona_hint), background_tasks
     )
+    if request.user_id and request.user_id != "anonymous":
+        from shared.supermemory_client import add_memory as _sm_add
+        background_tasks.add_task(
+            _sm_add,
+            user_id=request.user_id,
+            content=request.prompt,
+            metadata={"domain": request.domain or "", "intent": request.intent or "", "source": "enhance"},
+        )
     return StreamingResponse(
         _adapt_stream(inner, extra_meta=extra_meta),
         media_type="text/event-stream",
@@ -723,6 +747,14 @@ async def enhance_chat(
     inner: StreamingResponse = await _generate(
         _to_local(request, force_media=force_media, context_hint=context_hint, persona_hint=persona_hint), background_tasks
     )
+    if request.user_id and request.user_id != "anonymous":
+        from shared.supermemory_client import add_memory as _sm_add
+        background_tasks.add_task(
+            _sm_add,
+            user_id=request.user_id,
+            content=request.prompt,
+            metadata={"domain": request.domain or "", "intent": request.intent or "", "source": "enhance"},
+        )
     enhanced_prompt = ""
     metadata: dict[str, Any] = {}
     annotated: list = []
