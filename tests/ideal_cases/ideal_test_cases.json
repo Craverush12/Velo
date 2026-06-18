@@ -1,0 +1,1430 @@
+[
+  {
+    "id": "dev-001",
+    "description": "Developer debugging Kubernetes pod networking — returning user with rich context",
+    "icp": "developer",
+    "domain": "software_data_engineering",
+    "intent": "debugging",
+    "mode": "returning",
+    "context_richness": "rich",
+    "user_profile": {
+      "llm_platform": "claude",
+      "primary_domain": "software_development",
+      "icp": "developer"
+    },
+    "existing_essence": "MASTER:\nSenior backend engineer building distributed microservices on Kubernetes with a focus on reliability and observability.\n\nFLOW:\n- debugging inter-service networking and pod-to-pod connectivity failures",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "My FastAPI service running in pod A can't reach the Redis sidecar in pod B. They're on the same namespace. I'm getting 'connection refused on port 6379' but kubectl exec into pod A and running nc -zv redis-service 6379 succeeds fine."
+      },
+      {
+        "role": "assistant",
+        "content": "That's a classic split-brain between DNS resolution and the actual service port. If nc succeeds but your app fails, the issue is almost always one of three things: the app is hardcoding 'localhost' instead of the service DNS name, the service port mapping is wrong (targetPort vs containerPort mismatch), or the app is reading an env var with a stale IP from pod startup order. What does your Redis connection string look like in the app config?"
+      },
+      {
+        "role": "user",
+        "content": "It's using REDIS_URL=redis://localhost:6379 — oh wait. That's the problem. But why did this work in staging? Staging uses a sidecar pattern."
+      },
+      {
+        "role": "assistant",
+        "content": "Staging likely has the Redis container in the SAME pod as your app — that's the sidecar pattern where localhost works. In prod you've split them into separate pods with a Service resource, so localhost no longer resolves to Redis. Change REDIS_URL to redis://redis-service:6379 and use the Kubernetes service DNS. Also add a readinessProbe on the Redis pod so your app pod doesn't start before Redis is ready."
+      }
+    ],
+    "expected_intent": "debugging",
+    "expected_domain": "software_data_engineering",
+    "expected_secondary_intent_contains": ["redis", "kubernetes", "networking", "debug"],
+    "expected_suggested_ai": "claude",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": true,
+      "context_keywords": ["kubernetes", "redis", "networking"]
+    }
+  },
+  {
+    "id": "dev-002",
+    "description": "Developer building distributed lock with Redis — returning user, construction mode",
+    "icp": "developer",
+    "domain": "software_data_engineering",
+    "intent": "construction",
+    "mode": "returning",
+    "context_richness": "rich",
+    "user_profile": {
+      "llm_platform": "claude",
+      "primary_domain": "software_development",
+      "icp": "developer"
+    },
+    "existing_essence": "MASTER:\nBackend engineer building a job scheduler with exactly-once execution guarantees.\n\nFLOW:\n- implementing distributed locking with Redis for critical section protection",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I need a distributed lock in Python using Redis. It needs to be non-blocking, have a configurable TTL, and handle the case where the process holding the lock crashes mid-execution so the lock doesn't stay held forever."
+      },
+      {
+        "role": "assistant",
+        "content": "Use Redlock or a simpler SET NX PX pattern. For your requirements: SET lock_key uuid NX PX ttl_ms — the NX means only set if not exists, PX sets the TTL in milliseconds. Store the holder's UUID as the value so only the owner can release it. On release, use a Lua script to atomically check the value equals your UUID before deleting — this prevents releasing a lock you don't own if it expired and was re-acquired."
+      },
+      {
+        "role": "user",
+        "content": "What's the Lua script look like? And should I use asyncio or threading for the heartbeat that extends the TTL while the job is running?"
+      }
+    ],
+    "expected_intent": "construction",
+    "expected_domain": "software_data_engineering",
+    "expected_secondary_intent_contains": ["redis", "lock", "distributed", "implementation"],
+    "expected_suggested_ai": "claude",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.3,
+      "must_contain_context": true,
+      "context_keywords": ["distributed", "redis", "lock"]
+    }
+  },
+  {
+    "id": "dev-003",
+    "description": "Developer asking how React reconciliation works — first-time user, inquiry",
+    "icp": "developer",
+    "domain": "software_data_engineering",
+    "intent": "inquiry",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "software_development",
+      "icp": "developer"
+    },
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "How does React's reconciliation algorithm actually work? I understand the virtual DOM concept but I'm unclear on how it decides which nodes to update vs re-render."
+      },
+      {
+        "role": "assistant",
+        "content": "React uses the Fiber architecture (since v16) with a diffing algorithm that runs in two phases. The reconciler walks the fiber tree comparing old and new vnodes. It uses two heuristics: elements of different types produce entirely new subtrees (no cross-type reuse), and list items use the key prop as a stable identity. If keys match, React reuses the DOM node and only updates changed props. Without keys, React diffs by position — which causes the infamous state-gets-reset-on-reorder bug."
+      },
+      {
+        "role": "user",
+        "content": "So what triggers a re-render? Is it always from the root or does React know which subtree changed?"
+      }
+    ],
+    "expected_intent": "inquiry",
+    "expected_domain": "software_data_engineering",
+    "expected_secondary_intent_contains": ["react", "reconciliation", "rendering"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "dev-004",
+    "description": "Developer deploying FastAPI with Docker health checks — operation intent",
+    "icp": "developer",
+    "domain": "software_data_engineering",
+    "intent": "operation",
+    "mode": "returning",
+    "context_richness": "sparse",
+    "user_profile": {
+      "llm_platform": "claude",
+      "primary_domain": "software_development",
+      "icp": "developer"
+    },
+    "existing_essence": "MASTER:\nFull-stack developer containerizing a Python backend for production deployment.",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I need to add a health check to my FastAPI Dockerfile so Kubernetes can use it as a readinessProbe. The app takes about 8 seconds to fully start because it loads a large ML model on startup."
+      },
+      {
+        "role": "assistant",
+        "content": "Add a /health endpoint to FastAPI that returns 200 only after the model is loaded. Use a global flag — set it to False at module level, then True after the model loads. In the Dockerfile: HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 CMD curl -f http://localhost:8000/health || exit 1. Set start-period to 15s to account for your 8s load time."
+      },
+      {
+        "role": "user",
+        "content": "How do I translate the Dockerfile HEALTHCHECK into a Kubernetes readinessProbe? Are they equivalent?"
+      }
+    ],
+    "expected_intent": "operation",
+    "expected_domain": "software_data_engineering",
+    "expected_secondary_intent_contains": ["docker", "kubernetes", "deployment", "health"],
+    "expected_suggested_ai": "claude",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "dev-005",
+    "description": "Developer implementing JWT auth from scratch — power user, multi-turn construction",
+    "icp": "developer",
+    "domain": "software_data_engineering",
+    "intent": "construction",
+    "mode": "power",
+    "context_richness": "rich",
+    "user_profile": {
+      "llm_platform": "claude",
+      "primary_domain": "software_development",
+      "icp": "developer"
+    },
+    "existing_essence": "MASTER:\nSenior engineer building a SaaS auth system with JWT, refresh tokens, and role-based access control.\n\nFLOW:\n- implementing token rotation and refresh token revocation logic\n- designing the RBAC permission layer on top of JWT claims",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I've got JWT access tokens (15 min TTL) and refresh tokens (7 day TTL) stored in httpOnly cookies. When should I rotate the refresh token? Every request feels excessive but once per access token expiry seems too infrequent."
+      },
+      {
+        "role": "assistant",
+        "content": "Rotate on every use of the refresh token — this is refresh token rotation (RTR). When the refresh token is used, issue a new refresh token and invalidate the old one. Store the new one server-side with a reference to its predecessor. If the old token is replayed (attacker reuse), the server sees a revoked token → invalidate the entire token family. 'Every request' would be for sliding session tokens, which is different."
+      },
+      {
+        "role": "user",
+        "content": "For the RBAC layer — should I embed the full role permissions in the JWT payload or just the role name and look up permissions on each request?"
+      }
+    ],
+    "expected_intent": "construction",
+    "expected_domain": "software_data_engineering",
+    "expected_secondary_intent_contains": ["jwt", "auth", "rbac", "security"],
+    "expected_suggested_ai": "claude",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.4,
+      "must_contain_context": true,
+      "context_keywords": ["auth", "jwt", "security"]
+    }
+  },
+  {
+    "id": "dev-006",
+    "description": "Developer debugging async Python race condition — debugging, returning",
+    "icp": "developer",
+    "domain": "software_data_engineering",
+    "intent": "debugging",
+    "mode": "returning",
+    "context_richness": "rich",
+    "user_profile": {
+      "llm_platform": "claude",
+      "primary_domain": "software_development",
+      "icp": "developer"
+    },
+    "existing_essence": "MASTER:\nPython developer building a high-throughput async data pipeline with asyncio.\n\nFLOW:\n- debugging race conditions and shared state corruption in concurrent tasks",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I have an asyncio pipeline where multiple tasks are reading from and writing to a shared dict. Occasionally the dict ends up in an inconsistent state — some keys disappear. I'm not using threads, just async tasks. Is asyncio even subject to race conditions?"
+      },
+      {
+        "role": "assistant",
+        "content": "Yes. Asyncio tasks run concurrently on a single thread but they yield at await points. If two tasks read-modify-write the same dict and there's an await between the read and the write, the other task can run and mutate the dict in between — classic TOCTOU. The fix: use asyncio.Lock() around the critical section, or restructure so each task owns its own data slice and results are merged at the end."
+      },
+      {
+        "role": "user",
+        "content": "The await is inside a loop that processes list items in the dict. So each iteration reads the list, awaits an HTTP call, then writes back. That explains it. How do I use asyncio.Lock here without killing all the concurrency benefits?"
+      }
+    ],
+    "expected_intent": "debugging",
+    "expected_domain": "software_data_engineering",
+    "expected_secondary_intent_contains": ["asyncio", "race_condition", "concurrency", "python"],
+    "expected_suggested_ai": "claude",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "dev-007",
+    "description": "Developer on algorithm — logic/math domain, construction",
+    "icp": "developer",
+    "domain": "logic_mathematics",
+    "intent": "construction",
+    "mode": "returning",
+    "context_richness": "sparse",
+    "user_profile": {
+      "llm_platform": "claude",
+      "primary_domain": "software_development",
+      "icp": "developer"
+    },
+    "existing_essence": "MASTER:\nCompetitive programmer and engineer optimizing algorithmic solutions for production use.",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I need to find all pairs in an array that sum to a target value. My current O(n²) approach is too slow — array can be up to 10^6 elements. What's the optimal approach?"
+      },
+      {
+        "role": "assistant",
+        "content": "Use a hash set for O(n) time, O(n) space. For each element x, check if (target - x) is in the set. If yes, you found a pair. If no, add x to the set. Single pass. If you need sorted pairs or must handle duplicates carefully, sort first (O(n log n)) then use two pointers — O(n) after sort, O(1) extra space."
+      },
+      {
+        "role": "user",
+        "content": "What if I need to return the count of all unique pairs, not just find if one exists? And there can be duplicate values in the array."
+      }
+    ],
+    "expected_intent": "construction",
+    "expected_domain": "logic_mathematics",
+    "expected_secondary_intent_contains": ["algorithm", "optimization", "two_sum"],
+    "expected_suggested_ai": "claude",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "dev-008",
+    "description": "Developer on system design — AI/meta domain, construction, power user",
+    "icp": "developer",
+    "domain": "system_ai_meta",
+    "intent": "construction",
+    "mode": "power",
+    "context_richness": "rich",
+    "user_profile": {
+      "llm_platform": "claude",
+      "primary_domain": "software_development",
+      "icp": "developer"
+    },
+    "existing_essence": "MASTER:\nML engineer designing inference infrastructure for LLM-powered products.\n\nFLOW:\n- designing request batching and caching layer for LLM inference\n- evaluating trade-offs between latency and throughput for streaming responses",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I'm building an LLM inference layer that needs to handle 500 req/s. Each request is a prompt → streaming response. I need to figure out how to do request batching without breaking the streaming UX."
+      },
+      {
+        "role": "assistant",
+        "content": "Continuous batching (also called iteration-level batching) is what vLLM and TGI use. Instead of waiting to fill a batch before starting, you start inference immediately and dynamically add new requests to in-flight batches at each decode step. This gives you GPU utilization near max without adding latency for the first token. The streaming UX works because each sequence in the batch emits tokens independently — you stream per-request as tokens are generated."
+      },
+      {
+        "role": "user",
+        "content": "What's a reasonable KV cache strategy at this scale? I'm worried about memory pressure causing OOM on the GPU."
+      }
+    ],
+    "expected_intent": "construction",
+    "expected_domain": "system_ai_meta",
+    "expected_secondary_intent_contains": ["llm", "inference", "architecture", "batching"],
+    "expected_suggested_ai": "claude",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.3,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "kw-001",
+    "description": "Knowledge worker comparing CRMs for their sales team — decision, returning",
+    "icp": "knowledge_worker",
+    "domain": "business_marketing",
+    "intent": "decision",
+    "mode": "returning",
+    "context_richness": "sparse",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "business_operations",
+      "icp": "business"
+    },
+    "existing_essence": "MASTER:\nHead of Sales at a 50-person B2B SaaS company evaluating and implementing go-to-market tooling.",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "We're choosing between HubSpot and Salesforce for a 12-person sales team. We're currently doing $2M ARR, expect to hit $10M in 18 months. Main concern is whether HubSpot will scale or if we'll have to migrate to Salesforce later anyway."
+      },
+      {
+        "role": "assistant",
+        "content": "HubSpot scales to $20–30M ARR without problems for most B2B SaaS teams. The migration concern is valid but often overblown — the real constraint is whether you need advanced territory management, complex approval workflows, or deep CPQ. Those are Salesforce's strengths. If your sales motion is PLG or SMB-focused with a standard pipeline, HubSpot at your stage is the better move: lower admin overhead, faster ramp for reps, and the data model matches your current complexity."
+      },
+      {
+        "role": "user",
+        "content": "We do have one enterprise segment we're trying to grow — deals over $100K that need legal review, multi-stakeholder sign-offs, and custom pricing. Does that change the calculus?"
+      }
+    ],
+    "expected_intent": "decision",
+    "expected_domain": "business_marketing",
+    "expected_secondary_intent_contains": ["crm", "saas", "salesforce", "hubspot", "decision"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.3,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "kw-002",
+    "description": "Knowledge worker writing a board update — construction, returning, productivity domain",
+    "icp": "knowledge_worker",
+    "domain": "productivity_planning",
+    "intent": "construction",
+    "mode": "returning",
+    "context_richness": "sparse",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "business_operations",
+      "icp": "business"
+    },
+    "existing_essence": "MASTER:\nOperations lead at a growth-stage startup responsible for investor relations and internal reporting.",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I need to write a board update for our Q2 results. Revenue grew 40% QoQ, we missed our hiring target by 3 heads, and churn ticked up from 2.1% to 2.8%. I want to be honest about the churn but frame it constructively."
+      },
+      {
+        "role": "assistant",
+        "content": "Lead with the 40% QoQ number — that's the headline. For churn: name it directly (boards hate discovering problems were softened), give the root cause in one sentence ('expansion-segment customers churned due to onboarding gaps identified in Q2'), then show the mitigation already in motion. 'We're addressing this by X, and we expect churn to normalize to Z by Q3' — forward-looking, accountable, not defensive."
+      },
+      {
+        "role": "user",
+        "content": "The root cause is actually less clear — it seems correlated with customers who didn't complete our onboarding flow but we can't prove causality yet. How do I present that honestly without sounding like we don't know what's happening?"
+      }
+    ],
+    "expected_intent": "construction",
+    "expected_domain": "productivity_planning",
+    "expected_secondary_intent_contains": ["board_update", "reporting", "communication"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "kw-003",
+    "description": "Knowledge worker asking about employment law — inquiry, first-time, finance_legal",
+    "icp": "knowledge_worker",
+    "domain": "finance_legal",
+    "intent": "inquiry",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "business_operations",
+      "icp": "business"
+    },
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "What's the difference between an employee and an independent contractor in the US, and what are the actual legal risks if I misclassify someone?"
+      },
+      {
+        "role": "assistant",
+        "content": "The IRS and DOL use different tests but both look at behavioral control (do you direct how work is done), financial control (do you control how they're paid, do they work for others), and type of relationship (written contracts, benefits, permanency). Misclassification risk: back taxes (employer's share of FICA), penalties, unpaid overtime under FLSA, state-level penalties (California's AB5 is especially aggressive), and potential class action from a group of workers."
+      },
+      {
+        "role": "user",
+        "content": "What's a safe harbor? I've heard you can file a Form 8919 or something to retroactively fix this."
+      }
+    ],
+    "expected_intent": "inquiry",
+    "expected_domain": "finance_legal",
+    "expected_secondary_intent_contains": ["employment_law", "contractor", "compliance"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "kw-004",
+    "description": "HR manager writing a performance improvement plan — construction, operations_hr domain",
+    "icp": "knowledge_worker",
+    "domain": "operations_hr_support",
+    "intent": "construction",
+    "mode": "returning",
+    "context_richness": "sparse",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "business_operations",
+      "icp": "business"
+    },
+    "existing_essence": "MASTER:\nHR manager at a mid-size company managing performance processes and employee relations.",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I need to write a PIP for a software engineer who's been consistently missing sprint commitments for 3 months and has had two incidents of not communicating blockers until the day of the deadline. What should it include?"
+      },
+      {
+        "role": "assistant",
+        "content": "A legally solid PIP has four parts: specific observable behaviors (not personality judgments — 'missed 8 of 10 sprint commitments in Q2' not 'unreliable'), measurable success criteria ('zero missed deadlines without 48-hour advance communication for 60 days'), a clear timeline, and a support plan (what the company will provide — 1:1s, resources, coaching). Document everything in writing and have the employee acknowledge receipt."
+      },
+      {
+        "role": "user",
+        "content": "The engineer says the root cause is unclear requirements from the PM, not their own performance. How do I handle that in the PIP without either dismissing their concern or letting it derail the process?"
+      }
+    ],
+    "expected_intent": "construction",
+    "expected_domain": "operations_hr_support",
+    "expected_secondary_intent_contains": ["pip", "hr", "performance", "management"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "kw-005",
+    "description": "Researcher synthesizing literature review — inquiry, education_research domain",
+    "icp": "knowledge_worker",
+    "domain": "education_research",
+    "intent": "inquiry",
+    "mode": "returning",
+    "context_richness": "sparse",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "education",
+      "icp": "business"
+    },
+    "existing_essence": "MASTER:\nAcademic researcher synthesizing literature on behavioral economics and decision-making under uncertainty.",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "What's the current state of the research on how loss aversion interacts with time discounting? I know the classic Kahneman/Tversky work but I'm trying to understand if there's been meaningful update in the last decade."
+      },
+      {
+        "role": "assistant",
+        "content": "The biggest update is the challenge to loss aversion as a universal phenomenon. Yechiam and others have shown loss aversion is not consistently observed in choice tasks when attention and arousal are controlled — the effect may be partly attentional. On the interaction with time discounting: newer work (David Laibson, O'Donoghue & Rabin) treats them as separable, not multiplicative. Present bias (hyperbolic discounting) predicts bad intertemporal choices better than loss aversion in most temporal settings."
+      },
+      {
+        "role": "user",
+        "content": "Is there any work specifically on how loss aversion scales with stake size? I'm seeing inconsistency in my own data where subjects show loss aversion at small stakes but not at large ones."
+      }
+    ],
+    "expected_intent": "inquiry",
+    "expected_domain": "education_research",
+    "expected_secondary_intent_contains": ["research", "behavioral_economics", "literature_review"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "creator-001",
+    "description": "Creator starting a YouTube channel strategy — construction, creative_arts_media, first-time",
+    "icp": "creator",
+    "domain": "creative_arts_media",
+    "intent": "construction",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": {
+      "llm_platform": "gemini",
+      "primary_domain": "creative_arts",
+      "icp": "creator"
+    },
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I want to start a YouTube channel about personal finance for people in their 20s. I have a finance background (worked in VC for 3 years) but zero audience. How do I approach the first 6 months?"
+      },
+      {
+        "role": "assistant",
+        "content": "The first 6 months are about finding your specific angle, not growth. 'Personal finance for 20s' is saturated — you need a sub-niche where your VC background is a genuine differentiator. Ideas: 'How VCs actually think about money' (demystifying institutional finance for retail), 'Startup equity explained for employees', 'Portfolio construction when you have no money yet'. Publish 1 video/week on a consistent topic, not variety. Your goal is to rank for 3–5 specific searches, not go viral."
+      },
+      {
+        "role": "user",
+        "content": "The startup equity angle feels right — I spent 3 years looking at cap tables and watching employees not understand their options. What kind of video format works for that kind of educational content?"
+      }
+    ],
+    "expected_intent": "construction",
+    "expected_domain": "creative_arts_media",
+    "expected_secondary_intent_contains": ["youtube", "content_strategy", "channel_creation"],
+    "expected_suggested_ai": "gemini",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "creator-002",
+    "description": "Creator deciding between Substack vs their own blog — decision, creative_arts_media",
+    "icp": "creator",
+    "domain": "creative_arts_media",
+    "intent": "decision",
+    "mode": "returning",
+    "context_richness": "sparse",
+    "user_profile": {
+      "llm_platform": "gemini",
+      "primary_domain": "creative_arts",
+      "icp": "creator"
+    },
+    "existing_essence": "MASTER:\nIndependent writer building an audience and paid content business around technology analysis.",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "Should I write on Substack or build my own site with Ghost? I have 800 Twitter followers, write about AI policy, and want to eventually charge $10/month for a paid tier."
+      },
+      {
+        "role": "assistant",
+        "content": "At 800 followers, Substack. The network effect and built-in discovery matter when you're sub-5K. Substack takes 10% of revenue but gets you in front of readers who subscribe to adjacent newsletters. Ghost is better when you want full control, lower fees, and have enough traffic that the 10% starts hurting. The crossover point is roughly when you're making $2K+/month — then Ghost's flat fee wins economically."
+      },
+      {
+        "role": "user",
+        "content": "Substack's recommendation feature seems valuable. But I'm worried about the content ownership and portability if I want to move later. How painful is the Substack → Ghost migration actually?"
+      }
+    ],
+    "expected_intent": "decision",
+    "expected_domain": "creative_arts_media",
+    "expected_secondary_intent_contains": ["substack", "content_platform", "newsletter"],
+    "expected_suggested_ai": "gemini",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "creator-003",
+    "description": "Creator writing a short film screenplay — construction, creative_arts_media",
+    "icp": "creator",
+    "domain": "creative_arts_media",
+    "intent": "construction",
+    "mode": "returning",
+    "context_richness": "rich",
+    "user_profile": {
+      "llm_platform": "gemini",
+      "primary_domain": "creative_arts",
+      "icp": "creator"
+    },
+    "existing_essence": "MASTER:\nFilmmaker developing a short film about grief and memory for festival submission.\n\nFLOW:\n- writing the second act — protagonist confronting a physical object tied to the deceased",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I'm writing a 15-minute short film about a woman who finds her late mother's recipe notebook. Act two needs her to actually cook one of the recipes, but I don't want it to feel like a cooking show or become too on-the-nose as a metaphor. How do I use the cooking scene to externalize grief without being heavy-handed?"
+      },
+      {
+        "role": "assistant",
+        "content": "Let the obstacles carry the emotion, not the character's face. She's following the recipe but something goes wrong — a step her mother never wrote down because she always knew it instinctively, and the protagonist doesn't. That gap IS the grief. The scene doesn't need dialogue about loss. The concrete problem (dish is wrong, she doesn't know why) stands in for the larger absence. End the scene with her eating it anyway, imperfect."
+      },
+      {
+        "role": "user",
+        "content": "I love that — the unwritten knowledge. How long should the cooking scene run in a 15-minute short? I'm worried it'll drag."
+      }
+    ],
+    "expected_intent": "construction",
+    "expected_domain": "creative_arts_media",
+    "expected_secondary_intent_contains": ["screenplay", "filmmaking", "storytelling"],
+    "expected_suggested_ai": "gemini",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.3,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "creator-004",
+    "description": "Creator asking casual question about social media — chat intent, social_casual",
+    "icp": "creator",
+    "domain": "social_casual",
+    "intent": "chat",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": {
+      "llm_platform": "gemini",
+      "primary_domain": "creative_arts",
+      "icp": "creator"
+    },
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "Do you think Twitter/X is still worth posting on for creators in 2024 or has the audience quality dropped too much?"
+      },
+      {
+        "role": "assistant",
+        "content": "Depends on your niche. Tech, finance, and crypto Twitter retained its audience because those communities have nowhere better to go and the conversations are still high-signal. Journalism, politics, and brand marketing have largely left or deprioritized it. If your content is text-native and your audience is in tech or finance, X is still worth it. For visual creators or anyone targeting a mainstream consumer audience, the ROI has dropped significantly."
+      }
+    ],
+    "expected_intent": "chat",
+    "expected_domain": "social_casual",
+    "expected_secondary_intent_contains": ["social_media", "twitter", "creator"],
+    "expected_suggested_ai": "gemini",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.0,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "creator-005",
+    "description": "Creator asking about romantic relationships — lifestyle domain, inquiry, first-time",
+    "icp": "creator",
+    "domain": "lifestyle_relationships",
+    "intent": "inquiry",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "creative_arts",
+      "icp": "creator"
+    },
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "Is it normal for a long-term relationship to go through phases where you feel less connected even if nothing bad happened? We've been together 4 years and lately it just feels more routine."
+      },
+      {
+        "role": "assistant",
+        "content": "Completely normal. What you're describing is the shift from passionate love to companionate love — which research consistently shows is the transition that happens in most relationships after 18 months to 4 years. It's not decay, it's differentiation. The intensity of early-stage dopamine-driven connection stabilizes into something that can sustain long-term. The routineness you're feeling is often a signal the relationship needs novelty injection — new shared experiences, not problem-solving."
+      }
+    ],
+    "expected_intent": "inquiry",
+    "expected_domain": "lifestyle_relationships",
+    "expected_secondary_intent_contains": ["relationship", "connection", "personal"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.1,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "student-001",
+    "description": "Student asking how to understand neural networks — inquiry, education_research, first-time",
+    "icp": "student",
+    "domain": "education_research",
+    "intent": "inquiry",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "education",
+      "icp": "student"
+    },
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I'm a CS sophomore trying to understand how neural networks learn. I understand the feedforward pass but backpropagation feels like magic. What's actually happening mathematically?"
+      },
+      {
+        "role": "assistant",
+        "content": "Backpropagation is just the chain rule of calculus applied repeatedly. You want to know how much each weight contributed to the final error. The chain rule lets you compute that by working backwards from the output: how much did the output error change with respect to the last layer's weights, then how much did those weights change with respect to the previous layer's outputs, and so on. Each layer's gradient is the product of all the gradients 'downstream' from it. The 'magic' is that the same formula applies to every layer regardless of depth."
+      },
+      {
+        "role": "user",
+        "content": "So the gradient is like a measure of blame? Each weight gets blamed proportionally for the error it caused?"
+      }
+    ],
+    "expected_intent": "inquiry",
+    "expected_domain": "education_research",
+    "expected_secondary_intent_contains": ["neural_networks", "backpropagation", "learning"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "student-002",
+    "description": "Student debugging a binary search implementation — debugging, logic_mathematics, returning",
+    "icp": "student",
+    "domain": "logic_mathematics",
+    "intent": "debugging",
+    "mode": "returning",
+    "context_richness": "sparse",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "education",
+      "icp": "student"
+    },
+    "existing_essence": "MASTER:\nCS student practicing algorithmic problem solving for coding interviews.",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "My binary search is returning -1 even when the target exists. Here's my code:\n\ndef binary_search(arr, target):\n    lo, hi = 0, len(arr)\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            lo = mid\n        else:\n            hi = mid\n    return -1\n"
+      },
+      {
+        "role": "assistant",
+        "content": "Two bugs. First: hi should be len(arr) - 1, not len(arr) — otherwise you'll index out of bounds on the first iteration for some inputs. Second: when arr[mid] < target, you set lo = mid, but that can loop forever when lo and hi are adjacent (lo = hi - 1, mid = lo, lo stays the same). Fix: lo = mid + 1. Similarly hi = mid - 1 in the else branch. With these two fixes your template becomes the standard closed-interval binary search."
+      },
+      {
+        "role": "user",
+        "content": "I see the lo = mid + 1 fix but why does hi = mid - 1 help? If the target is less than arr[mid] I thought I should keep mid in the search space."
+      }
+    ],
+    "expected_intent": "debugging",
+    "expected_domain": "logic_mathematics",
+    "expected_secondary_intent_contains": ["binary_search", "debugging", "algorithm"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "student-003",
+    "description": "Student first-time asking about web development — inquiry, software_data_engineering",
+    "icp": "student",
+    "domain": "software_data_engineering",
+    "intent": "inquiry",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "education",
+      "icp": "student"
+    },
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I'm starting to learn web development. I know HTML and CSS basics. Should I learn JavaScript or jump straight to React?"
+      },
+      {
+        "role": "assistant",
+        "content": "JavaScript first, not optional. React is a JavaScript framework — if you don't understand closures, the event loop, asynchronous callbacks, and DOM manipulation in vanilla JS, React's mental model will confuse you rather than clarify it. Spend 4–6 weeks on plain JavaScript: functions, arrays, objects, async/await, fetch. Then React will make sense immediately because you'll see it as 'JS with a rendering abstraction' not as a new language."
+      }
+    ],
+    "expected_intent": "inquiry",
+    "expected_domain": "software_data_engineering",
+    "expected_secondary_intent_contains": ["web_development", "javascript", "learning_path"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.1,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "student-004",
+    "description": "Student asking about philosophy of mind — inquiry, philosophy_religion",
+    "icp": "student",
+    "domain": "philosophy_religion",
+    "intent": "inquiry",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "education",
+      "icp": "student"
+    },
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "What's the difference between the 'hard problem' and 'easy problems' of consciousness? I keep seeing this distinction but I don't fully get what makes it 'hard'."
+      },
+      {
+        "role": "assistant",
+        "content": "Chalmers' distinction: the 'easy problems' are about function — explaining how the brain processes information, integrates signals, controls behavior, reports states. They're 'easy' not trivially but because we know what kind of answer would count as a solution: a mechanistic functional account. The 'hard problem' is why any of that processing is accompanied by subjective experience at all. Why is there something it's like to see red? A complete functional account of color perception wouldn't touch that question — and that's what makes it hard."
+      }
+    ],
+    "expected_intent": "inquiry",
+    "expected_domain": "philosophy_religion",
+    "expected_secondary_intent_contains": ["consciousness", "philosophy", "chalmers"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.1,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "student-005",
+    "description": "Student debugging a SQL query — debugging, software_data_engineering, returning",
+    "icp": "student",
+    "domain": "software_data_engineering",
+    "intent": "debugging",
+    "mode": "returning",
+    "context_richness": "sparse",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "education",
+      "icp": "student"
+    },
+    "existing_essence": "MASTER:\nData science student learning SQL and building analytical queries for coursework.",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "My SQL query to find the second highest salary is returning NULL. Here's what I wrote:\n\nSELECT MAX(salary) FROM employees WHERE salary < MAX(salary);\n"
+      },
+      {
+        "role": "assistant",
+        "content": "You can't use MAX() in a WHERE clause — WHERE filters rows before aggregation, so MAX() isn't defined yet at that point. The correct approach: use a subquery. SELECT MAX(salary) FROM employees WHERE salary < (SELECT MAX(salary) FROM employees). The inner query finds the global max, then the outer query finds the max of everything below it."
+      },
+      {
+        "role": "user",
+        "content": "That makes sense. What if there are duplicate max salaries? Does your version still work or does it break?"
+      }
+    ],
+    "expected_intent": "debugging",
+    "expected_domain": "software_data_engineering",
+    "expected_secondary_intent_contains": ["sql", "query", "debugging"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.1,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "edge-domain-shift-001",
+    "description": "Domain shift: developer pivoting to marketing strategy — MASTER should reset",
+    "icp": "developer",
+    "domain": "business_marketing",
+    "intent": "decision",
+    "mode": "returning",
+    "context_richness": "rich",
+    "user_profile": {
+      "llm_platform": "claude",
+      "primary_domain": "software_development",
+      "icp": "developer"
+    },
+    "existing_essence": "MASTER:\nSenior engineer building infrastructure tooling for developer productivity.\n\nFLOW:\n- designing CI/CD pipeline architecture for monorepo environments",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I'm stepping out of pure engineering and trying to understand go-to-market strategy for a developer tool I'm building. We're bootstrapped, targeting mid-size engineering teams. Should we do PLG or direct sales first?"
+      },
+      {
+        "role": "assistant",
+        "content": "For a developer tool targeting mid-size engineering teams: PLG first, but with a defined upgrade trigger. Engineers need to self-serve to discover value — they won't talk to sales until they're already convinced. Build a free tier that hits the pain point, instrument usage to identify teams that activate (multiple users, >5 uses/week), then have sales reach out at that exact moment. That's product-led sales, not pure PLG."
+      },
+      {
+        "role": "user",
+        "content": "How do I think about pricing? Most dev tools I see are per-seat but our product is more valuable the more it's embedded in the team's workflow."
+      }
+    ],
+    "expected_intent": "decision",
+    "expected_domain": "business_marketing",
+    "expected_secondary_intent_contains": ["go_to_market", "pricing", "developer_tool"],
+    "expected_suggested_ai": "claude",
+    "test_assertion": "MASTER should shift — new essence should reflect GTM/product strategy, not engineering infrastructure",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "edge-domain-shift-002",
+    "description": "Domain shift: knowledge worker pivoting to healthcare question — domain shift test",
+    "icp": "knowledge_worker",
+    "domain": "healthcare_medical",
+    "intent": "inquiry",
+    "mode": "returning",
+    "context_richness": "sparse",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "business_operations",
+      "icp": "business"
+    },
+    "existing_essence": "MASTER:\nOperations manager at a logistics company optimizing supply chain processes.",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "This is unrelated to work but — my doctor mentioned my LDL was 148 and said we should discuss statins. I'm 38. Is that threshold actually evidence-based or is it more precautionary?"
+      },
+      {
+        "role": "assistant",
+        "content": "The decision to start statins at 38 with LDL of 148 isn't based on LDL alone — current ACC/AHA guidelines use a 10-year cardiovascular risk calculator (PCE). An LDL of 148 at 38 with no other risk factors (no smoking, normal blood pressure, no diabetes) likely puts you below the threshold where statins provide net benefit. The conversation is worth having with numbers: ask your doctor for your 10-year ASCVD risk score and what it would need to be to justify pharmacologic intervention."
+      }
+    ],
+    "expected_intent": "inquiry",
+    "expected_domain": "healthcare_medical",
+    "expected_secondary_intent_contains": ["medical", "cholesterol", "health"],
+    "expected_suggested_ai": "chatgpt",
+    "test_assertion": "MASTER should reset — healthcare context is entirely separate from logistics work",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.1,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "edge-master-stability-001",
+    "description": "MASTER stability test — intent flips (inquiry→construction→debugging) but MASTER should hold",
+    "icp": "developer",
+    "domain": "software_data_engineering",
+    "intent": "debugging",
+    "mode": "power",
+    "context_richness": "rich",
+    "user_profile": {
+      "llm_platform": "claude",
+      "primary_domain": "software_development",
+      "icp": "developer"
+    },
+    "existing_essence": "MASTER:\nBackend engineer building a real-time event streaming platform for IoT data ingestion.\n\nFLOW:\n- implementing Kafka consumer groups with offset management\n- debugging partition rebalancing causing message duplication",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "Quick question — how does Kafka's log compaction differ from retention by time? I want to understand it conceptually first."
+      },
+      {
+        "role": "assistant",
+        "content": "Retention by time deletes all messages older than N hours/days — the whole segment file gets dropped. Log compaction keeps the latest value for each key indefinitely but removes older values for the same key. Use case: compaction is for changelog-style topics where you only care about 'current state' per key (think a user settings topic), retention is for event logs where every event matters."
+      },
+      {
+        "role": "user",
+        "content": "Got it. Now I want to implement exactly-once semantics for my IoT consumer. What's the minimal config needed?"
+      },
+      {
+        "role": "assistant",
+        "content": "Three pieces: idempotent producer (enable.idempotence=true), transactional API on the producer side, and read_committed isolation level on the consumer. Together they give you end-to-end EOS. The practical complexity is in managing transaction IDs and handling aborted transactions correctly on the consumer."
+      },
+      {
+        "role": "user",
+        "content": "My consumer is now dropping messages silently. I added the transactional config but messages processed count doesn't match what was produced."
+      }
+    ],
+    "expected_intent": "debugging",
+    "expected_domain": "software_data_engineering",
+    "expected_secondary_intent_contains": ["kafka", "debugging", "messaging"],
+    "expected_suggested_ai": "claude",
+    "test_assertion": "MASTER must remain about IoT event streaming platform — not rewritten to 'user asking about Kafka log compaction'",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.3,
+      "must_contain_context": true,
+      "context_keywords": ["kafka", "streaming", "iot"]
+    }
+  },
+  {
+    "id": "edge-master-stability-002",
+    "description": "MASTER stability test — 8-turn conversation, all same domain, MASTER must not drift",
+    "icp": "knowledge_worker",
+    "domain": "finance_legal",
+    "intent": "construction",
+    "mode": "power",
+    "context_richness": "rich",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "business_operations",
+      "icp": "business"
+    },
+    "existing_essence": "MASTER:\nFounder preparing Series A fundraise, building financial models and investor materials.\n\nFLOW:\n- building 3-year revenue model with cohort-based churn assumptions\n- preparing unit economics narrative for investor deck",
+    "conversation": [
+      {"role": "user", "content": "How should I model NRR in my financial projections? I have expansion revenue from upsells but also contraction from downgrades."},
+      {"role": "assistant", "content": "Model NRR as: (Beginning MRR + Expansion MRR - Contraction MRR - Churn MRR) / Beginning MRR. Track each cohort separately — expansion and churn rates differ dramatically by cohort age in most SaaS businesses. In your projections, segment by cohort and apply cohort-specific rates rather than a blended average."},
+      {"role": "user", "content": "My NRR is 104% overall but it's 130% for enterprise and 85% for SMB. How do I present this to investors?"},
+      {"role": "assistant", "content": "Present the segmented numbers, not the blended. 104% blended NRR is fine but 130% enterprise NRR is the headline — it signals your product has strong land-and-expand in your best segment. Pair it with your revenue mix shift (what % enterprise vs SMB over 3 years) to show the blended NRR will improve as you shift upmarket. Investors underwrite the future mix, not today's blend."},
+      {"role": "user", "content": "What's a reasonable SMB churn rate to model? Mine is currently 3.2% monthly — is that defensible or will investors push back?"}
+    ],
+    "expected_intent": "construction",
+    "expected_domain": "finance_legal",
+    "expected_secondary_intent_contains": ["financial_model", "saas_metrics", "fundraising"],
+    "expected_suggested_ai": "chatgpt",
+    "test_assertion": "MASTER must remain about Series A fundraise and financial modeling — not drift to 'user asking about NRR'",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.3,
+      "must_contain_context": true,
+      "context_keywords": ["series_a", "fundraise", "financial"]
+    }
+  },
+  {
+    "id": "edge-flow-compression-001",
+    "description": "FLOW compression test — 4+ bullets must compress to 2",
+    "icp": "developer",
+    "domain": "software_data_engineering",
+    "intent": "construction",
+    "mode": "power",
+    "context_richness": "rich",
+    "user_profile": {
+      "llm_platform": "claude",
+      "primary_domain": "software_development",
+      "icp": "developer"
+    },
+    "existing_essence": "MASTER:\nFull-stack developer building a multi-tenant SaaS product with a React frontend and Node.js backend.\n\nFLOW:\n- implemented user authentication with JWT and refresh tokens\n- built role-based access control middleware\n- designed multi-tenant database schema with row-level security\n- debugging tenant isolation edge cases in shared tables",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I'm now working on the billing integration — adding Stripe webhooks for subscription lifecycle events. What's the right architecture for handling webhook events reliably?"
+      },
+      {
+        "role": "assistant",
+        "content": "Idempotent event processing with a deduplication table. Store every webhook event_id in a processed_events table before processing. On each incoming webhook: check if event_id exists → if yes, return 200 immediately (already processed). If no, process the event then mark it. This handles Stripe's 'at least once' delivery guarantee. Run your webhook handler in a transaction so the event marking and side effects are atomic."
+      }
+    ],
+    "expected_intent": "construction",
+    "expected_domain": "software_data_engineering",
+    "expected_secondary_intent_contains": ["stripe", "webhooks", "billing"],
+    "expected_suggested_ai": "claude",
+    "test_assertion": "FLOW must compress 4 existing bullets to exactly 2: one abstract summary + current focus (Stripe webhooks)",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "edge-zero-context-001",
+    "description": "Zero context baseline — first-time user, no profile, generic prompt",
+    "icp": "developer",
+    "domain": "software_data_engineering",
+    "intent": "inquiry",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": null,
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "What is REST and how is it different from GraphQL?"
+      },
+      {
+        "role": "assistant",
+        "content": "REST is a set of architectural conventions for HTTP APIs: resources are URLs, operations are HTTP verbs (GET/POST/PUT/DELETE), responses are typically JSON. GraphQL is a query language for APIs: there's one endpoint, the client specifies exactly what fields it wants in the request, and the server returns exactly that shape. REST tends to over-fetch or under-fetch (you get the whole user object when you only needed the name). GraphQL solves that with precise queries but adds client complexity and server-side resolver overhead."
+      }
+    ],
+    "expected_intent": "inquiry",
+    "expected_domain": "software_data_engineering",
+    "expected_suggested_ai": "chatgpt",
+    "test_assertion": "With null user_profile, suggested_ai must default to domain map — software_data_engineering → claude. With no user_profile at all, must not crash.",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.1,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "edge-enterprise-001",
+    "description": "Enterprise ICP — finance/legal domain, operation intent, compliance context",
+    "icp": "enterprise_user",
+    "domain": "finance_legal",
+    "intent": "operation",
+    "mode": "returning",
+    "context_richness": "rich",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "business_operations",
+      "icp": "enterprise"
+    },
+    "existing_essence": "MASTER:\nLegal operations team at a financial services firm automating contract review and compliance workflows.\n\nFLOW:\n- deploying AI-assisted contract review to reduce outside counsel spend\n- building approval workflows for standard contract templates",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "We need to run our contract review pipeline on documents that contain client PII. What's the right architecture to ensure PII doesn't get sent to external LLM APIs?"
+      },
+      {
+        "role": "assistant",
+        "content": "Three layers: pre-processing redaction before any API call (regex + NER model to replace PII with tokens), on-premise or VPC-deployed model for sensitive documents, and audit logging for every document that touches an external service. If you must use external APIs for quality reasons, use a model with a no-retention BAA (Anthropic, OpenAI both offer enterprise agreements). The redact-then-send approach lets you use best-in-class external models while keeping raw PII on-premises."
+      },
+      {
+        "role": "user",
+        "content": "We already have a Microsoft Azure tenant with Azure OpenAI deployed. Does that change the risk profile? We're under SOC2 Type II requirements."
+      }
+    ],
+    "expected_intent": "operation",
+    "expected_domain": "finance_legal",
+    "expected_secondary_intent_contains": ["compliance", "pii", "legal_ops", "enterprise"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.3,
+      "must_contain_context": true,
+      "context_keywords": ["compliance", "legal", "enterprise"]
+    }
+  },
+  {
+    "id": "edge-news-001",
+    "description": "Edge domain — news/current events, decision intent, first-time",
+    "icp": "knowledge_worker",
+    "domain": "news_current_events",
+    "intent": "decision",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "business_operations",
+      "icp": "business"
+    },
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I'm trying to understand what the US tariff situation means for a small business that imports goods from China. Should I be stockpiling inventory now or is this likely to get resolved?"
+      },
+      {
+        "role": "assistant",
+        "content": "For a small importer: the decision depends on your cash position and storage costs vs the tariff rate and your sell-through velocity. The uncertainty around US-China trade policy makes the 'wait and see' strategy costly for businesses with thin margins — if you have the capital and storage, building 60–90 days of buffer inventory is defensible. The risk of stockpiling is if tariffs get resolved and you're stuck with overpriced inventory; the risk of not stockpiling is margin compression if they increase further."
+      }
+    ],
+    "expected_intent": "decision",
+    "expected_domain": "news_current_events",
+    "expected_secondary_intent_contains": ["tariffs", "trade_policy", "business_decision"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.1,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "edge-food-001",
+    "description": "Edge domain — food/nutrition, construction, first-time",
+    "icp": "creator",
+    "domain": "food_nutrition",
+    "intent": "construction",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "creative_arts",
+      "icp": "creator"
+    },
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I want to make a high-protein meal prep plan for the week — I'm trying to hit 160g of protein daily on a budget of around $60 for the whole week. I don't eat pork."
+      },
+      {
+        "role": "assistant",
+        "content": "At $60/week for 160g protein/day without pork: chicken thighs are your anchor (most cost-effective protein per dollar), supplemented with eggs, canned tuna, Greek yogurt, and cottage cheese. Plan: 2 lbs chicken thighs (roast in bulk, ~$5), dozen eggs ($3), 2 cans tuna ($3), 32oz Greek yogurt ($7), 24oz cottage cheese ($5) — that's under $25 and covers most of your protein. Fill carbs/veg with rice, oats, frozen broccoli for the rest of the budget."
+      }
+    ],
+    "expected_intent": "construction",
+    "expected_domain": "food_nutrition",
+    "expected_secondary_intent_contains": ["meal_prep", "nutrition", "protein"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.1,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "edge-travel-001",
+    "description": "Edge domain — travel/hospitality, operation intent, first-time",
+    "icp": "knowledge_worker",
+    "domain": "travel_hospitality",
+    "intent": "operation",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "business_operations",
+      "icp": "business"
+    },
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I'm planning a 10-day trip to Japan in October. I've never been. Should I get a JR Pass or buy individual tickets? My itinerary is Tokyo → Kyoto → Hiroshima → Osaka → back to Tokyo."
+      },
+      {
+        "role": "assistant",
+        "content": "For that exact route: JR Pass is worth it. The Shinkansen between those cities (Tokyo→Kyoto, Kyoto→Hiroshima, Hiroshima→Osaka, Osaka→Tokyo) totals around ¥40,000+ individually. A 14-day JR Pass is ¥50,000 and also covers regional trains and some buses. Do the math on your specific travel dates but for that route it almost always comes out ahead, especially since JR Pass now needs to be purchased in advance outside Japan."
+      }
+    ],
+    "expected_intent": "operation",
+    "expected_domain": "travel_hospitality",
+    "expected_secondary_intent_contains": ["travel", "japan", "planning"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.1,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "edge-gov-001",
+    "description": "Edge domain — gov/nonprofit, inquiry, returning",
+    "icp": "knowledge_worker",
+    "domain": "gov_nonprofit",
+    "intent": "inquiry",
+    "mode": "returning",
+    "context_richness": "sparse",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "business_operations",
+      "icp": "business"
+    },
+    "existing_essence": "MASTER:\nNonprofit director managing grant compliance and program reporting for a workforce development organization.",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "What's the difference between a 501(c)(3) and a 501(c)(4) in terms of what political activity is permitted? We're considering converting our advocacy arm."
+      },
+      {
+        "role": "assistant",
+        "content": "501(c)(3): no political campaign activity whatsoever (no endorsements, no donations to campaigns), lobbying is permitted but limited (substantial part test or 501(h) election). 501(c)(4): can engage in lobbying without limit, can do some political campaign activity as long as it's not the primary activity (the 'primary purpose' test is vague and contested). The key trade-off: (c)(3) status lets donors deduct contributions; (c)(4) contributions are not deductible. Most orgs run a (c)(3) and a (c)(4) in tandem."
+      }
+    ],
+    "expected_intent": "inquiry",
+    "expected_domain": "gov_nonprofit",
+    "expected_secondary_intent_contains": ["nonprofit", "compliance", "legal_structure"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "edge-sports-001",
+    "description": "Edge domain — sports/recreation, construction, first-time",
+    "icp": "creator",
+    "domain": "sports_recreation",
+    "intent": "construction",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "creative_arts",
+      "icp": "creator"
+    },
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I'm a recreational runner trying to break a 4-hour marathon. I currently run a 4:30 and have 20 weeks. What's the minimum effective training plan that doesn't take over my life?"
+      },
+      {
+        "role": "assistant",
+        "content": "30-minute improvement in 20 weeks is very achievable. Minimum effective dose: 4 days/week, 35–45 miles total. The key workout is the long run (16–20 miles by week 18) and one tempo run (goal pace +20 seconds for 6–8 miles). The other 2 days are easy recovery runs — they should feel embarrassingly slow. Don't skip the easy days trying to add more quality. Most recreational runners miss their goal because they run their easy runs too fast, not because they lack hard workouts."
+      }
+    ],
+    "expected_intent": "construction",
+    "expected_domain": "sports_recreation",
+    "expected_secondary_intent_contains": ["marathon", "training_plan", "running"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.1,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "edge-env-001",
+    "description": "Edge domain — environment/sustainability, inquiry, first-time",
+    "icp": "student",
+    "domain": "environment_sustainability",
+    "intent": "inquiry",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "education",
+      "icp": "student"
+    },
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "What's the actual carbon footprint of AI and is it a meaningful contribution to climate change or is it overblown compared to other industries?"
+      },
+      {
+        "role": "assistant",
+        "content": "Current numbers: global data center electricity use is about 1–2% of global electricity consumption. AI workloads are a growing fraction of that. Training a large language model once emits roughly the same carbon as 5 transatlantic flights. Inference at scale adds up but the sector-level comparison still puts it well below transportation (16%), buildings (17%), or agriculture (11%) in global emissions. The concern is trajectory — AI electricity demand is growing 30–40%/year, and if that growth is powered by fossil fuels rather than renewables, it becomes more significant."
+      }
+    ],
+    "expected_intent": "inquiry",
+    "expected_domain": "environment_sustainability",
+    "expected_secondary_intent_contains": ["ai", "carbon_footprint", "climate"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.1,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "edge-manufacturing-001",
+    "description": "Edge domain — manufacturing/agri, inquiry, first-time",
+    "icp": "knowledge_worker",
+    "domain": "manufacturing_agri",
+    "intent": "inquiry",
+    "mode": "first_time",
+    "context_richness": "zero",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "business_operations",
+      "icp": "business"
+    },
+    "existing_essence": null,
+    "conversation": [
+      {
+        "role": "user",
+        "content": "What's the difference between lean manufacturing and Six Sigma? We're a contract manufacturer and our operations director keeps debating which to implement."
+      },
+      {
+        "role": "assistant",
+        "content": "Lean focuses on eliminating waste — anything that doesn't add value from the customer's perspective (excess inventory, waiting, overprocessing, defects, motion). Toyota Production System is the canonical example. Six Sigma focuses on reducing process variation and defects — it uses statistical methods (DMAIC) to drive defect rates toward 3.4 per million. They're complementary, not alternatives. Lean Sigma combines both: lean removes waste, Six Sigma reduces variation. Most manufacturers with serious quality requirements end up running both."
+      }
+    ],
+    "expected_intent": "inquiry",
+    "expected_domain": "manufacturing_agri",
+    "expected_secondary_intent_contains": ["lean", "manufacturing", "operations"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.1,
+      "must_contain_context": false
+    }
+  },
+  {
+    "id": "dev-inquiry-data-002",
+    "description": "Developer on data engineering — inquiry, returning, sparse context",
+    "icp": "developer",
+    "domain": "software_data_engineering",
+    "intent": "inquiry",
+    "mode": "returning",
+    "context_richness": "sparse",
+    "user_profile": {
+      "llm_platform": "claude",
+      "primary_domain": "data_science",
+      "icp": "developer"
+    },
+    "existing_essence": "MASTER:\nData engineer building a streaming analytics pipeline on AWS.",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "What's the actual difference between a data lake and a data lakehouse? My company is building on S3 and we keep having this terminology argument in design reviews."
+      },
+      {
+        "role": "assistant",
+        "content": "Data lake: raw storage (S3, GCS) with files in any format — no ACID transactions, no schema enforcement, queries are slow and expensive because there's no indexing. Data lakehouse: adds a metadata+transaction layer (Delta Lake, Apache Iceberg, Apache Hudi) on top of the same object storage. You get ACID transactions, schema evolution, time travel, and query optimization via metadata — essentially the benefits of a data warehouse without leaving your S3 bucket. If you're already on S3, adding Delta Lake or Iceberg on top of it is how you upgrade lake → lakehouse."
+      }
+    ],
+    "expected_intent": "inquiry",
+    "expected_domain": "software_data_engineering",
+    "expected_secondary_intent_contains": ["data_engineering", "architecture", "storage"],
+    "expected_suggested_ai": "claude",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "kw-finance-model-001",
+    "description": "Knowledge worker building a DCF model — construction, finance_legal, returning",
+    "icp": "knowledge_worker",
+    "domain": "finance_legal",
+    "intent": "construction",
+    "mode": "returning",
+    "context_richness": "sparse",
+    "user_profile": {
+      "llm_platform": "chatgpt",
+      "primary_domain": "business_operations",
+      "icp": "business"
+    },
+    "existing_essence": "MASTER:\nInvestment analyst at an early-stage VC fund building valuation models for portfolio companies.",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I'm building a DCF for a SaaS company at $5M ARR. What terminal value method should I use and what multiple is reasonable for the exit assumption?"
+      },
+      {
+        "role": "assistant",
+        "content": "For SaaS, use EV/Revenue terminal multiple rather than Gordon Growth Model — the GGM assumes stable cash flows which don't apply to high-growth SaaS. Terminal year revenue multiple depends on your assumed terminal growth rate and margins: a company growing 15% with 25% free cash flow margins might trade at 5–8x revenue. For early-stage SaaS at $5M ARR, your exit multiple assumption matters enormously — sensitivity test at 4x, 7x, and 10x to show the range. The DCF is more useful for understanding value drivers than for arriving at a precise number."
+      }
+    ],
+    "expected_intent": "construction",
+    "expected_domain": "finance_legal",
+    "expected_secondary_intent_contains": ["dcf", "valuation", "financial_modeling"],
+    "expected_suggested_ai": "chatgpt",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": true
+    }
+  },
+  {
+    "id": "dev-operation-cicd-001",
+    "description": "Developer setting up CI/CD pipeline — operation, returning, software domain",
+    "icp": "developer",
+    "domain": "software_data_engineering",
+    "intent": "operation",
+    "mode": "returning",
+    "context_richness": "rich",
+    "user_profile": {
+      "llm_platform": "claude",
+      "primary_domain": "devops_infrastructure",
+      "icp": "developer"
+    },
+    "existing_essence": "MASTER:\nDevOps engineer building CI/CD infrastructure for a multi-service Node.js and Python application stack.\n\nFLOW:\n- setting up GitHub Actions workflows for automated testing and Docker image builds",
+    "conversation": [
+      {
+        "role": "user",
+        "content": "I need to set up a staging deployment that triggers automatically on merge to main, but only after all tests pass. The stack is Docker Compose on a single VM. What's the cleanest GitHub Actions setup for this?"
+      },
+      {
+        "role": "assistant",
+        "content": "Single workflow with two jobs: test then deploy, with needs: [test] on the deploy job. On the deploy job, use appleboy/ssh-action to SSH into the VM and run: git pull && docker compose up -d --build. Set up a deploy key (not personal access token) for the repo on the VM. Add a concurrency group to cancel in-progress deploys if a new push comes in while one is running."
+      },
+      {
+        "role": "user",
+        "content": "Should I build Docker images in CI and push to a registry, or build directly on the VM on deploy? We only have one staging server."
+      }
+    ],
+    "expected_intent": "operation",
+    "expected_domain": "software_data_engineering",
+    "expected_secondary_intent_contains": ["cicd", "deployment", "github_actions", "devops"],
+    "expected_suggested_ai": "claude",
+    "enhance_quality_criteria": {
+      "min_length_ratio": 1.2,
+      "must_contain_context": true
+    }
+  }
+]

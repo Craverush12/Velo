@@ -92,6 +92,14 @@ async def lifespan(app: FastAPI):
         app.state.db_engine = engine
         _resources["db"] = engine is not None
         logger.info("Database engine initialized.")
+        from shared.settings import get_settings
+        from shared.trace_db import init_trace_pool
+
+        _s = get_settings()
+        trace_dsn = getattr(_s, "DATABASE_URL", "") or getattr(_s, "PG_CONNECTION", "")
+        if trace_dsn:
+            await init_trace_pool(trace_dsn)
+            logger.info("Prompt trace DB pool initialized.")
     except Exception as exc:  # noqa: BLE001
         app.state.db_engine = None
         _resources["db"] = False

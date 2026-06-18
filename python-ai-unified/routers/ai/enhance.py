@@ -70,6 +70,7 @@ from fastapi import Depends
 
 from shared.db import get_session
 from shared.redis_cache import rate_limit_check
+from shared.trace_db import write_trace
 
 # Canonical logic from the monorepo (see local_app.py / D-019).
 from local_app import EnhanceRequest as LocalEnhanceRequest, _generate, map_mode, AttachmentItem as LocalAttachmentItem
@@ -862,28 +863,29 @@ async def enhance_chat(
             _placeholder_count = len(re.findall(r'\[[A-Z_]{3,}\]', _enh))
             _technique_count = len(annotated)
 
-            background_tasks.add_task(
-                _store.record,
-                {
-                    "trace_id": trace_id,
-                    "flow": "enhance_chat",
-                    "user_id": request.user_id or "anonymous",
-                    "prompt_mode": request.context.get("mode", "") if isinstance(request.context, dict) else "",
-                    "target_ai": request.target_ai,
-                    "model": "llama-3.3-70b-versatile",
-                    "input": {"raw_prompt": _raw if os.getenv("PROMPT_TRACE_CAPTURE_FULL_TEXT", "").lower() in ("1", "true", "yes") else ""},
-                    "output": {"final_text": _enh, "quality_score": None},
-                    "before_after": {"before": _raw, "after": _enh},
-                    "metrics": {
-                        "expansion_ratio": _expansion_ratio,
-                        "constraint_count": _constraint_count,
-                        "placeholder_count": _placeholder_count,
-                        "technique_count": _technique_count,
-                    },
-                    "status": "completed",
-                    "suggested_ai": suggested_ai,
+            trace_record = {
+                "trace_id": trace_id,
+                "flow": "enhance_chat",
+                "user_id": request.user_id or "anonymous",
+                "prompt_mode": request.context.get("mode", "") if isinstance(request.context, dict) else "",
+                "target_ai": request.target_ai,
+                "domain": metadata.get("domain", ""),
+                "intent": metadata.get("intent", ""),
+                "model": "llama-3.3-70b-versatile",
+                "input": {"raw_prompt": _raw if os.getenv("PROMPT_TRACE_CAPTURE_FULL_TEXT", "").lower() in ("1", "true", "yes") else ""},
+                "output": {"final_text": _enh, "quality_score": None},
+                "before_after": {"before": _raw, "after": _enh},
+                "metrics": {
+                    "expansion_ratio": _expansion_ratio,
+                    "constraint_count": _constraint_count,
+                    "placeholder_count": _placeholder_count,
+                    "technique_count": _technique_count,
                 },
-            )
+                "status": "completed",
+                "suggested_ai": suggested_ai,
+            }
+            background_tasks.add_task(_store.record, trace_record)
+            asyncio.create_task(write_trace(trace_record))
         except Exception:
             pass
 
