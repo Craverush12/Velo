@@ -317,49 +317,85 @@ FLOW:
 
 INTENT CLASSIFICATION RULES:
 1. PrimaryIntent MUST be one of these Macro-Intents (and only these):
-   - inquiry       (Learning, asking, explaining, exploring, researching)
-   - construction  (Coding, building, writing, planning, creating)
-   - debugging     (Fixing, troubleshooting, analyzing errors)
-   - decision      (Comparing, choosing, brainstorming)
-   - operation     (Running, executing, deploying)
-   - chat          (Greeting, casual conversation)
+   - inquiry       (Seeking to UNDERSTAND — no artifact being produced; purely learning, asking, explaining, exploring)
+   - construction  (Actively BUILDING a new artifact — code, document, model, system, plan — that does not yet exist)
+   - debugging     (Fixing a BROKEN thing — error messages, failures, wrong output, unexpected behavior)
+   - decision      (CHOOSING between known options — comparing, evaluating trade-offs, making a selection)
+   - operation     (EXECUTING or CONFIGURING a known process — the WHAT is already known, focus is on doing it: deploying, automating, running pipelines, setting up CI/CD, scripting workflows)
+   - chat          (Casual greeting or off-topic conversation with no technical goal)
 
-2. SecondaryIntent:
+2. INTENT DECISION TREE — apply in order, use the FIRST match:
+   a. Pure greeting or casual chat with no technical goal? → chat
+   b. Does the conversation contain explicit errors, failures, wrong output, or unexpected behavior being diagnosed? → debugging
+      This applies even if the user is a learner — if there are errors being fixed, the intent is debugging, not inquiry.
+   c. Is the user executing, configuring, or automating a process using KNOWN tools/systems? → operation
+      (signals: containerizing, Dockerizing, deploying, provisioning, setting up CI/CD, GitHub Actions, Jenkins, Terraform, running a pipeline, scripting a workflow, automating repetitive tasks, integrating existing tools)
+      KEY: the tools and approach are already known — the user is configuring/running them, not inventing a new approach.
+      Even "building a CI/CD pipeline" or "setting up automation" = operation if the tools are known and the task is configuration.
+      NOT operation if the user is designing a novel system from scratch with no existing tooling.
+   d. Is the user building, designing, writing, or planning toward a CONCRETE OUTPUT that does not yet exist? → construction
+      (outputs: code, auth system, financial model, content, training plan, meal plan, screenplay, business plan, itinerary, ML pipeline)
+      KEY: even if decisions are made along the way, if the end goal is a produced artifact → construction.
+      Even creative and personal goals (meal plan, marathon training plan, YouTube channel) count as construction.
+   e. Is the user PURELY evaluating options with no artifact being built — comparison only, output is a choice? → decision
+      ONLY use decision if the conversation would end with a selection, not a built thing.
+      NOT decision if the user is "designing" or "figuring out how to build" — that is construction.
+   f. Is the user seeking to UNDERSTAND something with no artifact being produced? → inquiry
+      inquiry is the fallback ONLY if none of a–e matched.
+
+   CRITICAL: Do NOT default to inquiry when unsure. The default fallback is inquiry ONLY, not for "building" scenarios.
+   - Building an auth system with JWT = construction (artifact being built), NOT decision.
+   - Containerizing a Python backend = operation (executing a known process), NOT inquiry.
+   - Creating a YouTube channel = construction (content and channel are artifacts), NOT inquiry.
+   - Building a CI/CD pipeline = operation (configuring known tooling), NOT decision.
+   - Asking questions WHILE actively building something = construction, not inquiry.
+
+3. SecondaryIntent:
    - Free-form specific action (e.g., "understanding_dependency_injection", "refactoring_api", "choosing_database").
    - Capture the semantic nuance of the CURRENT focus.
+   - MUST be at least two words joined by underscores (e.g., "containerizing_python_backend" not "containerizing").
 
-3. STRICT REQUIREMENT:
+4. STRICT REQUIREMENT:
    - You MUST select EXACTLY one intent from the provided Macro-Intents.
    - No other labels are permitted.
 
 DOMAIN CLASSIFICATION RULES:
 1. PrimaryDomain MUST be one of these Macro-Domains (and only these):
-   - software_data_engineering
-   - business_marketing
-   - operations_hr_support
-   - finance_legal
-   - education_research
-   - creative_arts_media
-   - healthcare_medical
-   - gov_nonprofit
-   - manufacturing_agri
-   - travel_hospitality
-   - environment_sustainability
-   - productivity_planning
-   - lifestyle_relationships
-   - food_nutrition
-   - sports_recreation
-   - logic_mathematics
-   - news_current_events
-   - philosophy_religion
-   - social_casual
-   - system_ai_meta
+   - software_data_engineering   (Writing code, databases, APIs, data pipelines, software architecture)
+   - business_marketing          (Marketing campaigns, sales, brand, growth, go-to-market strategy)
+   - operations_hr_support       (HR processes, team management, customer support, internal ops — NOT software ops)
+   - finance_legal               (Financial modeling, accounting, legal contracts, compliance, tax, investment)
+   - education_research          (Studying, academic research, learning a subject, teaching, tutoring — NOT coding to learn)
+   - creative_arts_media         (Writing fiction, music, visual art, video, content creation, storytelling)
+   - healthcare_medical          (Health advice, medical topics, clinical workflows)
+   - gov_nonprofit               (Government policy, civic tech, nonprofit programs)
+   - manufacturing_agri          (Physical production, supply chain, agriculture)
+   - travel_hospitality          (Trip planning, booking, hospitality, tourism)
+   - environment_sustainability  (Climate, sustainability, environmental impact)
+   - productivity_planning       (Personal task management, scheduling, goal setting, personal productivity tools)
+   - lifestyle_relationships     (Personal life, relationships, hobbies, self-improvement)
+   - food_nutrition              (Recipes, diet, cooking, nutrition)
+   - sports_recreation           (Sports, fitness training, athletic performance, recreation)
+   - logic_mathematics           (Pure math, algorithms as math problems, proofs, statistics without code)
+   - news_current_events         (News topics, current affairs, geopolitics — NOT general business)
+   - philosophy_religion         (Ethics, philosophy, spirituality, belief systems)
+   - social_casual               (Social media, internet culture, memes, casual community topics)
+   - system_ai_meta              (AI systems, LLMs, prompt engineering, ML infrastructure, AI products)
 
-2. SecondaryDomains:
+2. DOMAIN DISCRIMINATORS — use these when domains overlap:
+   - Code that learns math → software_data_engineering (tool is code). Pure math problem without code → logic_mathematics.
+   - Student learning to code → software_data_engineering (domain is software). Student studying history → education_research.
+   - HR software or HRIS systems → software_data_engineering. HR policies and people management → operations_hr_support.
+   - Writing a song → creative_arts_media. Writing marketing copy → business_marketing.
+   - AI model building (MLOps, LLM API, inference) → system_ai_meta. Generic software with AI features → software_data_engineering.
+   - Social media analytics for business → business_marketing. Talking about social media culture → social_casual.
+   - Financial modeling spreadsheets → finance_legal. Business strategy and growth → business_marketing.
+
+3. SecondaryDomains:
    - Free-form list of specific topics (e.g., "baking_recipes", "tax_law").
    - Capture the specific subject matter context here MANDATORY
 
-3. STRICT REQUIREMENT:
+4. STRICT REQUIREMENT:
    - You MUST select EXACTLY one primary domain from the provided Macro-Domains list.
    - Selection is mandatory. You are strictly forbidden from returning "general", "unknown", or any string not in the list.
    - If the user's request spans multiple domains, select the most dominant one.

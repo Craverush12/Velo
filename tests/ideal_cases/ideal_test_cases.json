@@ -1,7 +1,7 @@
 [
   {
     "id": "dev-001",
-    "description": "Developer debugging Kubernetes pod networking — returning user with rich context",
+    "description": "Developer debugging Kubernetes pod networking \u00e2\u20ac\u201d returning user with rich context",
     "icp": "developer",
     "domain": "software_data_engineering",
     "intent": "debugging",
@@ -24,26 +24,35 @@
       },
       {
         "role": "user",
-        "content": "It's using REDIS_URL=redis://localhost:6379 — oh wait. That's the problem. But why did this work in staging? Staging uses a sidecar pattern."
+        "content": "It's using REDIS_URL=redis://localhost:6379 \u00e2\u20ac\u201d oh wait. That's the problem. But why did this work in staging? Staging uses a sidecar pattern."
       },
       {
         "role": "assistant",
-        "content": "Staging likely has the Redis container in the SAME pod as your app — that's the sidecar pattern where localhost works. In prod you've split them into separate pods with a Service resource, so localhost no longer resolves to Redis. Change REDIS_URL to redis://redis-service:6379 and use the Kubernetes service DNS. Also add a readinessProbe on the Redis pod so your app pod doesn't start before Redis is ready."
+        "content": "Staging likely has the Redis container in the SAME pod as your app \u00e2\u20ac\u201d that's the sidecar pattern where localhost works. In prod you've split them into separate pods with a Service resource, so localhost no longer resolves to Redis. Change REDIS_URL to redis://redis-service:6379 and use the Kubernetes service DNS. Also add a readinessProbe on the Redis pod so your app pod doesn't start before Redis is ready."
       }
     ],
     "expected_intent": "debugging",
     "expected_domain": "software_data_engineering",
-    "expected_secondary_intent_contains": ["redis", "kubernetes", "networking", "debug"],
+    "expected_secondary_intent_contains": [
+      "redis",
+      "kubernetes",
+      "networking",
+      "debug"
+    ],
     "expected_suggested_ai": "claude",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
       "must_contain_context": true,
-      "context_keywords": ["kubernetes", "redis", "networking"]
+      "context_keywords": [
+        "kubernetes",
+        "redis",
+        "networking"
+      ]
     }
   },
   {
     "id": "dev-002",
-    "description": "Developer building distributed lock with Redis — returning user, construction mode",
+    "description": "Developer building distributed lock with Redis \u00e2\u20ac\u201d returning user, construction mode",
     "icp": "developer",
     "domain": "software_data_engineering",
     "intent": "construction",
@@ -62,7 +71,7 @@
       },
       {
         "role": "assistant",
-        "content": "Use Redlock or a simpler SET NX PX pattern. For your requirements: SET lock_key uuid NX PX ttl_ms — the NX means only set if not exists, PX sets the TTL in milliseconds. Store the holder's UUID as the value so only the owner can release it. On release, use a Lua script to atomically check the value equals your UUID before deleting — this prevents releasing a lock you don't own if it expired and was re-acquired."
+        "content": "Use Redlock or a simpler SET NX PX pattern. For your requirements: SET lock_key uuid NX PX ttl_ms \u00e2\u20ac\u201d the NX means only set if not exists, PX sets the TTL in milliseconds. Store the holder's UUID as the value so only the owner can release it. On release, use a Lua script to atomically check the value equals your UUID before deleting \u00e2\u20ac\u201d this prevents releasing a lock you don't own if it expired and was re-acquired."
       },
       {
         "role": "user",
@@ -71,17 +80,26 @@
     ],
     "expected_intent": "construction",
     "expected_domain": "software_data_engineering",
-    "expected_secondary_intent_contains": ["redis", "lock", "distributed", "implementation"],
+    "expected_secondary_intent_contains": [
+      "redis",
+      "lock",
+      "distributed",
+      "implementation"
+    ],
     "expected_suggested_ai": "claude",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.3,
       "must_contain_context": true,
-      "context_keywords": ["distributed", "redis", "lock"]
+      "context_keywords": [
+        "distributed",
+        "redis",
+        "lock"
+      ]
     }
   },
   {
     "id": "dev-003",
-    "description": "Developer asking how React reconciliation works — first-time user, inquiry",
+    "description": "Developer asking how React reconciliation works \u00e2\u20ac\u201d first-time user, inquiry",
     "icp": "developer",
     "domain": "software_data_engineering",
     "intent": "inquiry",
@@ -100,7 +118,7 @@
       },
       {
         "role": "assistant",
-        "content": "React uses the Fiber architecture (since v16) with a diffing algorithm that runs in two phases. The reconciler walks the fiber tree comparing old and new vnodes. It uses two heuristics: elements of different types produce entirely new subtrees (no cross-type reuse), and list items use the key prop as a stable identity. If keys match, React reuses the DOM node and only updates changed props. Without keys, React diffs by position — which causes the infamous state-gets-reset-on-reorder bug."
+        "content": "React uses the Fiber architecture (since v16) with a diffing algorithm that runs in two phases. The reconciler walks the fiber tree comparing old and new vnodes. It uses two heuristics: elements of different types produce entirely new subtrees (no cross-type reuse), and list items use the key prop as a stable identity. If keys match, React reuses the DOM node and only updates changed props. Without keys, React diffs by position \u00e2\u20ac\u201d which causes the infamous state-gets-reset-on-reorder bug."
       },
       {
         "role": "user",
@@ -109,7 +127,11 @@
     ],
     "expected_intent": "inquiry",
     "expected_domain": "software_data_engineering",
-    "expected_secondary_intent_contains": ["react", "reconciliation", "rendering"],
+    "expected_secondary_intent_contains": [
+      "react",
+      "reconciliation",
+      "rendering"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -118,7 +140,7 @@
   },
   {
     "id": "dev-004",
-    "description": "Developer deploying FastAPI with Docker health checks — operation intent",
+    "description": "Developer deploying FastAPI with Docker health checks \u00e2\u20ac\u201d operation intent",
     "icp": "developer",
     "domain": "software_data_engineering",
     "intent": "operation",
@@ -137,7 +159,7 @@
       },
       {
         "role": "assistant",
-        "content": "Add a /health endpoint to FastAPI that returns 200 only after the model is loaded. Use a global flag — set it to False at module level, then True after the model loads. In the Dockerfile: HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 CMD curl -f http://localhost:8000/health || exit 1. Set start-period to 15s to account for your 8s load time."
+        "content": "Add a /health endpoint to FastAPI that returns 200 only after the model is loaded. Use a global flag \u00e2\u20ac\u201d set it to False at module level, then True after the model loads. In the Dockerfile: HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 CMD curl -f http://localhost:8000/health || exit 1. Set start-period to 15s to account for your 8s load time."
       },
       {
         "role": "user",
@@ -146,7 +168,12 @@
     ],
     "expected_intent": "operation",
     "expected_domain": "software_data_engineering",
-    "expected_secondary_intent_contains": ["docker", "kubernetes", "deployment", "health"],
+    "expected_secondary_intent_contains": [
+      "docker",
+      "kubernetes",
+      "deployment",
+      "health"
+    ],
     "expected_suggested_ai": "claude",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -155,7 +182,7 @@
   },
   {
     "id": "dev-005",
-    "description": "Developer implementing JWT auth from scratch — power user, multi-turn construction",
+    "description": "Developer implementing JWT auth from scratch \u00e2\u20ac\u201d power user, multi-turn construction",
     "icp": "developer",
     "domain": "software_data_engineering",
     "intent": "construction",
@@ -174,26 +201,35 @@
       },
       {
         "role": "assistant",
-        "content": "Rotate on every use of the refresh token — this is refresh token rotation (RTR). When the refresh token is used, issue a new refresh token and invalidate the old one. Store the new one server-side with a reference to its predecessor. If the old token is replayed (attacker reuse), the server sees a revoked token → invalidate the entire token family. 'Every request' would be for sliding session tokens, which is different."
+        "content": "Rotate on every use of the refresh token \u00e2\u20ac\u201d this is refresh token rotation (RTR). When the refresh token is used, issue a new refresh token and invalidate the old one. Store the new one server-side with a reference to its predecessor. If the old token is replayed (attacker reuse), the server sees a revoked token \u00e2\u2020\u2019 invalidate the entire token family. 'Every request' would be for sliding session tokens, which is different."
       },
       {
         "role": "user",
-        "content": "For the RBAC layer — should I embed the full role permissions in the JWT payload or just the role name and look up permissions on each request?"
+        "content": "For the RBAC layer \u00e2\u20ac\u201d should I embed the full role permissions in the JWT payload or just the role name and look up permissions on each request?"
       }
     ],
     "expected_intent": "construction",
     "expected_domain": "software_data_engineering",
-    "expected_secondary_intent_contains": ["jwt", "auth", "rbac", "security"],
+    "expected_secondary_intent_contains": [
+      "jwt",
+      "auth",
+      "rbac",
+      "security"
+    ],
     "expected_suggested_ai": "claude",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.4,
       "must_contain_context": true,
-      "context_keywords": ["auth", "jwt", "security"]
+      "context_keywords": [
+        "auth",
+        "jwt",
+        "security"
+      ]
     }
   },
   {
     "id": "dev-006",
-    "description": "Developer debugging async Python race condition — debugging, returning",
+    "description": "Developer debugging async Python race condition \u00e2\u20ac\u201d debugging, returning",
     "icp": "developer",
     "domain": "software_data_engineering",
     "intent": "debugging",
@@ -208,11 +244,11 @@
     "conversation": [
       {
         "role": "user",
-        "content": "I have an asyncio pipeline where multiple tasks are reading from and writing to a shared dict. Occasionally the dict ends up in an inconsistent state — some keys disappear. I'm not using threads, just async tasks. Is asyncio even subject to race conditions?"
+        "content": "I have an asyncio pipeline where multiple tasks are reading from and writing to a shared dict. Occasionally the dict ends up in an inconsistent state \u00e2\u20ac\u201d some keys disappear. I'm not using threads, just async tasks. Is asyncio even subject to race conditions?"
       },
       {
         "role": "assistant",
-        "content": "Yes. Asyncio tasks run concurrently on a single thread but they yield at await points. If two tasks read-modify-write the same dict and there's an await between the read and the write, the other task can run and mutate the dict in between — classic TOCTOU. The fix: use asyncio.Lock() around the critical section, or restructure so each task owns its own data slice and results are merged at the end."
+        "content": "Yes. Asyncio tasks run concurrently on a single thread but they yield at await points. If two tasks read-modify-write the same dict and there's an await between the read and the write, the other task can run and mutate the dict in between \u00e2\u20ac\u201d classic TOCTOU. The fix: use asyncio.Lock() around the critical section, or restructure so each task owns its own data slice and results are merged at the end."
       },
       {
         "role": "user",
@@ -221,7 +257,12 @@
     ],
     "expected_intent": "debugging",
     "expected_domain": "software_data_engineering",
-    "expected_secondary_intent_contains": ["asyncio", "race_condition", "concurrency", "python"],
+    "expected_secondary_intent_contains": [
+      "asyncio",
+      "race_condition",
+      "concurrency",
+      "python"
+    ],
     "expected_suggested_ai": "claude",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -230,7 +271,7 @@
   },
   {
     "id": "dev-007",
-    "description": "Developer on algorithm — logic/math domain, construction",
+    "description": "Developer on algorithm \u00e2\u20ac\u201d logic/math domain, construction",
     "icp": "developer",
     "domain": "logic_mathematics",
     "intent": "construction",
@@ -245,11 +286,11 @@
     "conversation": [
       {
         "role": "user",
-        "content": "I need to find all pairs in an array that sum to a target value. My current O(n²) approach is too slow — array can be up to 10^6 elements. What's the optimal approach?"
+        "content": "I need to find all pairs in an array that sum to a target value. My current O(n\u00c2\u00b2) approach is too slow \u00e2\u20ac\u201d array can be up to 10^6 elements. What's the optimal approach?"
       },
       {
         "role": "assistant",
-        "content": "Use a hash set for O(n) time, O(n) space. For each element x, check if (target - x) is in the set. If yes, you found a pair. If no, add x to the set. Single pass. If you need sorted pairs or must handle duplicates carefully, sort first (O(n log n)) then use two pointers — O(n) after sort, O(1) extra space."
+        "content": "Use a hash set for O(n) time, O(n) space. For each element x, check if (target - x) is in the set. If yes, you found a pair. If no, add x to the set. Single pass. If you need sorted pairs or must handle duplicates carefully, sort first (O(n log n)) then use two pointers \u00e2\u20ac\u201d O(n) after sort, O(1) extra space."
       },
       {
         "role": "user",
@@ -258,7 +299,11 @@
     ],
     "expected_intent": "construction",
     "expected_domain": "logic_mathematics",
-    "expected_secondary_intent_contains": ["algorithm", "optimization", "two_sum"],
+    "expected_secondary_intent_contains": [
+      "algorithm",
+      "optimization",
+      "two_sum"
+    ],
     "expected_suggested_ai": "claude",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -267,7 +312,7 @@
   },
   {
     "id": "dev-008",
-    "description": "Developer on system design — AI/meta domain, construction, power user",
+    "description": "Developer on system design \u00e2\u20ac\u201d AI/meta domain, construction, power user",
     "icp": "developer",
     "domain": "system_ai_meta",
     "intent": "construction",
@@ -282,11 +327,11 @@
     "conversation": [
       {
         "role": "user",
-        "content": "I'm building an LLM inference layer that needs to handle 500 req/s. Each request is a prompt → streaming response. I need to figure out how to do request batching without breaking the streaming UX."
+        "content": "I'm building an LLM inference layer that needs to handle 500 req/s. Each request is a prompt \u00e2\u2020\u2019 streaming response. I need to figure out how to do request batching without breaking the streaming UX."
       },
       {
         "role": "assistant",
-        "content": "Continuous batching (also called iteration-level batching) is what vLLM and TGI use. Instead of waiting to fill a batch before starting, you start inference immediately and dynamically add new requests to in-flight batches at each decode step. This gives you GPU utilization near max without adding latency for the first token. The streaming UX works because each sequence in the batch emits tokens independently — you stream per-request as tokens are generated."
+        "content": "Continuous batching (also called iteration-level batching) is what vLLM and TGI use. Instead of waiting to fill a batch before starting, you start inference immediately and dynamically add new requests to in-flight batches at each decode step. This gives you GPU utilization near max without adding latency for the first token. The streaming UX works because each sequence in the batch emits tokens independently \u00e2\u20ac\u201d you stream per-request as tokens are generated."
       },
       {
         "role": "user",
@@ -295,7 +340,12 @@
     ],
     "expected_intent": "construction",
     "expected_domain": "system_ai_meta",
-    "expected_secondary_intent_contains": ["llm", "inference", "architecture", "batching"],
+    "expected_secondary_intent_contains": [
+      "llm",
+      "inference",
+      "architecture",
+      "batching"
+    ],
     "expected_suggested_ai": "claude",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.3,
@@ -304,7 +354,7 @@
   },
   {
     "id": "kw-001",
-    "description": "Knowledge worker comparing CRMs for their sales team — decision, returning",
+    "description": "Knowledge worker comparing CRMs for their sales team \u00e2\u20ac\u201d decision, returning",
     "icp": "knowledge_worker",
     "domain": "business_marketing",
     "intent": "decision",
@@ -323,16 +373,22 @@
       },
       {
         "role": "assistant",
-        "content": "HubSpot scales to $20–30M ARR without problems for most B2B SaaS teams. The migration concern is valid but often overblown — the real constraint is whether you need advanced territory management, complex approval workflows, or deep CPQ. Those are Salesforce's strengths. If your sales motion is PLG or SMB-focused with a standard pipeline, HubSpot at your stage is the better move: lower admin overhead, faster ramp for reps, and the data model matches your current complexity."
+        "content": "HubSpot scales to $20\u00e2\u20ac\u201c30M ARR without problems for most B2B SaaS teams. The migration concern is valid but often overblown \u00e2\u20ac\u201d the real constraint is whether you need advanced territory management, complex approval workflows, or deep CPQ. Those are Salesforce's strengths. If your sales motion is PLG or SMB-focused with a standard pipeline, HubSpot at your stage is the better move: lower admin overhead, faster ramp for reps, and the data model matches your current complexity."
       },
       {
         "role": "user",
-        "content": "We do have one enterprise segment we're trying to grow — deals over $100K that need legal review, multi-stakeholder sign-offs, and custom pricing. Does that change the calculus?"
+        "content": "We do have one enterprise segment we're trying to grow \u00e2\u20ac\u201d deals over $100K that need legal review, multi-stakeholder sign-offs, and custom pricing. Does that change the calculus?"
       }
     ],
     "expected_intent": "decision",
     "expected_domain": "business_marketing",
-    "expected_secondary_intent_contains": ["crm", "saas", "salesforce", "hubspot", "decision"],
+    "expected_secondary_intent_contains": [
+      "crm",
+      "saas",
+      "salesforce",
+      "hubspot",
+      "decision"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.3,
@@ -341,7 +397,7 @@
   },
   {
     "id": "kw-002",
-    "description": "Knowledge worker writing a board update — construction, returning, productivity domain",
+    "description": "Knowledge worker writing a board update \u00e2\u20ac\u201d construction, returning, productivity domain",
     "icp": "knowledge_worker",
     "domain": "productivity_planning",
     "intent": "construction",
@@ -360,16 +416,20 @@
       },
       {
         "role": "assistant",
-        "content": "Lead with the 40% QoQ number — that's the headline. For churn: name it directly (boards hate discovering problems were softened), give the root cause in one sentence ('expansion-segment customers churned due to onboarding gaps identified in Q2'), then show the mitigation already in motion. 'We're addressing this by X, and we expect churn to normalize to Z by Q3' — forward-looking, accountable, not defensive."
+        "content": "Lead with the 40% QoQ number \u00e2\u20ac\u201d that's the headline. For churn: name it directly (boards hate discovering problems were softened), give the root cause in one sentence ('expansion-segment customers churned due to onboarding gaps identified in Q2'), then show the mitigation already in motion. 'We're addressing this by X, and we expect churn to normalize to Z by Q3' \u00e2\u20ac\u201d forward-looking, accountable, not defensive."
       },
       {
         "role": "user",
-        "content": "The root cause is actually less clear — it seems correlated with customers who didn't complete our onboarding flow but we can't prove causality yet. How do I present that honestly without sounding like we don't know what's happening?"
+        "content": "The root cause is actually less clear \u00e2\u20ac\u201d it seems correlated with customers who didn't complete our onboarding flow but we can't prove causality yet. How do I present that honestly without sounding like we don't know what's happening?"
       }
     ],
     "expected_intent": "construction",
     "expected_domain": "productivity_planning",
-    "expected_secondary_intent_contains": ["board_update", "reporting", "communication"],
+    "expected_secondary_intent_contains": [
+      "board_update",
+      "reporting",
+      "communication"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -378,7 +438,7 @@
   },
   {
     "id": "kw-003",
-    "description": "Knowledge worker asking about employment law — inquiry, first-time, finance_legal",
+    "description": "Knowledge worker asking about employment law \u00e2\u20ac\u201d inquiry, first-time, finance_legal",
     "icp": "knowledge_worker",
     "domain": "finance_legal",
     "intent": "inquiry",
@@ -406,7 +466,11 @@
     ],
     "expected_intent": "inquiry",
     "expected_domain": "finance_legal",
-    "expected_secondary_intent_contains": ["employment_law", "contractor", "compliance"],
+    "expected_secondary_intent_contains": [
+      "employment_law",
+      "contractor",
+      "compliance"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -415,7 +479,7 @@
   },
   {
     "id": "kw-004",
-    "description": "HR manager writing a performance improvement plan — construction, operations_hr domain",
+    "description": "HR manager writing a performance improvement plan \u00e2\u20ac\u201d construction, operations_hr domain",
     "icp": "knowledge_worker",
     "domain": "operations_hr_support",
     "intent": "construction",
@@ -434,7 +498,7 @@
       },
       {
         "role": "assistant",
-        "content": "A legally solid PIP has four parts: specific observable behaviors (not personality judgments — 'missed 8 of 10 sprint commitments in Q2' not 'unreliable'), measurable success criteria ('zero missed deadlines without 48-hour advance communication for 60 days'), a clear timeline, and a support plan (what the company will provide — 1:1s, resources, coaching). Document everything in writing and have the employee acknowledge receipt."
+        "content": "A legally solid PIP has four parts: specific observable behaviors (not personality judgments \u00e2\u20ac\u201d 'missed 8 of 10 sprint commitments in Q2' not 'unreliable'), measurable success criteria ('zero missed deadlines without 48-hour advance communication for 60 days'), a clear timeline, and a support plan (what the company will provide \u00e2\u20ac\u201d 1:1s, resources, coaching). Document everything in writing and have the employee acknowledge receipt."
       },
       {
         "role": "user",
@@ -443,7 +507,12 @@
     ],
     "expected_intent": "construction",
     "expected_domain": "operations_hr_support",
-    "expected_secondary_intent_contains": ["pip", "hr", "performance", "management"],
+    "expected_secondary_intent_contains": [
+      "pip",
+      "hr",
+      "performance",
+      "management"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -452,7 +521,7 @@
   },
   {
     "id": "kw-005",
-    "description": "Researcher synthesizing literature review — inquiry, education_research domain",
+    "description": "Researcher synthesizing literature review \u00e2\u20ac\u201d inquiry, education_research domain",
     "icp": "knowledge_worker",
     "domain": "education_research",
     "intent": "inquiry",
@@ -471,7 +540,7 @@
       },
       {
         "role": "assistant",
-        "content": "The biggest update is the challenge to loss aversion as a universal phenomenon. Yechiam and others have shown loss aversion is not consistently observed in choice tasks when attention and arousal are controlled — the effect may be partly attentional. On the interaction with time discounting: newer work (David Laibson, O'Donoghue & Rabin) treats them as separable, not multiplicative. Present bias (hyperbolic discounting) predicts bad intertemporal choices better than loss aversion in most temporal settings."
+        "content": "The biggest update is the challenge to loss aversion as a universal phenomenon. Yechiam and others have shown loss aversion is not consistently observed in choice tasks when attention and arousal are controlled \u00e2\u20ac\u201d the effect may be partly attentional. On the interaction with time discounting: newer work (David Laibson, O'Donoghue & Rabin) treats them as separable, not multiplicative. Present bias (hyperbolic discounting) predicts bad intertemporal choices better than loss aversion in most temporal settings."
       },
       {
         "role": "user",
@@ -480,7 +549,11 @@
     ],
     "expected_intent": "inquiry",
     "expected_domain": "education_research",
-    "expected_secondary_intent_contains": ["research", "behavioral_economics", "literature_review"],
+    "expected_secondary_intent_contains": [
+      "research",
+      "behavioral_economics",
+      "literature_review"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -489,7 +562,7 @@
   },
   {
     "id": "creator-001",
-    "description": "Creator starting a YouTube channel strategy — construction, creative_arts_media, first-time",
+    "description": "Creator starting a YouTube channel strategy \u00e2\u20ac\u201d construction, creative_arts_media, first-time",
     "icp": "creator",
     "domain": "creative_arts_media",
     "intent": "construction",
@@ -508,16 +581,20 @@
       },
       {
         "role": "assistant",
-        "content": "The first 6 months are about finding your specific angle, not growth. 'Personal finance for 20s' is saturated — you need a sub-niche where your VC background is a genuine differentiator. Ideas: 'How VCs actually think about money' (demystifying institutional finance for retail), 'Startup equity explained for employees', 'Portfolio construction when you have no money yet'. Publish 1 video/week on a consistent topic, not variety. Your goal is to rank for 3–5 specific searches, not go viral."
+        "content": "The first 6 months are about finding your specific angle, not growth. 'Personal finance for 20s' is saturated \u00e2\u20ac\u201d you need a sub-niche where your VC background is a genuine differentiator. Ideas: 'How VCs actually think about money' (demystifying institutional finance for retail), 'Startup equity explained for employees', 'Portfolio construction when you have no money yet'. Publish 1 video/week on a consistent topic, not variety. Your goal is to rank for 3\u00e2\u20ac\u201c5 specific searches, not go viral."
       },
       {
         "role": "user",
-        "content": "The startup equity angle feels right — I spent 3 years looking at cap tables and watching employees not understand their options. What kind of video format works for that kind of educational content?"
+        "content": "The startup equity angle feels right \u00e2\u20ac\u201d I spent 3 years looking at cap tables and watching employees not understand their options. What kind of video format works for that kind of educational content?"
       }
     ],
     "expected_intent": "construction",
     "expected_domain": "creative_arts_media",
-    "expected_secondary_intent_contains": ["youtube", "content_strategy", "channel_creation"],
+    "expected_secondary_intent_contains": [
+      "youtube",
+      "content_strategy",
+      "channel_creation"
+    ],
     "expected_suggested_ai": "gemini",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -526,7 +603,7 @@
   },
   {
     "id": "creator-002",
-    "description": "Creator deciding between Substack vs their own blog — decision, creative_arts_media",
+    "description": "Creator deciding between Substack vs their own blog \u00e2\u20ac\u201d decision, creative_arts_media",
     "icp": "creator",
     "domain": "creative_arts_media",
     "intent": "decision",
@@ -545,16 +622,20 @@
       },
       {
         "role": "assistant",
-        "content": "At 800 followers, Substack. The network effect and built-in discovery matter when you're sub-5K. Substack takes 10% of revenue but gets you in front of readers who subscribe to adjacent newsletters. Ghost is better when you want full control, lower fees, and have enough traffic that the 10% starts hurting. The crossover point is roughly when you're making $2K+/month — then Ghost's flat fee wins economically."
+        "content": "At 800 followers, Substack. The network effect and built-in discovery matter when you're sub-5K. Substack takes 10% of revenue but gets you in front of readers who subscribe to adjacent newsletters. Ghost is better when you want full control, lower fees, and have enough traffic that the 10% starts hurting. The crossover point is roughly when you're making $2K+/month \u00e2\u20ac\u201d then Ghost's flat fee wins economically."
       },
       {
         "role": "user",
-        "content": "Substack's recommendation feature seems valuable. But I'm worried about the content ownership and portability if I want to move later. How painful is the Substack → Ghost migration actually?"
+        "content": "Substack's recommendation feature seems valuable. But I'm worried about the content ownership and portability if I want to move later. How painful is the Substack \u00e2\u2020\u2019 Ghost migration actually?"
       }
     ],
     "expected_intent": "decision",
     "expected_domain": "creative_arts_media",
-    "expected_secondary_intent_contains": ["substack", "content_platform", "newsletter"],
+    "expected_secondary_intent_contains": [
+      "substack",
+      "content_platform",
+      "newsletter"
+    ],
     "expected_suggested_ai": "gemini",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -563,7 +644,7 @@
   },
   {
     "id": "creator-003",
-    "description": "Creator writing a short film screenplay — construction, creative_arts_media",
+    "description": "Creator writing a short film screenplay \u00e2\u20ac\u201d construction, creative_arts_media",
     "icp": "creator",
     "domain": "creative_arts_media",
     "intent": "construction",
@@ -574,7 +655,7 @@
       "primary_domain": "creative_arts",
       "icp": "creator"
     },
-    "existing_essence": "MASTER:\nFilmmaker developing a short film about grief and memory for festival submission.\n\nFLOW:\n- writing the second act — protagonist confronting a physical object tied to the deceased",
+    "existing_essence": "MASTER:\nFilmmaker developing a short film about grief and memory for festival submission.\n\nFLOW:\n- writing the second act \u00e2\u20ac\u201d protagonist confronting a physical object tied to the deceased",
     "conversation": [
       {
         "role": "user",
@@ -582,16 +663,20 @@
       },
       {
         "role": "assistant",
-        "content": "Let the obstacles carry the emotion, not the character's face. She's following the recipe but something goes wrong — a step her mother never wrote down because she always knew it instinctively, and the protagonist doesn't. That gap IS the grief. The scene doesn't need dialogue about loss. The concrete problem (dish is wrong, she doesn't know why) stands in for the larger absence. End the scene with her eating it anyway, imperfect."
+        "content": "Let the obstacles carry the emotion, not the character's face. She's following the recipe but something goes wrong \u00e2\u20ac\u201d a step her mother never wrote down because she always knew it instinctively, and the protagonist doesn't. That gap IS the grief. The scene doesn't need dialogue about loss. The concrete problem (dish is wrong, she doesn't know why) stands in for the larger absence. End the scene with her eating it anyway, imperfect."
       },
       {
         "role": "user",
-        "content": "I love that — the unwritten knowledge. How long should the cooking scene run in a 15-minute short? I'm worried it'll drag."
+        "content": "I love that \u00e2\u20ac\u201d the unwritten knowledge. How long should the cooking scene run in a 15-minute short? I'm worried it'll drag."
       }
     ],
     "expected_intent": "construction",
     "expected_domain": "creative_arts_media",
-    "expected_secondary_intent_contains": ["screenplay", "filmmaking", "storytelling"],
+    "expected_secondary_intent_contains": [
+      "screenplay",
+      "filmmaking",
+      "storytelling"
+    ],
     "expected_suggested_ai": "gemini",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.3,
@@ -600,7 +685,7 @@
   },
   {
     "id": "creator-004",
-    "description": "Creator asking casual question about social media — chat intent, social_casual",
+    "description": "Creator asking casual question about social media \u00e2\u20ac\u201d chat intent, social_casual",
     "icp": "creator",
     "domain": "social_casual",
     "intent": "chat",
@@ -624,7 +709,11 @@
     ],
     "expected_intent": "chat",
     "expected_domain": "social_casual",
-    "expected_secondary_intent_contains": ["social_media", "twitter", "creator"],
+    "expected_secondary_intent_contains": [
+      "social_media",
+      "twitter",
+      "creator"
+    ],
     "expected_suggested_ai": "gemini",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.0,
@@ -633,7 +722,7 @@
   },
   {
     "id": "creator-005",
-    "description": "Creator asking about romantic relationships — lifestyle domain, inquiry, first-time",
+    "description": "Creator asking about romantic relationships \u00e2\u20ac\u201d lifestyle domain, inquiry, first-time",
     "icp": "creator",
     "domain": "lifestyle_relationships",
     "intent": "inquiry",
@@ -652,12 +741,16 @@
       },
       {
         "role": "assistant",
-        "content": "Completely normal. What you're describing is the shift from passionate love to companionate love — which research consistently shows is the transition that happens in most relationships after 18 months to 4 years. It's not decay, it's differentiation. The intensity of early-stage dopamine-driven connection stabilizes into something that can sustain long-term. The routineness you're feeling is often a signal the relationship needs novelty injection — new shared experiences, not problem-solving."
+        "content": "Completely normal. What you're describing is the shift from passionate love to companionate love \u00e2\u20ac\u201d which research consistently shows is the transition that happens in most relationships after 18 months to 4 years. It's not decay, it's differentiation. The intensity of early-stage dopamine-driven connection stabilizes into something that can sustain long-term. The routineness you're feeling is often a signal the relationship needs novelty injection \u00e2\u20ac\u201d new shared experiences, not problem-solving."
       }
     ],
     "expected_intent": "inquiry",
     "expected_domain": "lifestyle_relationships",
-    "expected_secondary_intent_contains": ["relationship", "connection", "personal"],
+    "expected_secondary_intent_contains": [
+      "relationship",
+      "connection",
+      "personal"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.1,
@@ -666,7 +759,7 @@
   },
   {
     "id": "student-001",
-    "description": "Student asking how to understand neural networks — inquiry, education_research, first-time",
+    "description": "Student asking how to understand neural networks \u00e2\u20ac\u201d inquiry, education_research, first-time",
     "icp": "student",
     "domain": "education_research",
     "intent": "inquiry",
@@ -694,7 +787,11 @@
     ],
     "expected_intent": "inquiry",
     "expected_domain": "education_research",
-    "expected_secondary_intent_contains": ["neural_networks", "backpropagation", "learning"],
+    "expected_secondary_intent_contains": [
+      "neural_networks",
+      "backpropagation",
+      "learning"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -703,7 +800,7 @@
   },
   {
     "id": "student-002",
-    "description": "Student debugging a binary search implementation — debugging, logic_mathematics, returning",
+    "description": "Student debugging a binary search implementation \u00e2\u20ac\u201d debugging, logic_mathematics, returning",
     "icp": "student",
     "domain": "logic_mathematics",
     "intent": "debugging",
@@ -722,7 +819,7 @@
       },
       {
         "role": "assistant",
-        "content": "Two bugs. First: hi should be len(arr) - 1, not len(arr) — otherwise you'll index out of bounds on the first iteration for some inputs. Second: when arr[mid] < target, you set lo = mid, but that can loop forever when lo and hi are adjacent (lo = hi - 1, mid = lo, lo stays the same). Fix: lo = mid + 1. Similarly hi = mid - 1 in the else branch. With these two fixes your template becomes the standard closed-interval binary search."
+        "content": "Two bugs. First: hi should be len(arr) - 1, not len(arr) \u00e2\u20ac\u201d otherwise you'll index out of bounds on the first iteration for some inputs. Second: when arr[mid] < target, you set lo = mid, but that can loop forever when lo and hi are adjacent (lo = hi - 1, mid = lo, lo stays the same). Fix: lo = mid + 1. Similarly hi = mid - 1 in the else branch. With these two fixes your template becomes the standard closed-interval binary search."
       },
       {
         "role": "user",
@@ -731,7 +828,11 @@
     ],
     "expected_intent": "debugging",
     "expected_domain": "logic_mathematics",
-    "expected_secondary_intent_contains": ["binary_search", "debugging", "algorithm"],
+    "expected_secondary_intent_contains": [
+      "binary_search",
+      "debugging",
+      "algorithm"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -740,7 +841,7 @@
   },
   {
     "id": "student-003",
-    "description": "Student first-time asking about web development — inquiry, software_data_engineering",
+    "description": "Student first-time asking about web development \u00e2\u20ac\u201d inquiry, software_data_engineering",
     "icp": "student",
     "domain": "software_data_engineering",
     "intent": "inquiry",
@@ -759,12 +860,16 @@
       },
       {
         "role": "assistant",
-        "content": "JavaScript first, not optional. React is a JavaScript framework — if you don't understand closures, the event loop, asynchronous callbacks, and DOM manipulation in vanilla JS, React's mental model will confuse you rather than clarify it. Spend 4–6 weeks on plain JavaScript: functions, arrays, objects, async/await, fetch. Then React will make sense immediately because you'll see it as 'JS with a rendering abstraction' not as a new language."
+        "content": "JavaScript first, not optional. React is a JavaScript framework \u00e2\u20ac\u201d if you don't understand closures, the event loop, asynchronous callbacks, and DOM manipulation in vanilla JS, React's mental model will confuse you rather than clarify it. Spend 4\u00e2\u20ac\u201c6 weeks on plain JavaScript: functions, arrays, objects, async/await, fetch. Then React will make sense immediately because you'll see it as 'JS with a rendering abstraction' not as a new language."
       }
     ],
     "expected_intent": "inquiry",
     "expected_domain": "software_data_engineering",
-    "expected_secondary_intent_contains": ["web_development", "javascript", "learning_path"],
+    "expected_secondary_intent_contains": [
+      "web_development",
+      "javascript",
+      "learning_path"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.1,
@@ -773,7 +878,7 @@
   },
   {
     "id": "student-004",
-    "description": "Student asking about philosophy of mind — inquiry, philosophy_religion",
+    "description": "Student asking about philosophy of mind \u00e2\u20ac\u201d inquiry, philosophy_religion",
     "icp": "student",
     "domain": "philosophy_religion",
     "intent": "inquiry",
@@ -792,12 +897,16 @@
       },
       {
         "role": "assistant",
-        "content": "Chalmers' distinction: the 'easy problems' are about function — explaining how the brain processes information, integrates signals, controls behavior, reports states. They're 'easy' not trivially but because we know what kind of answer would count as a solution: a mechanistic functional account. The 'hard problem' is why any of that processing is accompanied by subjective experience at all. Why is there something it's like to see red? A complete functional account of color perception wouldn't touch that question — and that's what makes it hard."
+        "content": "Chalmers' distinction: the 'easy problems' are about function \u00e2\u20ac\u201d explaining how the brain processes information, integrates signals, controls behavior, reports states. They're 'easy' not trivially but because we know what kind of answer would count as a solution: a mechanistic functional account. The 'hard problem' is why any of that processing is accompanied by subjective experience at all. Why is there something it's like to see red? A complete functional account of color perception wouldn't touch that question \u00e2\u20ac\u201d and that's what makes it hard."
       }
     ],
     "expected_intent": "inquiry",
     "expected_domain": "philosophy_religion",
-    "expected_secondary_intent_contains": ["consciousness", "philosophy", "chalmers"],
+    "expected_secondary_intent_contains": [
+      "consciousness",
+      "philosophy",
+      "chalmers"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.1,
@@ -806,7 +915,7 @@
   },
   {
     "id": "student-005",
-    "description": "Student debugging a SQL query — debugging, software_data_engineering, returning",
+    "description": "Student debugging a SQL query \u00e2\u20ac\u201d debugging, software_data_engineering, returning",
     "icp": "student",
     "domain": "software_data_engineering",
     "intent": "debugging",
@@ -825,7 +934,7 @@
       },
       {
         "role": "assistant",
-        "content": "You can't use MAX() in a WHERE clause — WHERE filters rows before aggregation, so MAX() isn't defined yet at that point. The correct approach: use a subquery. SELECT MAX(salary) FROM employees WHERE salary < (SELECT MAX(salary) FROM employees). The inner query finds the global max, then the outer query finds the max of everything below it."
+        "content": "You can't use MAX() in a WHERE clause \u00e2\u20ac\u201d WHERE filters rows before aggregation, so MAX() isn't defined yet at that point. The correct approach: use a subquery. SELECT MAX(salary) FROM employees WHERE salary < (SELECT MAX(salary) FROM employees). The inner query finds the global max, then the outer query finds the max of everything below it."
       },
       {
         "role": "user",
@@ -834,7 +943,11 @@
     ],
     "expected_intent": "debugging",
     "expected_domain": "software_data_engineering",
-    "expected_secondary_intent_contains": ["sql", "query", "debugging"],
+    "expected_secondary_intent_contains": [
+      "sql",
+      "query",
+      "debugging"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.1,
@@ -843,7 +956,7 @@
   },
   {
     "id": "edge-domain-shift-001",
-    "description": "Domain shift: developer pivoting to marketing strategy — MASTER should reset",
+    "description": "Domain shift: developer pivoting to marketing strategy \u00e2\u20ac\u201d MASTER should reset",
     "icp": "developer",
     "domain": "business_marketing",
     "intent": "decision",
@@ -862,7 +975,7 @@
       },
       {
         "role": "assistant",
-        "content": "For a developer tool targeting mid-size engineering teams: PLG first, but with a defined upgrade trigger. Engineers need to self-serve to discover value — they won't talk to sales until they're already convinced. Build a free tier that hits the pain point, instrument usage to identify teams that activate (multiple users, >5 uses/week), then have sales reach out at that exact moment. That's product-led sales, not pure PLG."
+        "content": "For a developer tool targeting mid-size engineering teams: PLG first, but with a defined upgrade trigger. Engineers need to self-serve to discover value \u00e2\u20ac\u201d they won't talk to sales until they're already convinced. Build a free tier that hits the pain point, instrument usage to identify teams that activate (multiple users, >5 uses/week), then have sales reach out at that exact moment. That's product-led sales, not pure PLG."
       },
       {
         "role": "user",
@@ -871,9 +984,13 @@
     ],
     "expected_intent": "decision",
     "expected_domain": "business_marketing",
-    "expected_secondary_intent_contains": ["go_to_market", "pricing", "developer_tool"],
+    "expected_secondary_intent_contains": [
+      "go_to_market",
+      "pricing",
+      "developer_tool"
+    ],
     "expected_suggested_ai": "claude",
-    "test_assertion": "MASTER should shift — new essence should reflect GTM/product strategy, not engineering infrastructure",
+    "test_assertion": "MASTER should shift \u00e2\u20ac\u201d new essence should reflect GTM/product strategy, not engineering infrastructure",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
       "must_contain_context": false
@@ -881,7 +998,7 @@
   },
   {
     "id": "edge-domain-shift-002",
-    "description": "Domain shift: knowledge worker pivoting to healthcare question — domain shift test",
+    "description": "Domain shift: knowledge worker pivoting to healthcare question \u00e2\u20ac\u201d domain shift test",
     "icp": "knowledge_worker",
     "domain": "healthcare_medical",
     "intent": "inquiry",
@@ -896,18 +1013,22 @@
     "conversation": [
       {
         "role": "user",
-        "content": "This is unrelated to work but — my doctor mentioned my LDL was 148 and said we should discuss statins. I'm 38. Is that threshold actually evidence-based or is it more precautionary?"
+        "content": "This is unrelated to work but \u00e2\u20ac\u201d my doctor mentioned my LDL was 148 and said we should discuss statins. I'm 38. Is that threshold actually evidence-based or is it more precautionary?"
       },
       {
         "role": "assistant",
-        "content": "The decision to start statins at 38 with LDL of 148 isn't based on LDL alone — current ACC/AHA guidelines use a 10-year cardiovascular risk calculator (PCE). An LDL of 148 at 38 with no other risk factors (no smoking, normal blood pressure, no diabetes) likely puts you below the threshold where statins provide net benefit. The conversation is worth having with numbers: ask your doctor for your 10-year ASCVD risk score and what it would need to be to justify pharmacologic intervention."
+        "content": "The decision to start statins at 38 with LDL of 148 isn't based on LDL alone \u00e2\u20ac\u201d current ACC/AHA guidelines use a 10-year cardiovascular risk calculator (PCE). An LDL of 148 at 38 with no other risk factors (no smoking, normal blood pressure, no diabetes) likely puts you below the threshold where statins provide net benefit. The conversation is worth having with numbers: ask your doctor for your 10-year ASCVD risk score and what it would need to be to justify pharmacologic intervention."
       }
     ],
     "expected_intent": "inquiry",
     "expected_domain": "healthcare_medical",
-    "expected_secondary_intent_contains": ["medical", "cholesterol", "health"],
+    "expected_secondary_intent_contains": [
+      "medical",
+      "cholesterol",
+      "health"
+    ],
     "expected_suggested_ai": "chatgpt",
-    "test_assertion": "MASTER should reset — healthcare context is entirely separate from logistics work",
+    "test_assertion": "MASTER should reset \u00e2\u20ac\u201d healthcare context is entirely separate from logistics work",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.1,
       "must_contain_context": false
@@ -915,7 +1036,7 @@
   },
   {
     "id": "edge-master-stability-001",
-    "description": "MASTER stability test — intent flips (inquiry→construction→debugging) but MASTER should hold",
+    "description": "MASTER stability test \u00e2\u20ac\u201d intent flips (inquiry\u00e2\u2020\u2019construction\u00e2\u2020\u2019debugging) but MASTER should hold",
     "icp": "developer",
     "domain": "software_data_engineering",
     "intent": "debugging",
@@ -930,11 +1051,11 @@
     "conversation": [
       {
         "role": "user",
-        "content": "Quick question — how does Kafka's log compaction differ from retention by time? I want to understand it conceptually first."
+        "content": "Quick question \u00e2\u20ac\u201d how does Kafka's log compaction differ from retention by time? I want to understand it conceptually first."
       },
       {
         "role": "assistant",
-        "content": "Retention by time deletes all messages older than N hours/days — the whole segment file gets dropped. Log compaction keeps the latest value for each key indefinitely but removes older values for the same key. Use case: compaction is for changelog-style topics where you only care about 'current state' per key (think a user settings topic), retention is for event logs where every event matters."
+        "content": "Retention by time deletes all messages older than N hours/days \u00e2\u20ac\u201d the whole segment file gets dropped. Log compaction keeps the latest value for each key indefinitely but removes older values for the same key. Use case: compaction is for changelog-style topics where you only care about 'current state' per key (think a user settings topic), retention is for event logs where every event matters."
       },
       {
         "role": "user",
@@ -951,18 +1072,26 @@
     ],
     "expected_intent": "debugging",
     "expected_domain": "software_data_engineering",
-    "expected_secondary_intent_contains": ["kafka", "debugging", "messaging"],
+    "expected_secondary_intent_contains": [
+      "kafka",
+      "debugging",
+      "messaging"
+    ],
     "expected_suggested_ai": "claude",
-    "test_assertion": "MASTER must remain about IoT event streaming platform — not rewritten to 'user asking about Kafka log compaction'",
+    "test_assertion": "MASTER must remain about IoT event streaming platform \u00e2\u20ac\u201d not rewritten to 'user asking about Kafka log compaction'",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.3,
       "must_contain_context": true,
-      "context_keywords": ["kafka", "streaming", "iot"]
+      "context_keywords": [
+        "kafka",
+        "streaming",
+        "iot"
+      ]
     }
   },
   {
     "id": "edge-master-stability-002",
-    "description": "MASTER stability test — 8-turn conversation, all same domain, MASTER must not drift",
+    "description": "MASTER stability test \u00e2\u20ac\u201d 8-turn conversation, all same domain, MASTER must not drift",
     "icp": "knowledge_worker",
     "domain": "finance_legal",
     "intent": "construction",
@@ -975,26 +1104,49 @@
     },
     "existing_essence": "MASTER:\nFounder preparing Series A fundraise, building financial models and investor materials.\n\nFLOW:\n- building 3-year revenue model with cohort-based churn assumptions\n- preparing unit economics narrative for investor deck",
     "conversation": [
-      {"role": "user", "content": "How should I model NRR in my financial projections? I have expansion revenue from upsells but also contraction from downgrades."},
-      {"role": "assistant", "content": "Model NRR as: (Beginning MRR + Expansion MRR - Contraction MRR - Churn MRR) / Beginning MRR. Track each cohort separately — expansion and churn rates differ dramatically by cohort age in most SaaS businesses. In your projections, segment by cohort and apply cohort-specific rates rather than a blended average."},
-      {"role": "user", "content": "My NRR is 104% overall but it's 130% for enterprise and 85% for SMB. How do I present this to investors?"},
-      {"role": "assistant", "content": "Present the segmented numbers, not the blended. 104% blended NRR is fine but 130% enterprise NRR is the headline — it signals your product has strong land-and-expand in your best segment. Pair it with your revenue mix shift (what % enterprise vs SMB over 3 years) to show the blended NRR will improve as you shift upmarket. Investors underwrite the future mix, not today's blend."},
-      {"role": "user", "content": "What's a reasonable SMB churn rate to model? Mine is currently 3.2% monthly — is that defensible or will investors push back?"}
+      {
+        "role": "user",
+        "content": "How should I model NRR in my financial projections? I have expansion revenue from upsells but also contraction from downgrades."
+      },
+      {
+        "role": "assistant",
+        "content": "Model NRR as: (Beginning MRR + Expansion MRR - Contraction MRR - Churn MRR) / Beginning MRR. Track each cohort separately \u00e2\u20ac\u201d expansion and churn rates differ dramatically by cohort age in most SaaS businesses. In your projections, segment by cohort and apply cohort-specific rates rather than a blended average."
+      },
+      {
+        "role": "user",
+        "content": "My NRR is 104% overall but it's 130% for enterprise and 85% for SMB. How do I present this to investors?"
+      },
+      {
+        "role": "assistant",
+        "content": "Present the segmented numbers, not the blended. 104% blended NRR is fine but 130% enterprise NRR is the headline \u00e2\u20ac\u201d it signals your product has strong land-and-expand in your best segment. Pair it with your revenue mix shift (what % enterprise vs SMB over 3 years) to show the blended NRR will improve as you shift upmarket. Investors underwrite the future mix, not today's blend."
+      },
+      {
+        "role": "user",
+        "content": "What's a reasonable SMB churn rate to model? Mine is currently 3.2% monthly \u00e2\u20ac\u201d is that defensible or will investors push back?"
+      }
     ],
     "expected_intent": "construction",
     "expected_domain": "finance_legal",
-    "expected_secondary_intent_contains": ["financial_model", "saas_metrics", "fundraising"],
+    "expected_secondary_intent_contains": [
+      "financial_model",
+      "saas_metrics",
+      "fundraising"
+    ],
     "expected_suggested_ai": "chatgpt",
-    "test_assertion": "MASTER must remain about Series A fundraise and financial modeling — not drift to 'user asking about NRR'",
+    "test_assertion": "MASTER must remain about Series A fundraise and financial modeling \u00e2\u20ac\u201d not drift to 'user asking about NRR'",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.3,
       "must_contain_context": true,
-      "context_keywords": ["series_a", "fundraise", "financial"]
+      "context_keywords": [
+        "series_a",
+        "fundraise",
+        "financial"
+      ]
     }
   },
   {
     "id": "edge-flow-compression-001",
-    "description": "FLOW compression test — 4+ bullets must compress to 2",
+    "description": "FLOW compression test \u00e2\u20ac\u201d 4+ bullets must compress to 2",
     "icp": "developer",
     "domain": "software_data_engineering",
     "intent": "construction",
@@ -1009,16 +1161,20 @@
     "conversation": [
       {
         "role": "user",
-        "content": "I'm now working on the billing integration — adding Stripe webhooks for subscription lifecycle events. What's the right architecture for handling webhook events reliably?"
+        "content": "I'm now working on the billing integration \u00e2\u20ac\u201d adding Stripe webhooks for subscription lifecycle events. What's the right architecture for handling webhook events reliably?"
       },
       {
         "role": "assistant",
-        "content": "Idempotent event processing with a deduplication table. Store every webhook event_id in a processed_events table before processing. On each incoming webhook: check if event_id exists → if yes, return 200 immediately (already processed). If no, process the event then mark it. This handles Stripe's 'at least once' delivery guarantee. Run your webhook handler in a transaction so the event marking and side effects are atomic."
+        "content": "Idempotent event processing with a deduplication table. Store every webhook event_id in a processed_events table before processing. On each incoming webhook: check if event_id exists \u00e2\u2020\u2019 if yes, return 200 immediately (already processed). If no, process the event then mark it. This handles Stripe's 'at least once' delivery guarantee. Run your webhook handler in a transaction so the event marking and side effects are atomic."
       }
     ],
     "expected_intent": "construction",
     "expected_domain": "software_data_engineering",
-    "expected_secondary_intent_contains": ["stripe", "webhooks", "billing"],
+    "expected_secondary_intent_contains": [
+      "stripe",
+      "webhooks",
+      "billing"
+    ],
     "expected_suggested_ai": "claude",
     "test_assertion": "FLOW must compress 4 existing bullets to exactly 2: one abstract summary + current focus (Stripe webhooks)",
     "enhance_quality_criteria": {
@@ -1028,7 +1184,7 @@
   },
   {
     "id": "edge-zero-context-001",
-    "description": "Zero context baseline — first-time user, no profile, generic prompt",
+    "description": "Zero context baseline \u00e2\u20ac\u201d first-time user, no profile, generic prompt",
     "icp": "developer",
     "domain": "software_data_engineering",
     "intent": "inquiry",
@@ -1049,7 +1205,7 @@
     "expected_intent": "inquiry",
     "expected_domain": "software_data_engineering",
     "expected_suggested_ai": "chatgpt",
-    "test_assertion": "With null user_profile, suggested_ai must default to domain map — software_data_engineering → claude. With no user_profile at all, must not crash.",
+    "test_assertion": "With null user_profile, suggested_ai must default to domain map \u00e2\u20ac\u201d software_data_engineering \u00e2\u2020\u2019 claude. With no user_profile at all, must not crash.",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.1,
       "must_contain_context": false
@@ -1057,7 +1213,7 @@
   },
   {
     "id": "edge-enterprise-001",
-    "description": "Enterprise ICP — finance/legal domain, operation intent, compliance context",
+    "description": "Enterprise ICP \u00e2\u20ac\u201d finance/legal domain, operation intent, compliance context",
     "icp": "enterprise_user",
     "domain": "finance_legal",
     "intent": "operation",
@@ -1085,17 +1241,26 @@
     ],
     "expected_intent": "operation",
     "expected_domain": "finance_legal",
-    "expected_secondary_intent_contains": ["compliance", "pii", "legal_ops", "enterprise"],
+    "expected_secondary_intent_contains": [
+      "compliance",
+      "pii",
+      "legal_ops",
+      "enterprise"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.3,
       "must_contain_context": true,
-      "context_keywords": ["compliance", "legal", "enterprise"]
+      "context_keywords": [
+        "compliance",
+        "legal",
+        "enterprise"
+      ]
     }
   },
   {
     "id": "edge-news-001",
-    "description": "Edge domain — news/current events, decision intent, first-time",
+    "description": "Edge domain \u00e2\u20ac\u201d news/current events, decision intent, first-time",
     "icp": "knowledge_worker",
     "domain": "news_current_events",
     "intent": "decision",
@@ -1114,12 +1279,16 @@
       },
       {
         "role": "assistant",
-        "content": "For a small importer: the decision depends on your cash position and storage costs vs the tariff rate and your sell-through velocity. The uncertainty around US-China trade policy makes the 'wait and see' strategy costly for businesses with thin margins — if you have the capital and storage, building 60–90 days of buffer inventory is defensible. The risk of stockpiling is if tariffs get resolved and you're stuck with overpriced inventory; the risk of not stockpiling is margin compression if they increase further."
+        "content": "For a small importer: the decision depends on your cash position and storage costs vs the tariff rate and your sell-through velocity. The uncertainty around US-China trade policy makes the 'wait and see' strategy costly for businesses with thin margins \u00e2\u20ac\u201d if you have the capital and storage, building 60\u00e2\u20ac\u201c90 days of buffer inventory is defensible. The risk of stockpiling is if tariffs get resolved and you're stuck with overpriced inventory; the risk of not stockpiling is margin compression if they increase further."
       }
     ],
     "expected_intent": "decision",
     "expected_domain": "news_current_events",
-    "expected_secondary_intent_contains": ["tariffs", "trade_policy", "business_decision"],
+    "expected_secondary_intent_contains": [
+      "tariffs",
+      "trade_policy",
+      "business_decision"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.1,
@@ -1128,7 +1297,7 @@
   },
   {
     "id": "edge-food-001",
-    "description": "Edge domain — food/nutrition, construction, first-time",
+    "description": "Edge domain \u00e2\u20ac\u201d food/nutrition, construction, first-time",
     "icp": "creator",
     "domain": "food_nutrition",
     "intent": "construction",
@@ -1143,16 +1312,20 @@
     "conversation": [
       {
         "role": "user",
-        "content": "I want to make a high-protein meal prep plan for the week — I'm trying to hit 160g of protein daily on a budget of around $60 for the whole week. I don't eat pork."
+        "content": "I want to make a high-protein meal prep plan for the week \u00e2\u20ac\u201d I'm trying to hit 160g of protein daily on a budget of around $60 for the whole week. I don't eat pork."
       },
       {
         "role": "assistant",
-        "content": "At $60/week for 160g protein/day without pork: chicken thighs are your anchor (most cost-effective protein per dollar), supplemented with eggs, canned tuna, Greek yogurt, and cottage cheese. Plan: 2 lbs chicken thighs (roast in bulk, ~$5), dozen eggs ($3), 2 cans tuna ($3), 32oz Greek yogurt ($7), 24oz cottage cheese ($5) — that's under $25 and covers most of your protein. Fill carbs/veg with rice, oats, frozen broccoli for the rest of the budget."
+        "content": "At $60/week for 160g protein/day without pork: chicken thighs are your anchor (most cost-effective protein per dollar), supplemented with eggs, canned tuna, Greek yogurt, and cottage cheese. Plan: 2 lbs chicken thighs (roast in bulk, ~$5), dozen eggs ($3), 2 cans tuna ($3), 32oz Greek yogurt ($7), 24oz cottage cheese ($5) \u00e2\u20ac\u201d that's under $25 and covers most of your protein. Fill carbs/veg with rice, oats, frozen broccoli for the rest of the budget."
       }
     ],
     "expected_intent": "construction",
     "expected_domain": "food_nutrition",
-    "expected_secondary_intent_contains": ["meal_prep", "nutrition", "protein"],
+    "expected_secondary_intent_contains": [
+      "meal_prep",
+      "nutrition",
+      "protein"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.1,
@@ -1161,7 +1334,7 @@
   },
   {
     "id": "edge-travel-001",
-    "description": "Edge domain — travel/hospitality, operation intent, first-time",
+    "description": "Edge domain \u00e2\u20ac\u201d travel/hospitality, operation intent, first-time",
     "icp": "knowledge_worker",
     "domain": "travel_hospitality",
     "intent": "operation",
@@ -1176,16 +1349,20 @@
     "conversation": [
       {
         "role": "user",
-        "content": "I'm planning a 10-day trip to Japan in October. I've never been. Should I get a JR Pass or buy individual tickets? My itinerary is Tokyo → Kyoto → Hiroshima → Osaka → back to Tokyo."
+        "content": "I'm planning a 10-day trip to Japan in October. I've never been. Should I get a JR Pass or buy individual tickets? My itinerary is Tokyo \u00e2\u2020\u2019 Kyoto \u00e2\u2020\u2019 Hiroshima \u00e2\u2020\u2019 Osaka \u00e2\u2020\u2019 back to Tokyo."
       },
       {
         "role": "assistant",
-        "content": "For that exact route: JR Pass is worth it. The Shinkansen between those cities (Tokyo→Kyoto, Kyoto→Hiroshima, Hiroshima→Osaka, Osaka→Tokyo) totals around ¥40,000+ individually. A 14-day JR Pass is ¥50,000 and also covers regional trains and some buses. Do the math on your specific travel dates but for that route it almost always comes out ahead, especially since JR Pass now needs to be purchased in advance outside Japan."
+        "content": "For that exact route: JR Pass is worth it. The Shinkansen between those cities (Tokyo\u00e2\u2020\u2019Kyoto, Kyoto\u00e2\u2020\u2019Hiroshima, Hiroshima\u00e2\u2020\u2019Osaka, Osaka\u00e2\u2020\u2019Tokyo) totals around \u00c2\u00a540,000+ individually. A 14-day JR Pass is \u00c2\u00a550,000 and also covers regional trains and some buses. Do the math on your specific travel dates but for that route it almost always comes out ahead, especially since JR Pass now needs to be purchased in advance outside Japan."
       }
     ],
-    "expected_intent": "operation",
+    "expected_intent": "decision",
     "expected_domain": "travel_hospitality",
-    "expected_secondary_intent_contains": ["travel", "japan", "planning"],
+    "expected_secondary_intent_contains": [
+      "travel",
+      "japan",
+      "planning"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.1,
@@ -1194,7 +1371,7 @@
   },
   {
     "id": "edge-gov-001",
-    "description": "Edge domain — gov/nonprofit, inquiry, returning",
+    "description": "Edge domain \u00e2\u20ac\u201d gov/nonprofit, inquiry, returning",
     "icp": "knowledge_worker",
     "domain": "gov_nonprofit",
     "intent": "inquiry",
@@ -1218,7 +1395,11 @@
     ],
     "expected_intent": "inquiry",
     "expected_domain": "gov_nonprofit",
-    "expected_secondary_intent_contains": ["nonprofit", "compliance", "legal_structure"],
+    "expected_secondary_intent_contains": [
+      "nonprofit",
+      "compliance",
+      "legal_structure"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -1227,7 +1408,7 @@
   },
   {
     "id": "edge-sports-001",
-    "description": "Edge domain — sports/recreation, construction, first-time",
+    "description": "Edge domain \u00e2\u20ac\u201d sports/recreation, construction, first-time",
     "icp": "creator",
     "domain": "sports_recreation",
     "intent": "construction",
@@ -1246,12 +1427,16 @@
       },
       {
         "role": "assistant",
-        "content": "30-minute improvement in 20 weeks is very achievable. Minimum effective dose: 4 days/week, 35–45 miles total. The key workout is the long run (16–20 miles by week 18) and one tempo run (goal pace +20 seconds for 6–8 miles). The other 2 days are easy recovery runs — they should feel embarrassingly slow. Don't skip the easy days trying to add more quality. Most recreational runners miss their goal because they run their easy runs too fast, not because they lack hard workouts."
+        "content": "30-minute improvement in 20 weeks is very achievable. Minimum effective dose: 4 days/week, 35\u00e2\u20ac\u201c45 miles total. The key workout is the long run (16\u00e2\u20ac\u201c20 miles by week 18) and one tempo run (goal pace +20 seconds for 6\u00e2\u20ac\u201c8 miles). The other 2 days are easy recovery runs \u00e2\u20ac\u201d they should feel embarrassingly slow. Don't skip the easy days trying to add more quality. Most recreational runners miss their goal because they run their easy runs too fast, not because they lack hard workouts."
       }
     ],
     "expected_intent": "construction",
     "expected_domain": "sports_recreation",
-    "expected_secondary_intent_contains": ["marathon", "training_plan", "running"],
+    "expected_secondary_intent_contains": [
+      "marathon",
+      "training_plan",
+      "running"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.1,
@@ -1260,7 +1445,7 @@
   },
   {
     "id": "edge-env-001",
-    "description": "Edge domain — environment/sustainability, inquiry, first-time",
+    "description": "Edge domain \u00e2\u20ac\u201d environment/sustainability, inquiry, first-time",
     "icp": "student",
     "domain": "environment_sustainability",
     "intent": "inquiry",
@@ -1279,12 +1464,16 @@
       },
       {
         "role": "assistant",
-        "content": "Current numbers: global data center electricity use is about 1–2% of global electricity consumption. AI workloads are a growing fraction of that. Training a large language model once emits roughly the same carbon as 5 transatlantic flights. Inference at scale adds up but the sector-level comparison still puts it well below transportation (16%), buildings (17%), or agriculture (11%) in global emissions. The concern is trajectory — AI electricity demand is growing 30–40%/year, and if that growth is powered by fossil fuels rather than renewables, it becomes more significant."
+        "content": "Current numbers: global data center electricity use is about 1\u00e2\u20ac\u201c2% of global electricity consumption. AI workloads are a growing fraction of that. Training a large language model once emits roughly the same carbon as 5 transatlantic flights. Inference at scale adds up but the sector-level comparison still puts it well below transportation (16%), buildings (17%), or agriculture (11%) in global emissions. The concern is trajectory \u00e2\u20ac\u201d AI electricity demand is growing 30\u00e2\u20ac\u201c40%/year, and if that growth is powered by fossil fuels rather than renewables, it becomes more significant."
       }
     ],
     "expected_intent": "inquiry",
     "expected_domain": "environment_sustainability",
-    "expected_secondary_intent_contains": ["ai", "carbon_footprint", "climate"],
+    "expected_secondary_intent_contains": [
+      "ai",
+      "carbon_footprint",
+      "climate"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.1,
@@ -1293,7 +1482,7 @@
   },
   {
     "id": "edge-manufacturing-001",
-    "description": "Edge domain — manufacturing/agri, inquiry, first-time",
+    "description": "Edge domain \u00e2\u20ac\u201d manufacturing/agri, inquiry, first-time",
     "icp": "knowledge_worker",
     "domain": "manufacturing_agri",
     "intent": "inquiry",
@@ -1312,12 +1501,16 @@
       },
       {
         "role": "assistant",
-        "content": "Lean focuses on eliminating waste — anything that doesn't add value from the customer's perspective (excess inventory, waiting, overprocessing, defects, motion). Toyota Production System is the canonical example. Six Sigma focuses on reducing process variation and defects — it uses statistical methods (DMAIC) to drive defect rates toward 3.4 per million. They're complementary, not alternatives. Lean Sigma combines both: lean removes waste, Six Sigma reduces variation. Most manufacturers with serious quality requirements end up running both."
+        "content": "Lean focuses on eliminating waste \u00e2\u20ac\u201d anything that doesn't add value from the customer's perspective (excess inventory, waiting, overprocessing, defects, motion). Toyota Production System is the canonical example. Six Sigma focuses on reducing process variation and defects \u00e2\u20ac\u201d it uses statistical methods (DMAIC) to drive defect rates toward 3.4 per million. They're complementary, not alternatives. Lean Sigma combines both: lean removes waste, Six Sigma reduces variation. Most manufacturers with serious quality requirements end up running both."
       }
     ],
     "expected_intent": "inquiry",
     "expected_domain": "manufacturing_agri",
-    "expected_secondary_intent_contains": ["lean", "manufacturing", "operations"],
+    "expected_secondary_intent_contains": [
+      "lean",
+      "manufacturing",
+      "operations"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.1,
@@ -1326,7 +1519,7 @@
   },
   {
     "id": "dev-inquiry-data-002",
-    "description": "Developer on data engineering — inquiry, returning, sparse context",
+    "description": "Developer on data engineering \u00e2\u20ac\u201d inquiry, returning, sparse context",
     "icp": "developer",
     "domain": "software_data_engineering",
     "intent": "inquiry",
@@ -1345,12 +1538,16 @@
       },
       {
         "role": "assistant",
-        "content": "Data lake: raw storage (S3, GCS) with files in any format — no ACID transactions, no schema enforcement, queries are slow and expensive because there's no indexing. Data lakehouse: adds a metadata+transaction layer (Delta Lake, Apache Iceberg, Apache Hudi) on top of the same object storage. You get ACID transactions, schema evolution, time travel, and query optimization via metadata — essentially the benefits of a data warehouse without leaving your S3 bucket. If you're already on S3, adding Delta Lake or Iceberg on top of it is how you upgrade lake → lakehouse."
+        "content": "Data lake: raw storage (S3, GCS) with files in any format \u00e2\u20ac\u201d no ACID transactions, no schema enforcement, queries are slow and expensive because there's no indexing. Data lakehouse: adds a metadata+transaction layer (Delta Lake, Apache Iceberg, Apache Hudi) on top of the same object storage. You get ACID transactions, schema evolution, time travel, and query optimization via metadata \u00e2\u20ac\u201d essentially the benefits of a data warehouse without leaving your S3 bucket. If you're already on S3, adding Delta Lake or Iceberg on top of it is how you upgrade lake \u00e2\u2020\u2019 lakehouse."
       }
     ],
     "expected_intent": "inquiry",
     "expected_domain": "software_data_engineering",
-    "expected_secondary_intent_contains": ["data_engineering", "architecture", "storage"],
+    "expected_secondary_intent_contains": [
+      "data_engineering",
+      "architecture",
+      "storage"
+    ],
     "expected_suggested_ai": "claude",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -1359,7 +1556,7 @@
   },
   {
     "id": "kw-finance-model-001",
-    "description": "Knowledge worker building a DCF model — construction, finance_legal, returning",
+    "description": "Knowledge worker building a DCF model \u00e2\u20ac\u201d construction, finance_legal, returning",
     "icp": "knowledge_worker",
     "domain": "finance_legal",
     "intent": "construction",
@@ -1378,12 +1575,16 @@
       },
       {
         "role": "assistant",
-        "content": "For SaaS, use EV/Revenue terminal multiple rather than Gordon Growth Model — the GGM assumes stable cash flows which don't apply to high-growth SaaS. Terminal year revenue multiple depends on your assumed terminal growth rate and margins: a company growing 15% with 25% free cash flow margins might trade at 5–8x revenue. For early-stage SaaS at $5M ARR, your exit multiple assumption matters enormously — sensitivity test at 4x, 7x, and 10x to show the range. The DCF is more useful for understanding value drivers than for arriving at a precise number."
+        "content": "For SaaS, use EV/Revenue terminal multiple rather than Gordon Growth Model \u00e2\u20ac\u201d the GGM assumes stable cash flows which don't apply to high-growth SaaS. Terminal year revenue multiple depends on your assumed terminal growth rate and margins: a company growing 15% with 25% free cash flow margins might trade at 5\u00e2\u20ac\u201c8x revenue. For early-stage SaaS at $5M ARR, your exit multiple assumption matters enormously \u00e2\u20ac\u201d sensitivity test at 4x, 7x, and 10x to show the range. The DCF is more useful for understanding value drivers than for arriving at a precise number."
       }
     ],
     "expected_intent": "construction",
     "expected_domain": "finance_legal",
-    "expected_secondary_intent_contains": ["dcf", "valuation", "financial_modeling"],
+    "expected_secondary_intent_contains": [
+      "dcf",
+      "valuation",
+      "financial_modeling"
+    ],
     "expected_suggested_ai": "chatgpt",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
@@ -1392,7 +1593,7 @@
   },
   {
     "id": "dev-operation-cicd-001",
-    "description": "Developer setting up CI/CD pipeline — operation, returning, software domain",
+    "description": "Developer setting up CI/CD pipeline \u00e2\u20ac\u201d operation, returning, software domain",
     "icp": "developer",
     "domain": "software_data_engineering",
     "intent": "operation",
@@ -1420,7 +1621,12 @@
     ],
     "expected_intent": "operation",
     "expected_domain": "software_data_engineering",
-    "expected_secondary_intent_contains": ["cicd", "deployment", "github_actions", "devops"],
+    "expected_secondary_intent_contains": [
+      "cicd",
+      "deployment",
+      "github_actions",
+      "devops"
+    ],
     "expected_suggested_ai": "claude",
     "enhance_quality_criteria": {
       "min_length_ratio": 1.2,
