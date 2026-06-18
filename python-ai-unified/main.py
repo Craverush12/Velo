@@ -194,7 +194,7 @@ except Exception as exc:  # noqa: BLE001
 # Router wiring — guarded so a missing router (parallel development / partial
 # deploy) logs a clear warning and the app still boots.
 # ---------------------------------------------------------------------------
-_routers_mounted: dict[str, bool] = {"ai": False, "context": False, "quality_compat": False}
+_routers_mounted: dict[str, bool] = {"ai": False, "context": False, "quality_compat": False, "admin": False}
 
 try:
     from routers.ai import ai_router  # type: ignore
@@ -222,6 +222,15 @@ try:
     logger.info("Mounted /context router.")
 except ImportError as exc:
     logger.warning("Skipped /context router (not importable yet): %s", exc)
+
+try:
+    from routers.admin.analytics import router as admin_analytics_router  # type: ignore
+
+    app.include_router(admin_analytics_router)
+    _routers_mounted["admin"] = True
+    logger.info("Mounted /admin/api analytics router.")
+except ImportError as exc:
+    logger.warning("Skipped /admin/api analytics router: %s", exc)
 
 
 # ---------------------------------------------------------------------------

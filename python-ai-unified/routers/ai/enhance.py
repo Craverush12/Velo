@@ -19,7 +19,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
+import uuid
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -235,7 +237,7 @@ async def _fetch_context_hint(user_id: str, query: str) -> str:
 #                         "hobbies": str|null, "primary_model": str|null} | null}
 # 404 (user has neither row) is expected and treated as "no persona yet" — not an error.
 async def _fetch_user_persona(user_id: str) -> str:
-    """Fetch stable user persona (onboarding + personalization profile) from Node backend.
+    """Fetch stable user persona (onboarding + personalization profile) from Postgres.
 
     Returns a compact JSON string for prompt injection, or "" on any failure /
     missing data / incognito. Degrades open — a missing persona never blocks
@@ -246,28 +248,44 @@ async def _fetch_user_persona(user_id: str) -> str:
     if not user_id or user_id == "anonymous":
         return ""
     try:
-        from shared.node_client import node_get
-        data = await node_get(f"/api/v1/personalization/public/{user_id}")
-        if not isinstance(data, dict):
+        from shared.db import async_session_maker
+        if async_session_maker is None:
             return ""
 
         persona: dict = {}
-        onboarding = data.get("onboarding") or {}
-        if isinstance(onboarding, dict):
-            for key in ("occupation", "ai_familiarity", "llm_platform"):
-                val = onboarding.get(key)
-                if val:
-                    persona[key] = val
 
-        personalization = data.get("personalization") or {}
-        if isinstance(personalization, dict):
-            for key in (
-                "preferred_name", "professional_world", "velocity_traits",
-                "personal_life", "hobbies", "primary_model",
-            ):
-                val = personalization.get(key)
-                if val:
-                    persona[key] = val
+        async with async_session_maker() as session:
+            ob_result = await session.execute(
+                text(
+                    "SELECT occupation, ai_familiarity, llm_platform"
+                    " FROM onboarding_data WHERE user_id = :uid LIMIT 1"
+                ),
+                {"uid": user_id},
+            )
+            ob_row = ob_result.mappings().first()
+            if ob_row:
+                for key in ("occupation", "ai_familiarity", "llm_platform"):
+                    val = ob_row.get(key)
+                    if val:
+                        persona[key] = val
+
+            p_result = await session.execute(
+                text(
+                    "SELECT preferred_name, professional_world, velocity_traits,"
+                    " personal_life, hobbies, primary_model"
+                    " FROM personalization WHERE user_id = :uid LIMIT 1"
+                ),
+                {"uid": user_id},
+            )
+            p_row = p_result.mappings().first()
+            if p_row:
+                for key in (
+                    "preferred_name", "professional_world", "velocity_traits",
+                    "personal_life", "hobbies", "primary_model",
+                ):
+                    val = p_row.get(key)
+                    if val:
+                        persona[key] = val
 
         if not persona:
             return ""
@@ -673,6 +691,14 @@ async def enhance_stream(
     inner: StreamingResponse = await _generate(
         _to_local(request, context_hint=context_hint, persona_hint=persona_hint), background_tasks
     )
+    if request.user_id and request.user_id != "anonymous":
+        from shared.supermemory_client import add_memory as _sm_add
+        background_tasks.add_task(
+            _sm_add,
+            user_id=request.user_id,
+            content=request.prompt,
+            metadata={"domain": request.domain or "", "intent": request.intent or "", "source": "enhance"},
+        )
     return StreamingResponse(
         _adapt_stream(inner, extra_meta=extra_meta),
         media_type="text/event-stream",
@@ -720,9 +746,18 @@ async def enhance_chat(
             else f"[TENANT_CONSTRAINTS]\n{tenant_suffix}"
         )
 
+    trace_id = str(uuid.uuid4())
     inner: StreamingResponse = await _generate(
         _to_local(request, force_media=force_media, context_hint=context_hint, persona_hint=persona_hint), background_tasks
     )
+    if request.user_id and request.user_id != "anonymous":
+        from shared.supermemory_client import add_memory as _sm_add
+        background_tasks.add_task(
+            _sm_add,
+            user_id=request.user_id,
+            content=request.prompt,
+            metadata={"domain": request.domain or "", "intent": request.intent or "", "source": "enhance"},
+        )
     enhanced_prompt = ""
     metadata: dict[str, Any] = {}
     annotated: list = []
@@ -757,11 +792,51 @@ async def enhance_chat(
                 error = event.get("message", "enhancement failed")
     if error:
         raise HTTPException(status_code=502, detail=error)
+
+    if os.getenv("PROMPT_TRACE_ENABLED", "").lower() in ("1", "true", "yes"):
+        try:
+            from shared.prompt_trace_store import get_default_store as _get_trace_store
+            _store = _get_trace_store()
+
+            _raw = request.prompt or ""
+            _enh = enhanced_prompt or ""
+            _expansion_ratio = round(len(_enh) / len(_raw), 3) if _raw else 0.0
+            _constraint_words = {"must", "only", "never", "always", "do not", "avoid", "require", "ensure"}
+            _enh_lower = _enh.lower()
+            _constraint_count = sum(_enh_lower.count(w) for w in _constraint_words)
+            _placeholder_count = len(re.findall(r'\[[A-Z_]{3,}\]', _enh))
+            _technique_count = len(annotated)
+
+            background_tasks.add_task(
+                _store.record,
+                {
+                    "trace_id": trace_id,
+                    "flow": "enhance_chat",
+                    "user_id": request.user_id or "anonymous",
+                    "prompt_mode": request.context.get("mode", "") if isinstance(request.context, dict) else "",
+                    "target_ai": request.target_ai,
+                    "model": "llama-3.3-70b-versatile",
+                    "input": {"raw_prompt": _raw if os.getenv("PROMPT_TRACE_CAPTURE_FULL_TEXT", "").lower() in ("1", "true", "yes") else ""},
+                    "output": {"final_text": _enh, "quality_score": None},
+                    "before_after": {"before": _raw, "after": _enh},
+                    "metrics": {
+                        "expansion_ratio": _expansion_ratio,
+                        "constraint_count": _constraint_count,
+                        "placeholder_count": _placeholder_count,
+                        "technique_count": _technique_count,
+                    },
+                    "status": "completed",
+                },
+            )
+        except Exception:
+            pass
+
     return {
         "enhanced_prompt": enhanced_prompt,
         "annotated_segments": annotated,
         "metadata": metadata,
         "tokens": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+        "_trace_id": trace_id,
     }
 
 
