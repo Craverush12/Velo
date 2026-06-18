@@ -548,6 +548,23 @@ async def _extract_context(
     else:
         # Incremental: enforce FLOW ≤ 2 bullets
         raw_essence = _compress_flow_to_limit(raw_essence, max_bullets=2)
+        current_master = _extract_master_text(raw_essence)
+        previous_master = _extract_master_text(previous_essence)
+        if (
+            current_master
+            and previous_master
+            and len(current_master) > 20
+            and len(previous_master) > 20
+        ):
+            similarity = _master_similarity(current_master, previous_master)
+            if similarity < 0.3:
+                logger.warning(
+                    "MASTER drift detected for incremental update - similarity=%.2f - possible "
+                    "LLM rewrite of stable goal. prev=%r new=%r",
+                    similarity,
+                    previous_master[:100],
+                    current_master[:100],
+                )
 
     return {
         "essence": raw_essence,
@@ -572,6 +589,28 @@ def _strip_flow(essence_str: str) -> str:
     return essence_str.strip()
 
 
+def _extract_master_text(essence_str: str) -> str:
+    """Return MASTER content from an essence string, excluding FLOW."""
+    if not essence_str:
+        return ""
+    match = re.search(
+        r"MASTER:\s*(.*?)(?=FLOW:|$)", essence_str, re.DOTALL | re.IGNORECASE
+    )
+    if not match:
+        return ""
+    return match.group(1).strip()
+
+
+def _master_similarity(text_a: str, text_b: str) -> float:
+    """Simple word-overlap ratio for detecting large MASTER rewrites."""
+    words_a = set(re.findall(r"\b[a-zA-Z]{4,}\b", (text_a or "").lower()))
+    words_b = set(re.findall(r"\b[a-zA-Z]{4,}\b", (text_b or "").lower()))
+    if not words_a or not words_b:
+        return 0.0
+    shared = len(words_a & words_b)
+    return shared / max(len(words_a), len(words_b))
+
+
 def _compress_flow_to_limit(essence_str: str, max_bullets: int = 2) -> str:
     """
     Enforce FLOW hard limit (≤ max_bullets) without LLM calls.
@@ -594,31 +633,8 @@ def _compress_flow_to_limit(essence_str: str, max_bullets: int = 2) -> str:
     if len(bullets) <= max_bullets:
         return essence_str
 
-    # Compress: create abstract summary from early bullets + keep last one
-    previous_bullets = bullets[:-1]
-    all_text = " ".join(previous_bullets).lower()
-    stop_words = {
-        "the", "and", "for", "with", "about", "asking", "how", "to",
-        "in", "is", "on", "of", "identifying", "refining", "understanding",
-    }
-    potential_keywords = [
-        w for w in re.findall(r"\b\w{4,}\b", all_text) if w not in stop_words
-    ]
-    unique_keywords: List[str] = []
-    for k in potential_keywords:
-        if k not in unique_keywords:
-            unique_keywords.append(k)
-
-    if unique_keywords:
-        kw = (
-            " and ".join(unique_keywords[:2])
-            if len(unique_keywords) >= 2
-            else unique_keywords[0]
-        )
-        summary_bullet = f"- refining context for {kw}"
-    else:
-        summary_bullet = "- iteratively refining the approach"
-
+    oldest_bullet = bullets[0].strip()
+    summary_bullet = f"- previously: {oldest_bullet}"
     last_bullet = f"- {bullets[-1]}"
     compressed_flow = f"{summary_bullet}\n{last_bullet}"
     return f"MASTER:\n{master_text}\n\nFLOW:\n{compressed_flow}"
@@ -915,6 +931,39 @@ async def _save_to_node(
         logger.warning("_save_to_node: Node persist failed (continuing): %s", exc)
 
 
+async def _shadow_write_supermemory_context(
+    user_id: str,
+    content: str,
+    metadata: Dict[str, Any],
+) -> None:
+    """Best-effort Supermemory write with near-duplicate suppression."""
+    try:
+        from shared.supermemory_client import add_memory as _sm_add
+        from shared.supermemory_client import search_memories as _sm_search
+
+        try:
+            existing_memories = await _sm_search(user_id=user_id, query=content, limit=3)
+            for existing in existing_memories:
+                similarity = _master_similarity(content, existing)
+                if similarity >= 0.85:
+                    logger.info(
+                        "supermemory: skipping near-duplicate write for user=%s (similarity=%.2f)",
+                        user_id,
+                        similarity,
+                    )
+                    return
+        except Exception as exc:
+            logger.warning(
+                "supermemory: duplicate search failed user=%s - proceeding with write (%s)",
+                user_id,
+                exc,
+            )
+
+        await _sm_add(user_id=user_id, content=content, metadata=metadata)
+    except Exception as exc:
+        logger.warning("supermemory: shadow write failed user=%s - %s", user_id, exc)
+
+
 # ---------------------------------------------------------------------------
 # Core processing pipeline (ported from ContextProcessorService.process)
 # ---------------------------------------------------------------------------
@@ -1104,22 +1153,25 @@ async def _run_processing_pipeline(
 
     # --- Step 11b: Shadow-write to Supermemory (fire-and-forget) ---
     try:
-        from shared.supermemory_client import add_memory as _sm_add
         _settings = get_settings()
         if _settings.SUPERMEMORY_API_KEY:
+            supermemory_metadata = {
+                "session_id": topic_id,
+                "intent": primary_intent,
+                "domains": final_domains,
+                "platform": request.platform or "unknown",
+                "source": "thinkvelocity_context_engine",
+            }
+            if secondary_intent:
+                supermemory_metadata["secondary_intent"] = secondary_intent
             asyncio.create_task(
-                _sm_add(
+                _shadow_write_supermemory_context(
                     user_id=request.user_id,
                     content=embed_essence,
-                    metadata={
-                        "session_id": topic_id,
-                        "intent": primary_intent,
-                        "domains": final_domains,
-                        "platform": request.platform or "unknown",
-                        "source": "thinkvelocity_context_engine",
-                    },
+                    metadata=supermemory_metadata,
                 )
             )
+            await asyncio.sleep(0)
     except Exception:
         pass  # supermemory write must never affect the main pipeline
 

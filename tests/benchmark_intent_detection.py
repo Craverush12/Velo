@@ -5,9 +5,14 @@ Usage (from python-ai-unified/):
     python -m pytest ../tests/benchmark_intent_detection.py -v --tb=short
 
 Or run standalone:
-    cd python-ai-unified && python ../tests/benchmark_intent_detection.py
+    cd python-ai-unified && python ../tests/benchmark_intent_detection.py [--mock]
+
+--mock: Replace Groq LLM calls with a deterministic stub that returns the
+        expected values from each test case (100% by construction). Use this to
+        verify benchmark infrastructure without a live API key.
 """
 
+import argparse
 import asyncio
 import json
 import os
@@ -36,11 +41,27 @@ def load_test_cases() -> List[Dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
-# Adapter: call _extract_context from context.py
+# Adapter: call _extract_context from context.py (or mock stub)
 # ---------------------------------------------------------------------------
 
+_MOCK_MODE: bool = False  # set by parse_args() before run
+
+
 async def run_extraction(case: Dict[str, Any]) -> Dict[str, Any]:
-    """Call the real _extract_context() with this test case's conversation."""
+    """Call the real or mock _extract_context() with this test case's conversation."""
+    if _MOCK_MODE:
+        # Deterministic stub: return expected values so infrastructure can be tested
+        # without a live Groq API key.  Results are 100% by construction.
+        return {
+            "intent": case.get("expected_intent", "inquiry"),
+            "primary_domain": case.get("expected_domain", "software_data_engineering"),
+            "domains": [case.get("expected_domain", "software_data_engineering")],
+            "secondary_intent": "_".join(
+                (case.get("expected_secondary_intent_contains") or ["mock"])[:2]
+            ),
+            "essence": f"[MOCK] {case.get('description', '')}",
+        }
+
     from routers.context import _extract_context, ChatMessage
 
     messages = [
@@ -210,15 +231,17 @@ def aggregate(results: List[Dict]) -> Dict[str, Any]:
 def print_report(report: Dict[str, Any]) -> None:
     s = report["summary"]
     tp = report["threshold_pass"]
+    mode = report.get("mode", "real")
 
     print("\n" + "=" * 60)
     print("INTENT DETECTION BENCHMARK RESULTS")
+    print(f"mode: {mode.upper()}")
     print("=" * 60)
     print(f"  Cases: {s['total_cases']}  Errors: {s['errors']}  Valid: {s['valid']}")
     print()
-    print(f"  Intent accuracy:      {s['intent_accuracy']:.1%}  {'✓ PASS' if tp['intent'] else '✗ FAIL'}  (target ≥85%)")
-    print(f"  Domain accuracy:      {s['domain_accuracy']:.1%}  {'✓ PASS' if tp['domain'] else '✗ FAIL'}  (target ≥75%)")
-    print(f"  Secondary specificity:{s['secondary_specificity_rate']:.1%}  {'✓ PASS' if tp['secondary'] else '✗ FAIL'}  (target ≥70%)")
+    print(f"  Intent accuracy:      {s['intent_accuracy']:.1%}  {'PASS' if tp['intent'] else 'FAIL'}  (target >=85%)")
+    print(f"  Domain accuracy:      {s['domain_accuracy']:.1%}  {'PASS' if tp['domain'] else 'FAIL'}  (target >=75%)")
+    print(f"  Secondary specificity:{s['secondary_specificity_rate']:.1%}  {'PASS' if tp['secondary'] else 'FAIL'}  (target >=70%)")
     if s["suggested_ai_accuracy"] is not None:
         print(f"  Suggested AI:         {s['suggested_ai_accuracy']:.1%}")
     print()
@@ -226,8 +249,8 @@ def print_report(report: Dict[str, Any]) -> None:
     print("Per-intent breakdown:")
     for intent, counts in sorted(report["by_intent"].items()):
         acc = counts["correct"] / counts["total"] if counts["total"] else 0
-        flag = "✓" if acc >= 0.85 else "✗"
-        print(f"  {flag} {intent:<20} {counts['correct']}/{counts['total']} ({acc:.0%})")
+        flag = "ok" if acc >= 0.85 else "!!"
+        print(f"  [{flag}] {intent:<20} {counts['correct']}/{counts['total']} ({acc:.0%})")
     print()
 
     if report["intent_failures"]:
@@ -245,20 +268,39 @@ def print_report(report: Dict[str, Any]) -> None:
     print("=" * 60)
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Intent detection benchmark")
+    parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Use deterministic mock instead of live Groq API (100%% by construction)",
+    )
+    return parser.parse_args()
+
+
 async def main() -> int:
+    global _MOCK_MODE
+    args = parse_args()
+    _MOCK_MODE = args.mock
+
+    if _MOCK_MODE:
+        print("MOCK MODE — results are 100% by construction, infrastructure test only")
+
     cases = load_test_cases()
     print(f"Loaded {len(cases)} test cases from {_TEST_FILE}")
 
     report = await run_benchmark(cases)
+    report["mode"] = "mock" if _MOCK_MODE else "real"
     print_report(report)
 
-    # Save scores
-    scores_file = _SCORES_DIR / "intent_latest_scores.json"
-    with open(scores_file, "w", encoding="utf-8") as f:
-        # Exclude raw per-case detail for the scores file — keep summary + failures
-        save = {k: v for k, v in report.items() if k != "raw"}
-        json.dump(save, f, indent=2)
-    print(f"Scores saved to {scores_file}")
+    # Always save to intent_v0_scores.json; also keep a timestamped latest copy
+    scores_v0 = _SCORES_DIR / "intent_v0_scores.json"
+    scores_latest = _SCORES_DIR / "intent_latest_scores.json"
+    save = {k: v for k, v in report.items() if k != "raw"}
+    for path in (scores_v0, scores_latest):
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(save, f, indent=2)
+    print(f"Scores saved to {scores_v0}")
 
     # Exit code: 0 if all thresholds pass, 1 if any fail
     all_pass = all(report["threshold_pass"].values())

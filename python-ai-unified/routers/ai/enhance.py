@@ -166,15 +166,37 @@ async def _fetch_local_essences(user_id: str, query: str) -> list[str]:
         return []
 
 
+def _split_master_flow(essence: str) -> tuple[str, str | None]:
+    master_match = re.search(
+        r"MASTER:\s*(.*?)(?=FLOW:|$)", essence, re.DOTALL | re.IGNORECASE
+    )
+    flow_match = re.search(r"FLOW:\s*(.*)", essence, re.DOTALL | re.IGNORECASE)
+
+    if not master_match and not flow_match:
+        return essence.strip(), None
+
+    user_goal = master_match.group(1).strip() if master_match else ""
+    flow_text = flow_match.group(1).strip() if flow_match else ""
+    if not flow_text:
+        return user_goal, None
+
+    bullets = [
+        line.strip().lstrip("-*+").strip()
+        for line in flow_text.splitlines()
+        if line.strip()
+    ]
+    current_focus = "; ".join([line for line in bullets if line]) or None
+    return user_goal, current_focus
+
+
 async def _fetch_context_hint(user_id: str, query: str) -> str:
     """Fetch context from local pgvector + Supermemory in parallel.
 
-    Returns a JSON string with structured essences + merged entities, or empty string on any
+    Returns a JSON string with structured session context + merged entities, or empty string on any
     failure. Degrades open — a missing context hint never blocks enhancement.
 
     Output shape (when results exist):
-        {"essences": ["...", "..."], "entities": {"frameworks": ["React"], "domain": "saas"}}
-    Falls back to pipe-delimited string if entity extraction itself raises.
+        {"session_context": {...}, "entities": {"frameworks": ["React"], "domain": "saas"}}
     """
     if not user_id or user_id == "anonymous":
         return ""
@@ -200,15 +222,16 @@ async def _fetch_context_hint(user_id: str, query: str) -> str:
             if sm_snippets:
                 logger.debug("context_hint: local=%d sm=%d (local wins)", len(local_essences), len(sm_snippets))
         elif sm_snippets:
+            # TODO: recency re-rank when search_memories returns metadata
             essences = sm_snippets
             logger.debug("context_hint: local empty, using %d supermemory snippets", len(sm_snippets))
         else:
             return ""
 
         # Extract and merge entities across all essences
+        all_entities: dict = {}
         try:
             from routers.context import extract_entities
-            all_entities: dict = {}
             for ess in essences:
                 for k, v in extract_entities(ess).items():
                     if k == "frameworks":
@@ -216,12 +239,35 @@ async def _fetch_context_hint(user_id: str, query: str) -> str:
                         all_entities["frameworks"] = list(dict.fromkeys(existing + v))
                     else:
                         all_entities.setdefault(k, v)
+        except Exception:
+            all_entities = {}
 
-            hint: dict = {"essences": essences}
-            if all_entities:
-                hint["entities"] = all_entities
+        try:
+            from shared.taxonomy_bridge import map_context_domain, map_context_intent
+
+            user_goal, current_focus = _split_master_flow(essences[0])
+            context_intent = None
+            context_domain = None
+            session_context = {
+                "user_goal": user_goal,
+                "current_focus": current_focus,
+                "context_intent": context_intent,
+                "context_domain": context_domain,
+                "enhance_domain_hint": (
+                    map_context_domain(context_domain) if context_domain else None
+                ),
+                "enhance_intent_hint": (
+                    map_context_intent(context_intent) if context_intent else None
+                ),
+                "frameworks": all_entities.get("frameworks", []),
+            }
+            hint: dict = {
+                "session_context": session_context,
+                "entities": all_entities,
+            }
             return json.dumps(hint, ensure_ascii=False)
         except Exception:
+            # Taxonomy bridge or JSON serialization failed — degrade to legacy pipe format
             return " | ".join(essences)
     except Exception:
         return ""
