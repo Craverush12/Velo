@@ -706,6 +706,59 @@ async def enhance_stream(
     )
 
 
+def _resolve_suggested_ai(persona_json: str, domain: str) -> str:
+    """Return the best-fit AI platform for the enhanced prompt.
+
+    Priority: declared llm_platform → declared primary_model → domain default.
+    Falls back to "chatgpt" when nothing is known.
+    """
+    _PLATFORM_NORMALIZE: dict[str, str | None] = {
+        "chatgpt": "chatgpt",
+        "claude": "claude",
+        "gemini": "gemini",
+        "perplexity": "chatgpt",
+        "grok": "chatgpt",
+        "copilot": "chatgpt",
+        "cursor": "claude",
+        "other": None,
+    }
+    _PRIMARY_MODEL_MAP: dict[str, str] = {
+        "chatgpt": "chatgpt",
+        "claude": "claude",
+        "gemini": "gemini",
+    }
+    _DOMAIN_MAP: dict[str, str] = {
+        "software_development": "claude",
+        "software_engineering": "claude",
+        "data_science": "claude",
+        "devops_infrastructure": "claude",
+        "cybersecurity": "claude",
+        "design_ux": "chatgpt",
+        "creative_arts": "chatgpt",
+        "content_creation": "chatgpt",
+        "marketing_growth": "chatgpt",
+        "business_operations": "chatgpt",
+        "education": "chatgpt",
+        "product_management": "chatgpt",
+        "general": "chatgpt",
+    }
+    try:
+        persona = json.loads(persona_json) if persona_json else {}
+    except Exception:
+        persona = {}
+    lp = (persona.get("llm_platform") or "").lower().strip()
+    if lp:
+        normalized = _PLATFORM_NORMALIZE.get(lp)
+        if normalized:
+            return normalized
+    pm = (persona.get("primary_model") or "").lower().strip()
+    if pm:
+        normalized = _PRIMARY_MODEL_MAP.get(pm)
+        if normalized:
+            return normalized
+    return _DOMAIN_MAP.get(domain, "chatgpt")
+
+
 @router.post("/enhance/chat")
 async def enhance_chat(
     request: EnhanceRequest,
@@ -793,6 +846,8 @@ async def enhance_chat(
     if error:
         raise HTTPException(status_code=502, detail=error)
 
+    suggested_ai = _resolve_suggested_ai(persona_hint, metadata.get("domain", ""))
+
     if os.getenv("PROMPT_TRACE_ENABLED", "").lower() in ("1", "true", "yes"):
         try:
             from shared.prompt_trace_store import get_default_store as _get_trace_store
@@ -826,6 +881,7 @@ async def enhance_chat(
                         "technique_count": _technique_count,
                     },
                     "status": "completed",
+                    "suggested_ai": suggested_ai,
                 },
             )
         except Exception:
@@ -837,6 +893,7 @@ async def enhance_chat(
         "metadata": metadata,
         "tokens": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
         "_trace_id": trace_id,
+        "suggested_ai": suggested_ai,
     }
 
 
