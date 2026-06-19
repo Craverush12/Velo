@@ -1,0 +1,153 @@
+{
+  "mode": "mock",
+  "cases": 12,
+  "mean_structural_score": 1.0,
+  "floor": 0.8,
+  "threshold_pass": true,
+  "rows": [
+    {
+      "id": "se-code-001",
+      "domain": "software_engineering",
+      "score": 1.0,
+      "checks": {
+        "has_role": true,
+        "five_techniques": true,
+        "has_output_format": true,
+        "has_failure_constraint": true,
+        "length_delta": true
+      }
+    },
+    {
+      "id": "se-debug-001",
+      "domain": "software_engineering",
+      "score": 1.0,
+      "checks": {
+        "has_role": true,
+        "five_techniques": true,
+        "has_output_format": true,
+        "has_failure_constraint": true,
+        "length_delta": true
+      }
+    },
+    {
+      "id": "ds-001",
+      "domain": "data_science",
+      "score": 1.0,
+      "checks": {
+        "has_role": true,
+        "five_techniques": true,
+        "has_output_format": true,
+        "has_failure_constraint": true,
+        "length_delta": true
+      }
+    },
+    {
+      "id": "mkt-001",
+      "domain": "marketing_growth",
+      "score": 1.0,
+      "checks": {
+        "has_role": true,
+        "five_techniques": true,
+        "has_output_format": true,
+        "has_failure_constraint": true,
+        "length_delta": true
+      }
+    },
+    {
+      "id": "fin-001",
+      "domain": "finance",
+      "score": 1.0,
+      "checks": {
+        "has_role": true,
+        "five_techniques": true,
+        "has_output_format": true,
+        "has_failure_constraint": true,
+        "length_delta": true
+      }
+    },
+    {
+      "id": "legal-001",
+      "domain": "legal",
+      "score": 1.0,
+      "checks": {
+        "has_role": true,
+        "five_techniques": true,
+        "has_output_format": true,
+        "has_failure_constraint": true,
+        "length_delta": true
+      }
+    },
+    {
+      "id": "edu-001",
+      "domain": "education",
+      "score": 1.0,
+      "checks": {
+        "has_role": true,
+        "five_techniques": true,
+        "has_output_format": true,
+        "has_failure_constraint": true,
+        "length_delta": true
+      }
+    },
+    {
+      "id": "creative-001",
+      "domain": "creative_arts",
+      "score": 1.0,
+      "checks": {
+        "has_role": true,
+        "five_techniques": true,
+        "has_output_format": true,
+        "has_failure_constraint": true,
+        "length_delta": true
+      }
+    },
+    {
+      "id": "devops-001",
+      "domain": "devops_infrastructure",
+      "score": 1.0,
+      "checks": {
+        "has_role": true,
+        "five_techniques": true,
+        "has_output_format": true,
+        "has_failure_constraint": true,
+        "length_delta": true
+      }
+    },
+    {
+      "id": "pm-001",
+      "domain": "product_management",
+      "score": 1.0,
+      "checks": {
+        "has_role": true,
+        "five_techniques": true,
+        "has_output_format": true,
+        "has_failure_constraint": true,
+        "length_delta": true
+      }
+    },
+    {
+      "id": "general-001",
+      "domain": "general",
+      "score": 1.0,
+      "checks": {
+        "has_role": true,
+        "five_techniques": true,
+        "has_output_format": true,
+        "has_failure_constraint": true,
+        "length_delta": true
+      }
+    },
+    {
+      "id": "research-001",
+      "domain": "education",
+      "score": 1.0,
+      "checks": {
+        "has_role": true,
+        "five_techniques": true,
+        "has_output_format": true,
+        "has_failure_constraint": true,
+        "length_delta": true
+      }
+    }
+  ]
+}
