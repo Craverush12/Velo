@@ -962,6 +962,16 @@ async def enhance_chat(
     if error:
         raise HTTPException(status_code=502, detail=error)
 
+    from routers.ai.reflexion import maybe_improve
+    _mode = request.context.get("mode", "") if isinstance(request.context, dict) else ""
+    _reflexed = await maybe_improve(
+        {"enhanced_prompt": enhanced_prompt, "annotated_segments": annotated},
+        raw_prompt=request.prompt,
+        mode=_mode,
+    )
+    enhanced_prompt = _reflexed["enhanced_prompt"]
+    annotated = _reflexed.get("annotated_segments", annotated)
+
     suggested_ai = _resolve_suggested_ai(persona_hint, metadata.get("domain", ""))
 
     if os.getenv("PROMPT_TRACE_ENABLED", "").lower() in ("1", "true", "yes"):
