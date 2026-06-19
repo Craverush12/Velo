@@ -595,6 +595,9 @@ async def _adapt_stream(
                 if extra_meta:
                     metadata.update(extra_meta)
 
+                # trace_id is exposed both in metadata and at the top level of
+                # the complete event so clients can read it from either place
+                # (parity with enhance_chat's top-level _trace_id). Intentional.
                 if trace_id:
                     metadata["trace_id"] = trace_id
 
@@ -609,8 +612,8 @@ async def _adapt_stream(
                             "user_id": trace_ctx.get("user_id") or "anonymous",
                             "prompt_mode": trace_ctx.get("mode") or "",
                             "target_ai": trace_ctx.get("target_ai"),
-                            "domain": result.get("domain"),
-                            "intent": result.get("intent"),
+                            "domain": result.get("domain") or "",
+                            "intent": result.get("intent") or "",
                             "context_hint": trace_ctx.get("context_hint"),
                             "persona_hint": trace_ctx.get("persona_hint"),
                             "suggested_ai": trace_ctx.get("suggested_ai"),
@@ -785,13 +788,19 @@ async def enhance_stream(
         )
 
     trace_id = str(uuid.uuid4())
+    # Honor the same full-text capture gate the canonical chat path uses
+    # (PROMPT_TRACE_CAPTURE_FULL_TEXT): when disabled, the raw prompt is not
+    # persisted to the trace, only the structured signals.
+    _capture_full = os.getenv(
+        "PROMPT_TRACE_CAPTURE_FULL_TEXT", "true"
+    ).strip().lower() not in {"0", "false", "no", "off"}
     trace_ctx = {
         "user_id": request.user_id,
         "mode": request.context.get("mode", "") if isinstance(request.context, dict) else "",
         "target_ai": request.target_ai,
         "context_hint": context_hint,
         "persona_hint": persona_hint,
-        "raw_prompt": request.prompt,
+        "raw_prompt": request.prompt if _capture_full else "",
         "suggested_ai": _resolve_suggested_ai(persona_hint, request.domain or ""),
     }
 

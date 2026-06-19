@@ -1,7 +1,9 @@
 # python-ai-unified/tests/test_outcome_loop.py
 from __future__ import annotations
 
+import asyncio
 import importlib
+import json as _json
 import pathlib
 import sys
 import unittest
@@ -80,10 +82,6 @@ class FeedbackEndpointTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["status"], "ignored")
         mock_ro.assert_awaited_once()
-
-
-import asyncio
-import json as _json
 
 
 class AdaptStreamTraceIdTests(unittest.IsolatedAsyncioTestCase):
