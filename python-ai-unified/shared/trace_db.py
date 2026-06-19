@@ -86,7 +86,7 @@ async def record_outcome(trace_id: str, outcome: str) -> bool:
             tid,
             clean,
         )
-        return str(status).strip().endswith("1")
+        return str(status).strip() == "UPDATE 1"
     except Exception as exc:  # noqa: BLE001 - outcome write must never raise
         logger.warning("record_outcome failed for trace %s: %s", trace_id, exc)
         return False
