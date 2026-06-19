@@ -315,3 +315,23 @@ async def enhance_pairs(
     except Exception as exc:
         logger.error("enhance-pairs query failed: %s", exc)
         raise HTTPException(status_code=500, detail=f"Query failed: {exc}")
+
+
+@router.get("/quality-mirror")
+async def quality_mirror(_auth: dict = Depends(_require_bearer)) -> dict:
+    """Ground-truth quality snapshot: outcome rate + breakdowns from prompt_traces.
+
+    Read-only. Degrades to zeros when the trace pool is not initialized
+    (query_metrics returns zeroed structures in that case).
+    """
+    from shared.trace_db import query_metrics
+
+    m = await query_metrics()
+    return {
+        "total": m.get("total", 0),
+        "avg_latency_ms": m.get("avg_latency_ms", 0.0),
+        "outcome_rate": m.get("outcome_rate", 0.0),
+        "by_outcome": m.get("by_outcome", {}),
+        "by_domain": m.get("by_domain", {}),
+        "by_intent": m.get("by_intent", {}),
+    }
