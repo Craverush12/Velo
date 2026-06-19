@@ -82,5 +82,45 @@ class FeedbackEndpointTests(unittest.TestCase):
         mock_ro.assert_awaited_once()
 
 
+import asyncio
+import json as _json
+
+
+class AdaptStreamTraceIdTests(unittest.IsolatedAsyncioTestCase):
+    async def test_complete_event_carries_trace_id_and_writes_trace(self):
+        from routers.ai import enhance as enh
+
+        class _Inner:
+            async def _gen(self):
+                done = {"type": "done", "result": {
+                    "enhanced_prompt": "ENHANCED",
+                    "annotated_segments": [],
+                    "domain": "software_engineering",
+                    "intent": "code_generation",
+                    "summary": "s",
+                }}
+                yield ("data: " + _json.dumps(done) + "\n\n").encode("utf-8")
+
+            @property
+            def body_iterator(self):
+                return self._gen()
+
+        captured = {}
+        with patch.object(enh, "write_trace", new=AsyncMock(side_effect=lambda r: captured.update(r))):
+            out = []
+            async for ev in enh._adapt_stream(
+                _Inner(),
+                trace_id="TID-123",
+                trace_ctx={"user_id": "u1", "mode": "best", "raw_prompt": "raw"},
+            ):
+                out.append(ev)
+            await asyncio.sleep(0)  # let the fire-and-forget task run
+
+        joined = "".join(out)
+        self.assertIn("\"trace_id\": \"TID-123\"", joined)
+        self.assertEqual(captured.get("trace_id"), "TID-123")
+        self.assertEqual(captured.get("user_id"), "u1")
+
+
 if __name__ == "__main__":
     unittest.main()

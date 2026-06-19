@@ -547,12 +547,22 @@ def _to_local(
     )
 
 
-async def _adapt_stream(inner_resp: StreamingResponse, *, extra_meta: dict[str, Any] | None = None):
+async def _adapt_stream(
+    inner_resp: StreamingResponse,
+    *,
+    extra_meta: dict[str, Any] | None = None,
+    trace_id: str | None = None,
+    trace_ctx: dict[str, Any] | None = None,
+):
     """Adapt the canonical chunk/done SSE → extension content/complete/[DONE].
 
     ``extra_meta`` is merged into the ``metadata`` field of the ``complete``
     event. Used to propagate moderation annotations (``redacted``, ``warning``)
     to the client without altering consumer paths (extra_meta is None / {} there).
+
+    ``trace_id`` and ``trace_ctx`` are optional — when provided, the ``complete``
+    event will include the trace_id field and a fire-and-forget Postgres trace
+    write is scheduled (parity with enhance_chat).
     """
     async for raw_chunk in inner_resp.body_iterator:
         if isinstance(raw_chunk, bytes):
@@ -584,6 +594,38 @@ async def _adapt_stream(inner_resp: StreamingResponse, *, extra_meta: dict[str, 
                 }
                 if extra_meta:
                     metadata.update(extra_meta)
+
+                if trace_id:
+                    metadata["trace_id"] = trace_id
+
+                # Fire-and-forget Postgres trace for the streaming path (parity
+                # with enhance_chat). Never awaited, never blocks the stream.
+                if trace_id and trace_ctx is not None:
+                    try:
+                        asyncio.create_task(write_trace({
+                            "trace_id": trace_id,
+                            "flow": "enhance_stream",
+                            "status": "completed",
+                            "user_id": trace_ctx.get("user_id") or "anonymous",
+                            "prompt_mode": trace_ctx.get("mode") or "",
+                            "target_ai": trace_ctx.get("target_ai"),
+                            "domain": result.get("domain"),
+                            "intent": result.get("intent"),
+                            "context_hint": trace_ctx.get("context_hint"),
+                            "persona_hint": trace_ctx.get("persona_hint"),
+                            "suggested_ai": trace_ctx.get("suggested_ai"),
+                            "before_after": {
+                                "before": trace_ctx.get("raw_prompt", ""),
+                                "after": result.get("enhanced_prompt", ""),
+                            },
+                            "output": {
+                                "final_text": result.get("enhanced_prompt", ""),
+                                "quality_score": result.get("prompt_quality_score"),
+                            },
+                        }))
+                    except Exception:  # noqa: BLE001
+                        pass
+
                 yield "data: " + json.dumps(
                     {
                         "type": "complete",
@@ -591,6 +633,7 @@ async def _adapt_stream(inner_resp: StreamingResponse, *, extra_meta: dict[str, 
                         "annotated_segments": result.get("annotated_segments", []),
                         "performance": {"processing_time_ms": 0},
                         "metadata": metadata,
+                        "trace_id": trace_id,
                     }
                 ) + "\n\n"
                 yield "data: [DONE]\n\n"
@@ -741,6 +784,17 @@ async def enhance_stream(
             else f"[TENANT_CONSTRAINTS]\n{tenant_suffix}"
         )
 
+    trace_id = str(uuid.uuid4())
+    trace_ctx = {
+        "user_id": request.user_id,
+        "mode": request.context.get("mode", "") if isinstance(request.context, dict) else "",
+        "target_ai": request.target_ai,
+        "context_hint": context_hint,
+        "persona_hint": persona_hint,
+        "raw_prompt": request.prompt,
+        "suggested_ai": _resolve_suggested_ai(persona_hint, request.domain or ""),
+    }
+
     inner: StreamingResponse = await _generate(
         _to_local(request, context_hint=context_hint, persona_hint=persona_hint), background_tasks
     )
@@ -753,7 +807,7 @@ async def enhance_stream(
             metadata={"domain": request.domain or "", "intent": request.intent or "", "source": "enhance"},
         )
     return StreamingResponse(
-        _adapt_stream(inner, extra_meta=extra_meta),
+        _adapt_stream(inner, extra_meta=extra_meta, trace_id=trace_id, trace_ctx=trace_ctx),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
