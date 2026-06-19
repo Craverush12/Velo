@@ -63,6 +63,35 @@ async def write_trace(trace: dict[str, Any]) -> None:
         logger.warning("prompt trace DB write failed: %s", exc)
 
 
+_VALID_OUTCOMES = {"copied", "reenhanced", "thumbs_up", "thumbs_down", "ignored"}
+
+
+async def record_outcome(trace_id: str, outcome: str) -> bool:
+    """Attach a downstream outcome to an existing trace. Degrades open.
+
+    Returns True only when exactly one row was updated. Never raises.
+    """
+    if _pool is None:
+        return False
+    clean = (outcome or "").strip().lower()
+    if clean not in _VALID_OUTCOMES:
+        return False
+    tid = _valid_uuid_or_none(trace_id)
+    if tid is None:
+        return False
+    try:
+        status = await _pool.execute(
+            "UPDATE prompt_traces SET outcome = $2, outcome_at = NOW() "
+            "WHERE trace_id = $1::uuid",
+            tid,
+            clean,
+        )
+        return str(status).strip().endswith("1")
+    except Exception as exc:  # noqa: BLE001 - outcome write must never raise
+        logger.warning("record_outcome failed for trace %s: %s", trace_id, exc)
+        return False
+
+
 async def query_traces(
     user_id: str | None = None,
     domain: str | None = None,
