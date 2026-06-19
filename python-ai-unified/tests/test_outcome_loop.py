@@ -57,6 +57,14 @@ class RecordOutcomeTests(unittest.IsolatedAsyncioTestCase):
 class FeedbackEndpointTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # routers.ai.enhance transitively imports local_app, which prepends the
+        # repo root to sys.path — and the repo root has its OWN main.py (the
+        # monorepo extension app, without the /ai router). Depending on import
+        # order that shadows the unified service's main.py and the /ai routes
+        # 404. Force THIS service dir to the front and drop any stale 'main' so
+        # we always bind the unified app under test, regardless of test order.
+        sys.path.insert(0, str(AI_ROOT))
+        sys.modules.pop("main", None)
         main = importlib.import_module("main")
         cls.client = TestClient(main.app)
 

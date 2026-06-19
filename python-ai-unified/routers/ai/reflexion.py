@@ -28,6 +28,10 @@ def _structural_score(result: dict[str, Any]) -> float:
         return 0.0
     segs = {s.get("technique") for s in (result.get("annotated_segments") or [])
             if isinstance(s, dict) and s.get("technique")}
+    # 4 checks here vs 5 in tests/eval/structural_scorer.py: length_delta is
+    # intentionally omitted — this gate scores the enhanced prompt in isolation
+    # and a length ratio is not a reliable quality signal mid-pipeline. Raw
+    # numbers will differ from the eval scorer by design.
     checks = [
         bool(_ROLE_RE.search(enhanced)),
         len(segs) >= 5,
@@ -52,6 +56,7 @@ async def _groq_critique(result: dict[str, Any], raw_prompt: str) -> dict[str, A
                        "enhanced_prompt": result.get("enhanced_prompt", "")})
     raw = await groq_pool.async_chat(
         [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        response_format={"type": "json_object"},  # project hard rule: all Groq calls
         temperature=0.2, max_tokens=1500,
     )
     content = raw if isinstance(raw, str) else raw.choices[0].message.content

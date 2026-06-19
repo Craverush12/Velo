@@ -962,6 +962,7 @@ async def enhance_chat(
     if error:
         raise HTTPException(status_code=502, detail=error)
 
+    # deferred import to avoid a circular import at module load
     from routers.ai.reflexion import maybe_improve
     _mode = request.context.get("mode", "") if isinstance(request.context, dict) else ""
     _reflexed = await maybe_improve(
