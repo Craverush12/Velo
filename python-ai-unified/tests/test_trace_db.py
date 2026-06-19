@@ -63,6 +63,8 @@ class TraceDbTests(unittest.TestCase):
                 [{"key": "software", "count": 2}],
                 [{"key": "build", "count": 1}],
                 [{"key": "claude", "count": 1}],
+                # 4th fetch: outcome breakdown (added with outcome_rate metric)
+                [{"key": "copied", "count": 1}, {"key": "none", "count": 1}],
             ]
         )
         self.trace_db._pool = fake_pool
@@ -74,6 +76,9 @@ class TraceDbTests(unittest.TestCase):
         self.assertEqual(metrics["by_domain"], {"software": 2})
         self.assertEqual(metrics["by_intent"], {"build": 1})
         self.assertEqual(metrics["by_suggested_ai"], {"claude": 1})
+        self.assertEqual(metrics["by_outcome"], {"copied": 1, "none": 1})
+        # 1 of 2 traces has a real outcome ('none' excluded) -> 0.5
+        self.assertEqual(metrics["outcome_rate"], 0.5)
 
 
 class AnalyticsDbFallbackTests(unittest.TestCase):
