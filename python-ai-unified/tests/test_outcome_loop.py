@@ -59,22 +59,27 @@ class FeedbackEndpointTests(unittest.TestCase):
         cls.client = TestClient(main.app)
 
     def test_records_valid_outcome(self):
-        with patch("shared.trace_db.record_outcome", new=AsyncMock(return_value=True)):
+        mock_ro = AsyncMock(return_value=True)
+        with patch("shared.trace_db.record_outcome", new=mock_ro):
             r = self.client.post(
                 "/ai/enhance/feedback",
                 json={"trace_id": VALID_UUID, "outcome": "copied", "user_id": "u1"},
             )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["status"], "recorded")
+        self.assertEqual(r.json()["trace_id"], VALID_UUID)
+        mock_ro.assert_awaited_once()  # guards against the patch going vacuous
 
     def test_invalid_outcome_degrades_to_ignored(self):
-        with patch("shared.trace_db.record_outcome", new=AsyncMock(return_value=False)):
+        mock_ro = AsyncMock(return_value=False)
+        with patch("shared.trace_db.record_outcome", new=mock_ro):
             r = self.client.post(
                 "/ai/enhance/feedback",
                 json={"trace_id": VALID_UUID, "outcome": "banana"},
             )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["status"], "ignored")
+        mock_ro.assert_awaited_once()
 
 
 if __name__ == "__main__":

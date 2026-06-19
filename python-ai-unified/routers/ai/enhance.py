@@ -954,6 +954,8 @@ async def enhance_chat(
 class FeedbackRequest(BaseModel):
     trace_id: str
     outcome: str
+    # Accepted for forward-compatible attribution; not yet used — record_outcome
+    # keys solely on trace_id, which already carries the owning user_id.
     user_id: str = "anonymous"
 
 
@@ -962,8 +964,8 @@ async def enhance_feedback(req: FeedbackRequest) -> dict[str, Any]:
     """Attach a downstream outcome to a prior enhancement. Degrades open.
 
     outcome ∈ {copied, reenhanced, thumbs_up, thumbs_down, ignored}.
-    Always 200 — a rejected/unknown outcome returns status="ignored" rather
-    than erroring, so the extension never has to handle a failure here.
+    Always 200 — an unknown outcome returns status="ignored" rather than
+    erroring, so the extension never has to handle a failure here.
     """
     from shared.trace_db import record_outcome
 
