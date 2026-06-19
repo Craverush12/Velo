@@ -400,9 +400,9 @@ async def _ensure_attachments_table(session: AsyncSession) -> None:
     """Best-effort creation of the attachments table (idempotent, IF NOT EXISTS).
 
     Mirrors the self-healing pattern in routers/ai/context_docs.py::_ensure_table.
-    Runs once per process (cached via the module-level flag) since the
-    migration in IMPORTANT/migrations/add_attachments_table.sql is expected to
-    have already created this table in production.
+    Runs once per process (cached via the module-level flag) since
+    migrations/004_attachments_table.sql is expected to have already created
+    this table in production.
     """
     global _ATTACHMENTS_TABLE_READY
     if _ATTACHMENTS_TABLE_READY:
@@ -421,6 +421,12 @@ async def _ensure_attachments_table(session: AsyncSession) -> None:
                 " pii_redacted_count INT NOT NULL DEFAULT 0,"
                 " created_at TIMESTAMPTZ NOT NULL DEFAULT now()"
                 ")"
+            )
+        )
+        await session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_attachments_user_created"
+                " ON attachments (user_id, created_at DESC)"
             )
         )
         await session.commit()
@@ -943,6 +949,26 @@ async def enhance_chat(
         "_trace_id": trace_id,
         "suggested_ai": suggested_ai,
     }
+
+
+class FeedbackRequest(BaseModel):
+    trace_id: str
+    outcome: str
+    user_id: str = "anonymous"
+
+
+@router.post("/enhance/feedback")
+async def enhance_feedback(req: FeedbackRequest) -> dict[str, Any]:
+    """Attach a downstream outcome to a prior enhancement. Degrades open.
+
+    outcome ∈ {copied, reenhanced, thumbs_up, thumbs_down, ignored}.
+    Always 200 — a rejected/unknown outcome returns status="ignored" rather
+    than erroring, so the extension never has to handle a failure here.
+    """
+    from shared.trace_db import record_outcome
+
+    ok = await record_outcome(req.trace_id, req.outcome)
+    return {"status": "recorded" if ok else "ignored", "trace_id": req.trace_id}
 
 
 async def _deduct_tokens(session: AsyncSession, user_id: str, cost: int) -> None:

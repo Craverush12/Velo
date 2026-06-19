@@ -1,10 +1,13 @@
 # python-ai-unified/tests/test_outcome_loop.py
 from __future__ import annotations
 
+import importlib
 import pathlib
 import sys
 import unittest
 from unittest.mock import AsyncMock, patch
+
+from fastapi.testclient import TestClient
 
 AI_ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(AI_ROOT) not in sys.path:
@@ -47,6 +50,31 @@ class RecordOutcomeTests(unittest.IsolatedAsyncioTestCase):
         pool.execute.return_value = "UPDATE 0"
         with patch.object(trace_db, "_pool", pool):
             self.assertFalse(await trace_db.record_outcome(VALID_UUID, "copied"))
+
+
+class FeedbackEndpointTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        main = importlib.import_module("main")
+        cls.client = TestClient(main.app)
+
+    def test_records_valid_outcome(self):
+        with patch("shared.trace_db.record_outcome", new=AsyncMock(return_value=True)):
+            r = self.client.post(
+                "/ai/enhance/feedback",
+                json={"trace_id": VALID_UUID, "outcome": "copied", "user_id": "u1"},
+            )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["status"], "recorded")
+
+    def test_invalid_outcome_degrades_to_ignored(self):
+        with patch("shared.trace_db.record_outcome", new=AsyncMock(return_value=False)):
+            r = self.client.post(
+                "/ai/enhance/feedback",
+                json={"trace_id": VALID_UUID, "outcome": "banana"},
+            )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["status"], "ignored")
 
 
 if __name__ == "__main__":
