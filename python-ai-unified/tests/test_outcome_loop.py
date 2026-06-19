@@ -120,5 +120,25 @@ class AdaptStreamTraceIdTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(captured.get("user_id"), "u1")
 
 
+class OutcomeMetricsTests(unittest.IsolatedAsyncioTestCase):
+    async def test_query_metrics_includes_outcome_block(self):
+        from shared import trace_db
+        pool = AsyncMock()
+        pool.fetchrow.return_value = {"total": 10, "avg_latency_ms": 120.0}
+
+        async def _fetch(sql, *a):
+            if "outcome" in sql:
+                return [{"key": "copied", "count": 6}, {"key": "thumbs_down", "count": 1}]
+            return [{"key": "software_engineering", "count": 10}]
+        pool.fetch.side_effect = _fetch
+
+        with patch.object(trace_db, "_pool", pool):
+            m = await trace_db.query_metrics()
+
+        self.assertIn("by_outcome", m)
+        self.assertEqual(m["by_outcome"]["copied"], 6)
+        self.assertIn("outcome_rate", m)  # share of traces with any outcome
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -145,18 +145,28 @@ async def query_metrics() -> dict[str, Any]:
             "by_domain": {},
             "by_intent": {},
             "by_suggested_ai": {},
+            "by_outcome": {},
+            "outcome_rate": 0.0,
         }
 
     totals = await _pool.fetchrow(
         "SELECT COUNT(*) AS total, COALESCE(AVG(latency_ms), 0) AS avg_latency_ms FROM prompt_traces"
     )
     by_domain, by_intent, by_suggested_ai = await _metric_groups()
+    by_outcome = _count_map(await _pool.fetch(
+        "SELECT COALESCE(NULLIF(outcome, ''), 'none') AS key, COUNT(*) AS count "
+        "FROM prompt_traces GROUP BY COALESCE(NULLIF(outcome, ''), 'none')"
+    ))
+    total = int((totals or {}).get("total") or 0)
+    answered = sum(v for k, v in by_outcome.items() if k != "none")
     return {
-        "total": int((totals or {}).get("total") or 0),
+        "total": total,
         "avg_latency_ms": float((totals or {}).get("avg_latency_ms") or 0.0),
         "by_domain": by_domain,
         "by_intent": by_intent,
         "by_suggested_ai": by_suggested_ai,
+        "by_outcome": by_outcome,
+        "outcome_rate": round(answered / total, 3) if total else 0.0,
     }
 
 
