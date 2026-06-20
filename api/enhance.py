@@ -241,16 +241,33 @@ def _prepare_enhance_input(request: EnhanceRequest) -> tuple[str, list[dict], st
         # sees the user's cross-session working history, not just local JSON.
         if request.context_hint:
             try:
+                parsed_context_hint = json.loads(request.context_hint)
                 if ctx_block:
                     ctx_dict = json.loads(ctx_block)
                     ctx_dict["session_essence"] = request.context_hint
+                    ctx_dict["session_context"] = parsed_context_hint
                     ctx_block = json.dumps(ctx_dict, ensure_ascii=False, indent=2)
                 else:
                     ctx_block = json.dumps(
-                        {"session_essence": request.context_hint}, ensure_ascii=False
+                        {
+                            "session_essence": request.context_hint,
+                            "session_context": parsed_context_hint,
+                        },
+                        ensure_ascii=False,
                     )
             except (json.JSONDecodeError, Exception):
-                pass  # keep existing ctx_block unchanged if merge fails
+                try:
+                    if ctx_block:
+                        ctx_dict = json.loads(ctx_block)
+                        ctx_dict["session_essence"] = request.context_hint
+                        ctx_block = json.dumps(ctx_dict, ensure_ascii=False, indent=2)
+                    else:
+                        ctx_block = json.dumps(
+                            {"session_essence": request.context_hint},
+                            ensure_ascii=False,
+                        )
+                except (json.JSONDecodeError, Exception):
+                    pass  # keep existing ctx_block unchanged if merge fails
 
         # Merge pre-fetched user persona (onboarding + personalization profile).
         # Stable across sessions — distinct from session_essence (current topic).

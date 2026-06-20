@@ -26,6 +26,7 @@ litellm>=1.40.0                  # multi-provider fallback routing (Groq → Ope
 # ── Database (PostgreSQL + pgvector RAG for /ai/* routes) ─────────────────────
 sqlalchemy[asyncio]>=2.0.25
 psycopg[binary]>=3.1.0
+asyncpg>=0.29.0
 
 # ── Cache / rate limiting (Redis; /ai/* routes only) ─────────────────────────
 redis>=5.2.1
