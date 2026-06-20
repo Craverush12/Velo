@@ -1,0 +1,194 @@
+{
+  "summary": {
+    "total_cases": 40,
+    "errors": 0,
+    "valid": 40,
+    "intent_accuracy": 0.875,
+    "domain_accuracy": 0.825,
+    "secondary_specificity_rate": 1.0,
+    "suggested_ai_accuracy": 1.0
+  },
+  "thresholds": {
+    "intent_target": 0.85,
+    "domain_target": 0.75,
+    "secondary_specificity_target": 0.7
+  },
+  "threshold_pass": {
+    "intent": true,
+    "domain": true,
+    "secondary": true
+  },
+  "by_intent": {
+    "debugging": {
+      "total": 5,
+      "correct": 4
+    },
+    "construction": {
+      "total": 13,
+      "correct": 13
+    },
+    "inquiry": {
+      "total": 13,
+      "correct": 12
+    },
+    "operation": {
+      "total": 3,
+      "correct": 1
+    },
+    "decision": {
+      "total": 5,
+      "correct": 5
+    },
+    "chat": {
+      "total": 1,
+      "correct": 0
+    }
+  },
+  "by_domain": {
+    "software_data_engineering": {
+      "total": 13,
+      "correct": 13
+    },
+    "logic_mathematics": {
+      "total": 2,
+      "correct": 0
+    },
+    "system_ai_meta": {
+      "total": 1,
+      "correct": 1
+    },
+    "business_marketing": {
+      "total": 2,
+      "correct": 2
+    },
+    "productivity_planning": {
+      "total": 1,
+      "correct": 0
+    },
+    "finance_legal": {
+      "total": 4,
+      "correct": 4
+    },
+    "operations_hr_support": {
+      "total": 1,
+      "correct": 1
+    },
+    "education_research": {
+      "total": 2,
+      "correct": 1
+    },
+    "creative_arts_media": {
+      "total": 3,
+      "correct": 2
+    },
+    "social_casual": {
+      "total": 1,
+      "correct": 0
+    },
+    "lifestyle_relationships": {
+      "total": 1,
+      "correct": 1
+    },
+    "philosophy_religion": {
+      "total": 1,
+      "correct": 1
+    },
+    "healthcare_medical": {
+      "total": 1,
+      "correct": 1
+    },
+    "news_current_events": {
+      "total": 1,
+      "correct": 0
+    },
+    "food_nutrition": {
+      "total": 1,
+      "correct": 1
+    },
+    "travel_hospitality": {
+      "total": 1,
+      "correct": 1
+    },
+    "gov_nonprofit": {
+      "total": 1,
+      "correct": 1
+    },
+    "sports_recreation": {
+      "total": 1,
+      "correct": 1
+    },
+    "environment_sustainability": {
+      "total": 1,
+      "correct": 1
+    },
+    "manufacturing_agri": {
+      "total": 1,
+      "correct": 1
+    }
+  },
+  "intent_failures": [
+    {
+      "id": "creator-004",
+      "detail": "got='decision' expected='chat'",
+      "essence": "MASTER:\nBuilding a sustainable audience and distribution strategy for creator content across social platforms"
+    },
+    {
+      "id": "student-003",
+      "detail": "got='decision' expected='inquiry'",
+      "essence": "MASTER:\nDeveloping proficiency in front\u2011end web development to build interactive web applications"
+    },
+    {
+      "id": "student-005",
+      "detail": "got='inquiry' expected='debugging'",
+      "essence": "MASTER:\nData science student learning SQL and building analytical queries for coursework.\n\nFLOW:\n- Assessing how the sec"
+    },
+    {
+      "id": "edge-enterprise-001",
+      "detail": "got='inquiry' expected='operation'",
+      "essence": "MASTER:\nLegal operations team at a financial services firm automating contract review and compliance workflows.\n\nFLOW:\n-"
+    },
+    {
+      "id": "dev-operation-cicd-001",
+      "detail": "got='decision' expected='operation'",
+      "essence": "MASTER:\nDevOps engineer building CI/CD infrastructure for a multi-service Node.js and Python application stack.\n\nFLOW:\n-"
+    }
+  ],
+  "domain_failures": [
+    {
+      "id": "dev-007",
+      "detail": "got='software_data_engineering' expected='logic_mathematics'",
+      "essence": "MASTER:\nCompetitive programmer and engineer optimizing algorithmic solutions for production use.\n\nFLOW:\n- designing algo"
+    },
+    {
+      "id": "kw-002",
+      "detail": "got='business_marketing' expected='productivity_planning'",
+      "essence": "MASTER:\nOperations lead at a growth-stage startup responsible for investor relations and internal reporting.\n\nFLOW:\n- cr"
+    },
+    {
+      "id": "creator-002",
+      "detail": "got='business_marketing' expected='creative_arts_media'",
+      "essence": "MASTER:\nIndependent writer building an audience and paid content business around technology analysis.\n\nFLOW:\n- assessing"
+    },
+    {
+      "id": "creator-004",
+      "detail": "got='business_marketing' expected='social_casual'",
+      "essence": "MASTER:\nBuilding a sustainable audience and distribution strategy for creator content across social platforms"
+    },
+    {
+      "id": "student-001",
+      "detail": "got='system_ai_meta' expected='education_research'",
+      "essence": "MASTER:\nBuilding a deep, conceptual grasp of how neural networks learn, including feedforward and backpropagation, to su"
+    },
+    {
+      "id": "student-002",
+      "detail": "got='software_data_engineering' expected='logic_mathematics'",
+      "essence": "MASTER:\nCS student practicing algorithmic problem solving for coding interviews.\n\nFLOW:\n- Debugging binary search implem"
+    },
+    {
+      "id": "edge-news-001",
+      "detail": "got='finance_legal' expected='news_current_events'",
+      "essence": "MASTER:\nUnderstanding how US-China tariff developments affect profitability and inventory strategy for a small importing"
+    }
+  ],
+  "mode": "real"
+}

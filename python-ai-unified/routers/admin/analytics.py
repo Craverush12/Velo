@@ -41,10 +41,12 @@ def _require_bearer(
 
 
 @router.get("/prompt-traces")
-def list_traces(
+async def list_traces(
     flow: str = "",
     status: str = "",
     user_id: str = "",
+    domain: str = "",
+    intent: str = "",
     prompt_mode: str = "",
     search: str = "",
     page: int = 1,
@@ -53,6 +55,24 @@ def list_traces(
     trace_store: PromptTraceStore = Depends(_get_trace_store),
     _auth: dict = Depends(_require_bearer),
 ):
+    if not any([flow, status, prompt_mode, search, include_payload]):
+        clean_page = max(1, int(page or 1))
+        clean_page_size = min(100, max(1, int(page_size or 25)))
+        db_rows = await _db_list_traces(
+            user_id=user_id or None,
+            domain=domain or None,
+            intent=intent or None,
+            limit=clean_page_size,
+            offset=(clean_page - 1) * clean_page_size,
+        )
+        if db_rows is not None:
+            return {
+                "items": db_rows,
+                "total": len(db_rows),
+                "page": clean_page,
+                "page_size": clean_page_size,
+                "pages": 1 if db_rows else 0,
+            }
     return trace_store.list_traces(
         flow=flow,
         status=status,
@@ -90,12 +110,52 @@ def trace_detail(
 
 
 @router.get("/prompt-metrics")
-def prompt_metrics(
+async def prompt_metrics(
     days: int | None = None,
     trace_store: PromptTraceStore = Depends(_get_trace_store),
     _auth: dict = Depends(_require_bearer),
 ):
+    if days is None:
+        db_metrics = await _db_get_metrics()
+        if db_metrics is not None:
+            return {"metrics": db_metrics}
     return {"metrics": trace_store.metrics(days=days)}
+
+
+async def _db_list_traces(
+    user_id: str | None,
+    domain: str | None,
+    intent: str | None,
+    limit: int,
+    offset: int,
+) -> list[dict[str, Any]] | None:
+    from shared import trace_db
+
+    if not trace_db.is_trace_pool_initialized():
+        return None
+    try:
+        return await trace_db.query_traces(
+            user_id=user_id,
+            domain=domain,
+            intent=intent,
+            limit=limit,
+            offset=offset,
+        )
+    except Exception as exc:  # noqa: BLE001 - JSONL fallback remains authoritative
+        logger.warning("prompt trace DB list failed; falling back to JSONL: %s", exc)
+        return None
+
+
+async def _db_get_metrics() -> dict[str, Any] | None:
+    from shared import trace_db
+
+    if not trace_db.is_trace_pool_initialized():
+        return None
+    try:
+        return await trace_db.query_metrics()
+    except Exception as exc:  # noqa: BLE001 - JSONL fallback remains authoritative
+        logger.warning("prompt trace DB metrics failed; falling back to JSONL: %s", exc)
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -255,3 +315,23 @@ async def enhance_pairs(
     except Exception as exc:
         logger.error("enhance-pairs query failed: %s", exc)
         raise HTTPException(status_code=500, detail=f"Query failed: {exc}")
+
+
+@router.get("/quality-mirror")
+async def quality_mirror(_auth: dict = Depends(_require_bearer)) -> dict:
+    """Ground-truth quality snapshot: outcome rate + breakdowns from prompt_traces.
+
+    Read-only. Degrades to zeros when the trace pool is not initialized
+    (query_metrics returns zeroed structures in that case).
+    """
+    from shared.trace_db import query_metrics
+
+    m = await query_metrics()
+    return {
+        "total": m.get("total", 0),
+        "avg_latency_ms": m.get("avg_latency_ms", 0.0),
+        "outcome_rate": m.get("outcome_rate", 0.0),
+        "by_outcome": m.get("by_outcome", {}),
+        "by_domain": m.get("by_domain", {}),
+        "by_intent": m.get("by_intent", {}),
+    }

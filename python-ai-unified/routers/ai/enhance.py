@@ -70,6 +70,7 @@ from fastapi import Depends
 
 from shared.db import get_session
 from shared.redis_cache import rate_limit_check
+from shared.trace_db import write_trace
 
 # Canonical logic from the monorepo (see local_app.py / D-019).
 from local_app import EnhanceRequest as LocalEnhanceRequest, _generate, map_mode, AttachmentItem as LocalAttachmentItem
@@ -165,15 +166,37 @@ async def _fetch_local_essences(user_id: str, query: str) -> list[str]:
         return []
 
 
+def _split_master_flow(essence: str) -> tuple[str, str | None]:
+    master_match = re.search(
+        r"MASTER:\s*(.*?)(?=FLOW:|$)", essence, re.DOTALL | re.IGNORECASE
+    )
+    flow_match = re.search(r"FLOW:\s*(.*)", essence, re.DOTALL | re.IGNORECASE)
+
+    if not master_match and not flow_match:
+        return essence.strip(), None
+
+    user_goal = master_match.group(1).strip() if master_match else ""
+    flow_text = flow_match.group(1).strip() if flow_match else ""
+    if not flow_text:
+        return user_goal, None
+
+    bullets = [
+        line.strip().lstrip("-*+").strip()
+        for line in flow_text.splitlines()
+        if line.strip()
+    ]
+    current_focus = "; ".join([line for line in bullets if line]) or None
+    return user_goal, current_focus
+
+
 async def _fetch_context_hint(user_id: str, query: str) -> str:
     """Fetch context from local pgvector + Supermemory in parallel.
 
-    Returns a JSON string with structured essences + merged entities, or empty string on any
+    Returns a JSON string with structured session context + merged entities, or empty string on any
     failure. Degrades open — a missing context hint never blocks enhancement.
 
     Output shape (when results exist):
-        {"essences": ["...", "..."], "entities": {"frameworks": ["React"], "domain": "saas"}}
-    Falls back to pipe-delimited string if entity extraction itself raises.
+        {"session_context": {...}, "entities": {"frameworks": ["React"], "domain": "saas"}}
     """
     if not user_id or user_id == "anonymous":
         return ""
@@ -199,15 +222,16 @@ async def _fetch_context_hint(user_id: str, query: str) -> str:
             if sm_snippets:
                 logger.debug("context_hint: local=%d sm=%d (local wins)", len(local_essences), len(sm_snippets))
         elif sm_snippets:
+            # TODO: recency re-rank when search_memories returns metadata
             essences = sm_snippets
             logger.debug("context_hint: local empty, using %d supermemory snippets", len(sm_snippets))
         else:
             return ""
 
         # Extract and merge entities across all essences
+        all_entities: dict = {}
         try:
             from routers.context import extract_entities
-            all_entities: dict = {}
             for ess in essences:
                 for k, v in extract_entities(ess).items():
                     if k == "frameworks":
@@ -215,12 +239,35 @@ async def _fetch_context_hint(user_id: str, query: str) -> str:
                         all_entities["frameworks"] = list(dict.fromkeys(existing + v))
                     else:
                         all_entities.setdefault(k, v)
+        except Exception:
+            all_entities = {}
 
-            hint: dict = {"essences": essences}
-            if all_entities:
-                hint["entities"] = all_entities
+        try:
+            from shared.taxonomy_bridge import map_context_domain, map_context_intent
+
+            user_goal, current_focus = _split_master_flow(essences[0])
+            context_intent = None
+            context_domain = None
+            session_context = {
+                "user_goal": user_goal,
+                "current_focus": current_focus,
+                "context_intent": context_intent,
+                "context_domain": context_domain,
+                "enhance_domain_hint": (
+                    map_context_domain(context_domain) if context_domain else None
+                ),
+                "enhance_intent_hint": (
+                    map_context_intent(context_intent) if context_intent else None
+                ),
+                "frameworks": all_entities.get("frameworks", []),
+            }
+            hint: dict = {
+                "session_context": session_context,
+                "entities": all_entities,
+            }
             return json.dumps(hint, ensure_ascii=False)
         except Exception:
+            # Taxonomy bridge or JSON serialization failed — degrade to legacy pipe format
             return " | ".join(essences)
     except Exception:
         return ""
@@ -353,9 +400,9 @@ async def _ensure_attachments_table(session: AsyncSession) -> None:
     """Best-effort creation of the attachments table (idempotent, IF NOT EXISTS).
 
     Mirrors the self-healing pattern in routers/ai/context_docs.py::_ensure_table.
-    Runs once per process (cached via the module-level flag) since the
-    migration in IMPORTANT/migrations/add_attachments_table.sql is expected to
-    have already created this table in production.
+    Runs once per process (cached via the module-level flag) since
+    migrations/004_attachments_table.sql is expected to have already created
+    this table in production.
     """
     global _ATTACHMENTS_TABLE_READY
     if _ATTACHMENTS_TABLE_READY:
@@ -374,6 +421,12 @@ async def _ensure_attachments_table(session: AsyncSession) -> None:
                 " pii_redacted_count INT NOT NULL DEFAULT 0,"
                 " created_at TIMESTAMPTZ NOT NULL DEFAULT now()"
                 ")"
+            )
+        )
+        await session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_attachments_user_created"
+                " ON attachments (user_id, created_at DESC)"
             )
         )
         await session.commit()
@@ -494,12 +547,22 @@ def _to_local(
     )
 
 
-async def _adapt_stream(inner_resp: StreamingResponse, *, extra_meta: dict[str, Any] | None = None):
+async def _adapt_stream(
+    inner_resp: StreamingResponse,
+    *,
+    extra_meta: dict[str, Any] | None = None,
+    trace_id: str | None = None,
+    trace_ctx: dict[str, Any] | None = None,
+):
     """Adapt the canonical chunk/done SSE → extension content/complete/[DONE].
 
     ``extra_meta`` is merged into the ``metadata`` field of the ``complete``
     event. Used to propagate moderation annotations (``redacted``, ``warning``)
     to the client without altering consumer paths (extra_meta is None / {} there).
+
+    ``trace_id`` and ``trace_ctx`` are optional — when provided, the ``complete``
+    event will include the trace_id field and a fire-and-forget Postgres trace
+    write is scheduled (parity with enhance_chat).
     """
     async for raw_chunk in inner_resp.body_iterator:
         if isinstance(raw_chunk, bytes):
@@ -531,6 +594,41 @@ async def _adapt_stream(inner_resp: StreamingResponse, *, extra_meta: dict[str, 
                 }
                 if extra_meta:
                     metadata.update(extra_meta)
+
+                # trace_id is exposed both in metadata and at the top level of
+                # the complete event so clients can read it from either place
+                # (parity with enhance_chat's top-level _trace_id). Intentional.
+                if trace_id:
+                    metadata["trace_id"] = trace_id
+
+                # Fire-and-forget Postgres trace for the streaming path (parity
+                # with enhance_chat). Never awaited, never blocks the stream.
+                if trace_id and trace_ctx is not None:
+                    try:
+                        asyncio.create_task(write_trace({
+                            "trace_id": trace_id,
+                            "flow": "enhance_stream",
+                            "status": "completed",
+                            "user_id": trace_ctx.get("user_id") or "anonymous",
+                            "prompt_mode": trace_ctx.get("mode") or "",
+                            "target_ai": trace_ctx.get("target_ai"),
+                            "domain": result.get("domain") or "",
+                            "intent": result.get("intent") or "",
+                            "context_hint": trace_ctx.get("context_hint"),
+                            "persona_hint": trace_ctx.get("persona_hint"),
+                            "suggested_ai": trace_ctx.get("suggested_ai"),
+                            "before_after": {
+                                "before": trace_ctx.get("raw_prompt", ""),
+                                "after": result.get("enhanced_prompt", ""),
+                            },
+                            "output": {
+                                "final_text": result.get("enhanced_prompt", ""),
+                                "quality_score": result.get("prompt_quality_score"),
+                            },
+                        }))
+                    except Exception:  # noqa: BLE001
+                        pass
+
                 yield "data: " + json.dumps(
                     {
                         "type": "complete",
@@ -538,6 +636,7 @@ async def _adapt_stream(inner_resp: StreamingResponse, *, extra_meta: dict[str, 
                         "annotated_segments": result.get("annotated_segments", []),
                         "performance": {"processing_time_ms": 0},
                         "metadata": metadata,
+                        "trace_id": trace_id,
                     }
                 ) + "\n\n"
                 yield "data: [DONE]\n\n"
@@ -688,6 +787,23 @@ async def enhance_stream(
             else f"[TENANT_CONSTRAINTS]\n{tenant_suffix}"
         )
 
+    trace_id = str(uuid.uuid4())
+    # Honor the same full-text capture gate the canonical chat path uses
+    # (PROMPT_TRACE_CAPTURE_FULL_TEXT): when disabled, the raw prompt is not
+    # persisted to the trace, only the structured signals.
+    _capture_full = os.getenv(
+        "PROMPT_TRACE_CAPTURE_FULL_TEXT", "true"
+    ).strip().lower() not in {"0", "false", "no", "off"}
+    trace_ctx = {
+        "user_id": request.user_id,
+        "mode": request.context.get("mode", "") if isinstance(request.context, dict) else "",
+        "target_ai": request.target_ai,
+        "context_hint": context_hint,
+        "persona_hint": persona_hint,
+        "raw_prompt": request.prompt if _capture_full else "",
+        "suggested_ai": _resolve_suggested_ai(persona_hint, request.domain or ""),
+    }
+
     inner: StreamingResponse = await _generate(
         _to_local(request, context_hint=context_hint, persona_hint=persona_hint), background_tasks
     )
@@ -700,10 +816,63 @@ async def enhance_stream(
             metadata={"domain": request.domain or "", "intent": request.intent or "", "source": "enhance"},
         )
     return StreamingResponse(
-        _adapt_stream(inner, extra_meta=extra_meta),
+        _adapt_stream(inner, extra_meta=extra_meta, trace_id=trace_id, trace_ctx=trace_ctx),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+def _resolve_suggested_ai(persona_json: str, domain: str) -> str:
+    """Return the best-fit AI platform for the enhanced prompt.
+
+    Priority: declared llm_platform → declared primary_model → domain default.
+    Falls back to "chatgpt" when nothing is known.
+    """
+    _PLATFORM_NORMALIZE: dict[str, str | None] = {
+        "chatgpt": "chatgpt",
+        "claude": "claude",
+        "gemini": "gemini",
+        "perplexity": "chatgpt",
+        "grok": "chatgpt",
+        "copilot": "chatgpt",
+        "cursor": "claude",
+        "other": None,
+    }
+    _PRIMARY_MODEL_MAP: dict[str, str] = {
+        "chatgpt": "chatgpt",
+        "claude": "claude",
+        "gemini": "gemini",
+    }
+    _DOMAIN_MAP: dict[str, str] = {
+        "software_development": "claude",
+        "software_engineering": "claude",
+        "data_science": "claude",
+        "devops_infrastructure": "claude",
+        "cybersecurity": "claude",
+        "design_ux": "chatgpt",
+        "creative_arts": "chatgpt",
+        "content_creation": "chatgpt",
+        "marketing_growth": "chatgpt",
+        "business_operations": "chatgpt",
+        "education": "chatgpt",
+        "product_management": "chatgpt",
+        "general": "chatgpt",
+    }
+    try:
+        persona = json.loads(persona_json) if persona_json else {}
+    except Exception:
+        persona = {}
+    lp = (persona.get("llm_platform") or "").lower().strip()
+    if lp:
+        normalized = _PLATFORM_NORMALIZE.get(lp)
+        if normalized:
+            return normalized
+    pm = (persona.get("primary_model") or "").lower().strip()
+    if pm:
+        normalized = _PRIMARY_MODEL_MAP.get(pm)
+        if normalized:
+            return normalized
+    return _DOMAIN_MAP.get(domain, "chatgpt")
 
 
 @router.post("/enhance/chat")
@@ -793,6 +962,19 @@ async def enhance_chat(
     if error:
         raise HTTPException(status_code=502, detail=error)
 
+    # deferred import to avoid a circular import at module load
+    from routers.ai.reflexion import maybe_improve
+    _mode = request.context.get("mode", "") if isinstance(request.context, dict) else ""
+    _reflexed = await maybe_improve(
+        {"enhanced_prompt": enhanced_prompt, "annotated_segments": annotated},
+        raw_prompt=request.prompt,
+        mode=_mode,
+    )
+    enhanced_prompt = _reflexed["enhanced_prompt"]
+    annotated = _reflexed.get("annotated_segments", annotated)
+
+    suggested_ai = _resolve_suggested_ai(persona_hint, metadata.get("domain", ""))
+
     if os.getenv("PROMPT_TRACE_ENABLED", "").lower() in ("1", "true", "yes"):
         try:
             from shared.prompt_trace_store import get_default_store as _get_trace_store
@@ -807,27 +989,29 @@ async def enhance_chat(
             _placeholder_count = len(re.findall(r'\[[A-Z_]{3,}\]', _enh))
             _technique_count = len(annotated)
 
-            background_tasks.add_task(
-                _store.record,
-                {
-                    "trace_id": trace_id,
-                    "flow": "enhance_chat",
-                    "user_id": request.user_id or "anonymous",
-                    "prompt_mode": request.context.get("mode", "") if isinstance(request.context, dict) else "",
-                    "target_ai": request.target_ai,
-                    "model": "llama-3.3-70b-versatile",
-                    "input": {"raw_prompt": _raw if os.getenv("PROMPT_TRACE_CAPTURE_FULL_TEXT", "").lower() in ("1", "true", "yes") else ""},
-                    "output": {"final_text": _enh, "quality_score": None},
-                    "before_after": {"before": _raw, "after": _enh},
-                    "metrics": {
-                        "expansion_ratio": _expansion_ratio,
-                        "constraint_count": _constraint_count,
-                        "placeholder_count": _placeholder_count,
-                        "technique_count": _technique_count,
-                    },
-                    "status": "completed",
+            trace_record = {
+                "trace_id": trace_id,
+                "flow": "enhance_chat",
+                "user_id": request.user_id or "anonymous",
+                "prompt_mode": request.context.get("mode", "") if isinstance(request.context, dict) else "",
+                "target_ai": request.target_ai,
+                "domain": metadata.get("domain", ""),
+                "intent": metadata.get("intent", ""),
+                "model": "llama-3.3-70b-versatile",
+                "input": {"raw_prompt": _raw if os.getenv("PROMPT_TRACE_CAPTURE_FULL_TEXT", "").lower() in ("1", "true", "yes") else ""},
+                "output": {"final_text": _enh, "quality_score": None},
+                "before_after": {"before": _raw, "after": _enh},
+                "metrics": {
+                    "expansion_ratio": _expansion_ratio,
+                    "constraint_count": _constraint_count,
+                    "placeholder_count": _placeholder_count,
+                    "technique_count": _technique_count,
                 },
-            )
+                "status": "completed",
+                "suggested_ai": suggested_ai,
+            }
+            background_tasks.add_task(_store.record, trace_record)
+            asyncio.create_task(write_trace(trace_record))
         except Exception:
             pass
 
@@ -837,7 +1021,30 @@ async def enhance_chat(
         "metadata": metadata,
         "tokens": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
         "_trace_id": trace_id,
+        "suggested_ai": suggested_ai,
     }
+
+
+class FeedbackRequest(BaseModel):
+    trace_id: str
+    outcome: str
+    # Accepted for forward-compatible attribution; not yet used — record_outcome
+    # keys solely on trace_id, which already carries the owning user_id.
+    user_id: str = "anonymous"
+
+
+@router.post("/enhance/feedback")
+async def enhance_feedback(req: FeedbackRequest) -> dict[str, Any]:
+    """Attach a downstream outcome to a prior enhancement. Degrades open.
+
+    outcome ∈ {copied, reenhanced, thumbs_up, thumbs_down, ignored}.
+    Always 200 — an unknown outcome returns status="ignored" rather than
+    erroring, so the extension never has to handle a failure here.
+    """
+    from shared.trace_db import record_outcome
+
+    ok = await record_outcome(req.trace_id, req.outcome)
+    return {"status": "recorded" if ok else "ignored", "trace_id": req.trace_id}
 
 
 async def _deduct_tokens(session: AsyncSession, user_id: str, cost: int) -> None:
