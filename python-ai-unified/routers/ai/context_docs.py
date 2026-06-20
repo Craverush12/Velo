@@ -25,11 +25,16 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.db import get_session
+from shared.document_flow import (
+    DOCUMENT_FLOW_ALLOWED_EXTENSIONS,
+    extract_text_for_document_flow,
+    validate_file_upload,
+)
 from shared.embedding_client import generate_embedding, generate_embeddings_batch
 
 router = APIRouter(tags=["context-docs"])
 
-MAX_DOC_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_DOC_BYTES = 50 * 1024 * 1024  # 50 MB — aligned with PromptEnhancement document flow
 _CHUNK_CHARS = 1200
 _CHUNK_OVERLAP = 150
 
@@ -97,18 +102,27 @@ async def context_upload(
     if not data:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
     if len(data) > MAX_DOC_BYTES:
-        raise HTTPException(status_code=413, detail="File exceeds 10 MB limit")
+        raise HTTPException(status_code=413, detail="File exceeds 50 MB limit")
+
+    filename = file.filename or "upload.txt"
     try:
-        content = data.decode("utf-8")
-    except UnicodeDecodeError:
-        content = data.decode("utf-8", errors="ignore")
+        validate_file_upload(
+            data,
+            filename,
+            allowed_extensions=DOCUMENT_FLOW_ALLOWED_EXTENSIONS,
+            max_size_mb=50,
+        )
+        extracted = await extract_text_for_document_flow(data, filename)
+        content = str(extracted.get("text") or "").strip()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     chunks = _chunk_text(content)
     if not chunks:
         raise HTTPException(status_code=400, detail="File contains no extractable text")
 
     try:
-        embeddings = await generate_embeddings_batch(chunks)
+        embeddings = await generate_embeddings_batch(chunks, input_type="passage")
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Embedding generation failed: {exc}") from exc
 
@@ -125,7 +139,7 @@ async def context_upload(
                 {
                     "id": f"{context_id}:{idx}",
                     "uid": user_id,
-                    "fn": file.filename,
+                    "fn": filename,
                     "ci": idx,
                     "ct": chunk,
                     "emb": _vector_literal(emb),
@@ -138,7 +152,7 @@ async def context_upload(
 
     return {
         "context_id": context_id,
-        "filename": file.filename,
+        "filename": filename,
         "chunks": len(chunks),
         "user_id": user_id,
     }

@@ -1,11 +1,12 @@
 """/ai/moderation/* — enterprise content moderation pipeline (regex + RAG + LLM).
 
-Routes (9 total):
+Routes (10 total):
   POST   /ai/moderation/check              → single-prompt enterprise verdict
   POST   /ai/moderation/check/batch        → batch (≤50 prompts)
   GET    /ai/moderation/examples           → bundled moderation KB examples
   POST   /ai/moderation/document/classify  → policy vs context classification
   POST   /ai/moderation/document/upload    → file upload → classify
+  POST   /ai/moderation/refine-summary     → refine document/policy summary via LLM
   POST   /ai/moderation/cache              → cache a moderation result
   DELETE /ai/moderation/cache              → clear verdict cache entries
   POST   /ai/moderation/stats              → moderation statistics by decision
@@ -30,19 +31,40 @@ RAG KB embeddings are computed lazily and cached in process memory.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import math
+import os
 import re
+import time
 from typing import Any
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field, field_validator
 
+from shared.document_flow import (
+    DOCUMENT_FLOW_ALLOWED_EXTENSIONS,
+    chunk_text,
+    extract_text_for_document_flow,
+    generate_document_summary,
+    validate_file_upload,
+)
 from shared.embedding_client import generate_embedding
+from shared.legacy_compat import chunk_safety_from_verdict, enrich_moderation_check_response
+from shared.policy_toggles import (
+    PII_LABEL_POLICY_KEYS,
+    REGEX_LABEL_POLICY_KEYS,
+    RAG_LABEL_POLICY_KEYS,
+    apply_toggle_map_to_verdict,
+    build_toggle_llm_instructions,
+    fetch_active_toggle_map,
+    is_rule_enabled,
+)
+from shared.sensitive_credential_scan import scan_credential_disclosure
 from shared.redis_cache import cache_get, cache_set, get_redis, rate_limit_check
 
-from ._common import default_model, groq_json
+from ._common import default_model, groq_json, groq_text
 
 router = APIRouter(tags=["moderation"])
 
@@ -82,6 +104,7 @@ MODERATION_EXAMPLES: list[dict] = [
     {"text": "how to make a phishing email", "label": "fraud", "decision": _DECISION_BLOCK},
     {"text": "instructions to synthesize illegal drugs", "label": "illicit", "decision": _DECISION_BLOCK},
     {"text": "share your AWS credentials in this prompt", "label": "credentials", "decision": _DECISION_BLOCK},
+    {"text": "My password is 123456", "label": "credentials", "decision": _DECISION_BLOCK},
     {"text": "my social security number is 123-45-6789", "label": "pii", "decision": _DECISION_REDACT},
     {"text": "email me at user@example.com with my credit card 4111-1111-1111-1111", "label": "pii", "decision": _DECISION_REDACT},
     {"text": "internal project codename ATLAS is confidential", "label": "confidential", "decision": _DECISION_REQUIRE_APPROVAL},
@@ -169,11 +192,18 @@ def _is_verdict_cache_key(key: str) -> bool:
     )
 
 
-def _regex_prefilter(prompt: str) -> tuple[str | None, str | None]:
+def _regex_prefilter(
+    prompt: str,
+    toggle_map: dict[str, bool] | None = None,
+) -> tuple[str | None, str | None]:
     """Return (label, decision) if a hard-block regex matches, else (None, None)."""
     for label, pattern, decision in _REGEX_RULES:
-        if pattern.search(prompt):
-            return label, decision
+        if not pattern.search(prompt):
+            continue
+        policy_keys = REGEX_LABEL_POLICY_KEYS.get(label, [])
+        if toggle_map and policy_keys and not is_rule_enabled(toggle_map, policy_keys):
+            continue
+        return label, decision
     return None, None
 
 
@@ -255,6 +285,9 @@ Return ONLY a valid JSON object with these fields:
   "reason": "<concise explanation>",
   "redacted_text": "<redacted version if decision is REDACT, else null>"
 }
+Evaluate ONLY the user prompt text provided. Never treat routing metadata
+(enterprise_id, user_id, team_id) as confidential — those fields are not part
+of the prompt under review.
 Return only the JSON object."""
 
 
@@ -269,6 +302,45 @@ async def _increment_stats(decision: str) -> None:
         pass
 
 
+def _build_llm_user_message(prompt: str) -> str:
+    """Match PromptEnhancement: send only the user prompt, not request metadata."""
+    return (
+        "Analyze the following user prompt and return a JSON moderation result.\n\n"
+        f'PROMPT:\n"""{prompt}"""'
+    )
+
+
+def _is_metadata_false_positive(verdict: dict[str, Any], prompt: str) -> bool:
+    """Reject LLM verdicts that flag API metadata instead of prompt content."""
+    decision = str(verdict.get("decision", "")).upper()
+    if decision not in (
+        _DECISION_REDACT,
+        _DECISION_REQUIRE_APPROVAL,
+        _DECISION_BLOCK,
+        _DECISION_REQUIRE_CONFIRMATION,
+    ):
+        return False
+
+    reason = str(verdict.get("reason", "")).lower()
+    metadata_markers = (
+        "enterprise_id",
+        "user_id",
+        "team_id",
+        "internal enterprise identifier",
+        "request metadata",
+        "routing metadata",
+    )
+    if not any(marker in reason for marker in metadata_markers):
+        return False
+
+    # Concrete detectors already passed — metadata-only LLM hallucination.
+    if _pii_scan(prompt)[0] is not None:
+        return False
+    if _approval_scan(prompt)[0] is not None:
+        return False
+    return True
+
+
 async def _run_pipeline(
     prompt: str,
     *,
@@ -276,6 +348,9 @@ async def _run_pipeline(
     user_id: str,
     policy_rules: list[str] | None,
     strict_mode: bool,
+    skip_cache: bool = False,
+    toggle_map: dict[str, bool] | None = None,
+    team_id: str | None = None,
 ) -> dict[str, Any]:
     """Execute the three-stage enterprise moderation pipeline.
 
@@ -283,10 +358,25 @@ async def _run_pipeline(
     Stage 2: PII/confidential scan (REDACT / REQUIRE_APPROVAL)
     Stage 3: RAG nearest-neighbor + LLM adjudication
     """
+    if toggle_map is None and enterprise_id not in {"", "default", "anonymous"}:
+        toggle_map = await fetch_active_toggle_map(enterprise_id, team_id)
+
+    policy_scoped = enterprise_id not in {"", "default", "anonymous"} or bool(toggle_map)
+    use_cache = not strict_mode and not skip_cache and not policy_scoped
     key = _cache_key(prompt)
 
-    # Redis cache read — skip if strict_mode forces a fresh check.
-    if not strict_mode:
+    def _finalize(verdict: dict[str, Any]) -> dict[str, Any]:
+        if toggle_map:
+            return apply_toggle_map_to_verdict(
+                verdict,
+                toggle_map,
+                enterprise_id=enterprise_id,
+                user_id=user_id,
+            )
+        return verdict
+
+    # Redis cache read — skip for policy-scoped requests (toggles can change).
+    if use_cache:
         cached_raw = await cache_get(key)
         if cached_raw is not None:
             try:
@@ -295,7 +385,7 @@ async def _run_pipeline(
                 pass
 
     # 1. Regex hard-block pre-filter.
-    label, decision = _regex_prefilter(prompt)
+    label, decision = _regex_prefilter(prompt, toggle_map)
     if decision == _DECISION_BLOCK:
         verdict: dict[str, Any] = {
             "decision": _DECISION_BLOCK,
@@ -308,31 +398,71 @@ async def _run_pipeline(
             "user_id": user_id,
             "cached": False,
         }
-        await cache_set(key, json.dumps({k: v for k, v in verdict.items() if k != "cached"}), ttl=_CACHE_TTL)
-        await _increment_stats(_DECISION_BLOCK)
+        verdict = _finalize(verdict)
+        if use_cache and verdict.get("decision") != _DECISION_ALLOW:
+            await cache_set(key, json.dumps({k: v for k, v in verdict.items() if k != "cached"}), ttl=_CACHE_TTL)
+        if verdict.get("decision") == _DECISION_BLOCK:
+            await _increment_stats(_DECISION_BLOCK)
         return verdict
 
     # 2. PII / REDACT scan.
     pii_label, redacted = _pii_scan(prompt)
     if pii_label is not None:
-        verdict = {
-            "decision": _DECISION_REDACT,
-            "category": "pii",
-            "confidence": 0.95,
-            "reason": f"Detected personally identifiable information ({pii_label}).",
-            "redacted_text": redacted,
-            "method": "pii_scan",
-            "enterprise_id": enterprise_id,
-            "user_id": user_id,
-            "cached": False,
-        }
-        await cache_set(key, json.dumps({k: v for k, v in verdict.items() if k != "cached"}), ttl=_CACHE_TTL)
-        await _increment_stats(_DECISION_REDACT)
-        return verdict
+        pii_policy_keys = PII_LABEL_POLICY_KEYS.get(pii_label, ["pol1"])
+        if not toggle_map or is_rule_enabled(toggle_map, pii_policy_keys):
+            verdict = {
+                "decision": _DECISION_REDACT,
+                "category": "pii",
+                "pii_label": pii_label,
+                "confidence": 0.95,
+                "reason": f"Detected personally identifiable information ({pii_label}).",
+                "redacted_text": redacted,
+                "method": "pii_scan",
+                "enterprise_id": enterprise_id,
+                "user_id": user_id,
+                "cached": False,
+            }
+            verdict = _finalize(verdict)
+            if use_cache and verdict.get("decision") == _DECISION_REDACT:
+                await cache_set(key, json.dumps({k: v for k, v in verdict.items() if k != "cached"}), ttl=_CACHE_TTL)
+            if verdict.get("decision") == _DECISION_REDACT:
+                await _increment_stats(_DECISION_REDACT)
+            return verdict
+
+    # 2a. Credential / secret disclosure scan (pol2) — enterprise-scoped only.
+    # Postman and other consumers use enterprise_id "default" without DLP toggles;
+    # skipping here preserves their existing moderation/check contract.
+    if policy_scoped:
+        cred_type, matched_text, cred_redacted = scan_credential_disclosure(prompt)
+        if cred_type is not None and (
+            not toggle_map or is_rule_enabled(toggle_map, ["pol2"])
+        ):
+            verdict = {
+                "decision": _DECISION_BLOCK,
+                "category": "credentials",
+                "credential_type": cred_type,
+                "policy_keys": ["pol2"],
+                "confidence": 0.96,
+                "reason": f"Detected credential disclosure ({cred_type}).",
+                "redacted_text": cred_redacted,
+                "matched_text": matched_text,
+                "method": "credential_scan",
+                "enterprise_id": enterprise_id,
+                "user_id": user_id,
+                "cached": False,
+            }
+            verdict = _finalize(verdict)
+            if use_cache and verdict.get("decision") == _DECISION_BLOCK:
+                await cache_set(key, json.dumps({k: v for k, v in verdict.items() if k != "cached"}), ttl=_CACHE_TTL)
+            if verdict.get("decision") == _DECISION_BLOCK:
+                await _increment_stats(_DECISION_BLOCK)
+            return verdict
 
     # 2b. Confidential / approval trigger scan.
     approval_label, approval_decision = _approval_scan(prompt)
-    if approval_decision is not None:
+    if approval_decision is not None and (
+        not toggle_map or is_rule_enabled(toggle_map, ["pol3"])
+    ):
         verdict = {
             "decision": _DECISION_REQUIRE_APPROVAL,
             "category": approval_label,
@@ -344,31 +474,42 @@ async def _run_pipeline(
             "user_id": user_id,
             "cached": False,
         }
-        await cache_set(key, json.dumps({k: v for k, v in verdict.items() if k != "cached"}), ttl=_CACHE_TTL)
-        await _increment_stats(_DECISION_REQUIRE_APPROVAL)
+        verdict = _finalize(verdict)
+        if use_cache and verdict.get("decision") == _DECISION_REQUIRE_APPROVAL:
+            await cache_set(key, json.dumps({k: v for k, v in verdict.items() if k != "cached"}), ttl=_CACHE_TTL)
+        if verdict.get("decision") == _DECISION_REQUIRE_APPROVAL:
+            await _increment_stats(_DECISION_REQUIRE_APPROVAL)
         return verdict
 
     # 3. RAG nearest-neighbor — high-confidence match skips LLM.
     nearest, score = await _rag_nearest(prompt)
     if nearest is not None and score >= 0.92:
-        rag_decision: str = nearest["decision"]
-        # In strict mode bump borderline verdicts up one level.
-        if strict_mode and rag_decision == _DECISION_WARN:
-            rag_decision = _DECISION_REQUIRE_CONFIRMATION
-        verdict = {
-            "decision": rag_decision,
-            "category": nearest["label"],
-            "confidence": round(score, 4),
-            "reason": f"High RAG similarity ({score:.2f}) to labeled example '{nearest['label']}'.",
-            "redacted_text": None,
-            "method": "rag",
-            "enterprise_id": enterprise_id,
-            "user_id": user_id,
-            "cached": False,
-        }
-        await cache_set(key, json.dumps({k: v for k, v in verdict.items() if k != "cached"}), ttl=_CACHE_TTL)
-        await _increment_stats(rag_decision)
-        return verdict
+        rag_label = str(nearest.get("label", ""))
+        rag_policy_keys = RAG_LABEL_POLICY_KEYS.get(rag_label, [])
+        rag_allowed = not toggle_map or not rag_policy_keys or is_rule_enabled(toggle_map, rag_policy_keys)
+        if rag_allowed:
+            rag_decision: str = nearest["decision"]
+            # In strict mode bump borderline verdicts up one level.
+            if strict_mode and rag_decision == _DECISION_WARN:
+                rag_decision = _DECISION_REQUIRE_CONFIRMATION
+            verdict = {
+                "decision": rag_decision,
+                "category": rag_label,
+                "confidence": round(score, 4),
+                "reason": f"High RAG similarity ({score:.2f}) to labeled example '{rag_label}'.",
+                "redacted_text": None,
+                "method": "rag",
+                "enterprise_id": enterprise_id,
+                "user_id": user_id,
+                "cached": False,
+            }
+            verdict = _finalize(verdict)
+            if use_cache and verdict.get("decision") != _DECISION_ALLOW:
+                await cache_set(key, json.dumps({k: v for k, v in verdict.items() if k != "cached"}), ttl=_CACHE_TTL)
+            if verdict.get("decision") != _DECISION_ALLOW:
+                await _increment_stats(str(verdict.get("decision", _DECISION_ALLOW)))
+            if verdict.get("decision") != _DECISION_ALLOW:
+                return verdict
 
     # 4. LLM adjudication for ambiguous cases.
     extra_rules = ""
@@ -377,15 +518,10 @@ async def _run_pipeline(
         extra_rules = f"\n\nAdditional company policy rules to enforce:\n{rules_text}"
     if strict_mode:
         extra_rules += "\n\nStrict mode is active: when in doubt, prefer REQUIRE_CONFIRMATION over WARN."
+    if toggle_map:
+        extra_rules += build_toggle_llm_instructions(toggle_map)
 
-    user_message = json.dumps(
-        {
-            "prompt": prompt,
-            "enterprise_id": enterprise_id,
-            "user_id": user_id,
-        },
-        ensure_ascii=False,
-    )
+    user_message = _build_llm_user_message(prompt)
     system = _LLM_SYSTEM + extra_rules
     result = await groq_json(system, user_message, temperature=0.0, model=default_model())
 
@@ -406,11 +542,26 @@ async def _run_pipeline(
         "user_id": user_id,
         "cached": False,
     }
+    if _is_metadata_false_positive(verdict, prompt):
+        verdict = {
+            "decision": _DECISION_ALLOW,
+            "category": "benign",
+            "confidence": 0.99,
+            "reason": "Benign business prompt; prior LLM verdict referenced request metadata, not prompt content.",
+            "redacted_text": None,
+            "method": "llm_metadata_guard",
+            "enterprise_id": enterprise_id,
+            "user_id": user_id,
+            "cached": False,
+        }
     if nearest is not None:
         verdict["rag_nearest"] = {"label": nearest["label"], "score": round(score, 4)}
 
-    await cache_set(key, json.dumps({k: v for k, v in verdict.items() if k != "cached"}), ttl=_CACHE_TTL)
-    await _increment_stats(raw_decision)
+    verdict = _finalize(verdict)
+    if use_cache and verdict.get("decision") != _DECISION_ALLOW:
+        await cache_set(key, json.dumps({k: v for k, v in verdict.items() if k != "cached"}), ttl=_CACHE_TTL)
+    if verdict.get("decision") != _DECISION_ALLOW:
+        await _increment_stats(str(verdict.get("decision", _DECISION_ALLOW)))
     return verdict
 
 
@@ -437,6 +588,13 @@ class ModerationRequest(BaseModel):
     user_id: str = "anonymous"
     policy_rules: list[str] | None = Field(default=None)
     strict_mode: bool = False
+    # Legacy PromptEnhancement fields (accepted for backward compatibility).
+    context: str | None = None
+    team_id: str | None = None
+    conversation_id: str | None = None
+    mode: str = "hybrid"
+    input_type: str = "prompt"
+    skip_cache: bool = False
 
     @field_validator("prompt")
     @classmethod
@@ -495,6 +653,34 @@ class DocumentClassifyRequest(BaseModel):
         return cleaned
 
 
+class RefineSummaryRequest(BaseModel):
+    """Refine an existing document/policy summary using free-form instructions."""
+
+    current_summary: str = ""
+    instructions: str
+
+    @field_validator("instructions")
+    @classmethod
+    def instructions_not_empty(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("instructions must not be empty")
+        if len(value) > 5_000:
+            raise ValueError("instructions must not exceed 5,000 characters")
+        return value
+
+    @field_validator("current_summary")
+    @classmethod
+    def normalize_summary(cls, value: str) -> str:
+        return (value or "").strip()
+
+
+_REFINE_SUMMARY_SYSTEM = """You refine document and policy summaries for an enterprise platform.
+Apply the user's instructions to the current summary while keeping it accurate, concise,
+and faithful to the original meaning. Return only the refined summary text with no preamble,
+labels, markdown fences, or surrounding quotes."""
+
+
 class CacheRequest(BaseModel):
     """Manually cache a moderation result."""
 
@@ -531,9 +717,94 @@ class CacheRequest(BaseModel):
 _DOC_CLASSIFY_SYSTEM = """You classify enterprise document chunks. For each chunk
 decide if it is a 'policy' statement (rules, guidelines, compliance requirements
 that govern behavior) or 'context' (background information, reference material,
-or operational content). Return ONLY a valid JSON object:
-{"classifications": [{"index": 0, "type": "policy", "confidence": 0.95}]}
+or operational content).
+
+Also provide a short classification_reason for each chunk.
+
+Return ONLY a valid JSON object:
+{"classifications": [{"index": 0, "type": "policy", "confidence": 0.95, "classification_reason": "..."}]}
 Return only the JSON object."""
+
+
+async def _classify_chunks_llm(chunks: list[str]) -> list[dict[str, Any]]:
+    """Classify chunks as policy/context via Groq LLM."""
+    user_message = json.dumps(
+        {"chunks": [{"index": i, "text": c} for i, c in enumerate(chunks)]},
+        ensure_ascii=False,
+    )
+    result = await groq_json(
+        _DOC_CLASSIFY_SYSTEM, user_message, temperature=0.0, model=default_model()
+    )
+    return list(result.get("classifications") or [])
+
+
+async def _classify_document_chunks_no_regex(
+    chunks: list[str],
+    *,
+    strict_mode: bool,
+    enterprise_id: str,
+    user_id: str,
+) -> dict[str, Any]:
+    """Classify chunks into policy/context and evaluate safety (legacy-compatible)."""
+    classifications = await _classify_chunks_llm(chunks)
+    classification_by_index: dict[int, dict[str, Any]] = {}
+    for item in classifications:
+        try:
+            classification_by_index[int(item.get("index", -1))] = item
+        except (TypeError, ValueError):
+            continue
+
+    max_concurrency = max(1, min(8, int(os.getenv("DOCUMENT_CLASSIFY_CONCURRENCY", "4"))))
+    semaphore = asyncio.Semaphore(max_concurrency)
+
+    async def _process_chunk(idx: int, chunk: str) -> tuple[int, str, str, dict[str, Any]]:
+        async with semaphore:
+            verdict = await _run_pipeline(
+                chunk,
+                enterprise_id=enterprise_id,
+                user_id=user_id,
+                policy_rules=None,
+                strict_mode=strict_mode,
+                skip_cache=False,
+            )
+            safety = chunk_safety_from_verdict(verdict, strict_mode=strict_mode)
+            cls = classification_by_index.get(idx, {})
+            classification = str(cls.get("type") or "context").lower()
+            if classification not in ("policy", "context"):
+                classification = "context"
+
+            chunk_result = {
+                "index": idx,
+                "classification": classification,
+                "classification_confidence": float(cls.get("confidence") or 0.8),
+                "classification_method": "llm",
+                "classification_reason": str(
+                    cls.get("classification_reason")
+                    or cls.get("reason")
+                    or "LLM document chunk classification"
+                ),
+                **safety,
+            }
+            return idx, chunk.strip(), classification, chunk_result
+
+    processed = await asyncio.gather(*[_process_chunk(idx, chunk) for idx, chunk in enumerate(chunks)])
+    processed.sort(key=lambda row: row[0])
+
+    policy_chunks: list[str] = []
+    context_chunks: list[str] = []
+    chunk_results: list[dict[str, Any]] = []
+    for _, sanitized_chunk, classification, chunk_result in processed:
+        if classification == "policy":
+            policy_chunks.append(sanitized_chunk)
+        else:
+            context_chunks.append(sanitized_chunk)
+        chunk_results.append(chunk_result)
+
+    return {
+        "policy": policy_chunks,
+        "context": context_chunks,
+        "chunk_results": chunk_results,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -547,14 +818,40 @@ async def moderation_check(request: ModerationRequest, http_request: Request) ->
     Runs the three-stage pipeline (regex → PII scan → LLM adjudication) and
     returns a structured decision: ALLOW, WARN, REDACT, BLOCK,
     REQUIRE_CONFIRMATION, or REQUIRE_APPROVAL.
+
+    Also includes legacy PromptEnhancement fields (``is_safe``, ``violations``,
+    ``severity``, etc.) for backward compatibility.
     """
+    start = time.perf_counter()
     await _rate_guard(request.prompt, http_request)
-    return await _run_pipeline(
-        request.prompt,
+    check_text = request.prompt
+    if request.context:
+        check_text = f"{request.prompt}\n\n{request.context}"
+
+    toggle_map: dict[str, bool] = {}
+    if request.enterprise_id not in {"", "default", "anonymous"}:
+        toggle_map = await fetch_active_toggle_map(
+            request.enterprise_id,
+            request.team_id,
+        )
+
+    verdict = await _run_pipeline(
+        check_text,
         enterprise_id=request.enterprise_id,
         user_id=request.user_id,
         policy_rules=request.policy_rules,
         strict_mode=request.strict_mode,
+        skip_cache=request.skip_cache,
+        toggle_map=toggle_map or None,
+        team_id=request.team_id,
+    )
+    elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
+    return enrich_moderation_check_response(
+        verdict,
+        input_type=request.input_type,
+        strict_mode=request.strict_mode,
+        context_checked=request.context is not None,
+        processing_time_ms=elapsed_ms,
     )
 
 
@@ -576,16 +873,30 @@ async def moderation_check_batch(
     if not allowed:
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
+    toggle_map: dict[str, bool] = {}
+    if request.enterprise_id not in {"", "default", "anonymous"}:
+        toggle_map = await fetch_active_toggle_map(request.enterprise_id, None)
+
     results: list[dict[str, Any]] = []
     for prompt in request.prompts:
+        start = time.perf_counter()
         verdict = await _run_pipeline(
             prompt,
             enterprise_id=request.enterprise_id,
             user_id=request.user_id,
             policy_rules=request.policy_rules,
             strict_mode=request.strict_mode,
+            toggle_map=toggle_map or None,
         )
-        results.append({"prompt": prompt, **verdict})
+        elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
+        enriched = enrich_moderation_check_response(
+            verdict,
+            input_type="prompt",
+            strict_mode=request.strict_mode,
+            context_checked=False,
+            processing_time_ms=elapsed_ms,
+        )
+        results.append({"prompt": prompt, **enriched})
     return {"count": len(results), "results": results}
 
 
@@ -631,33 +942,148 @@ async def moderation_document_upload(
     file: UploadFile = File(...),
     user_id: str = Form("anonymous"),
     enterprise_id: str = Form("default"),
+    strict_mode: bool = Form(False),
+    team_id: str | None = Form(None),
+    include_raw_chunks: bool = Form(True),
+    chunk_size: int = Form(350),
+    overlap: int = Form(100),
+    max_chunks: int = Form(200),
 ) -> dict[str, Any]:
-    """Upload a plain-text document for enterprise policy/context classification.
+    """Upload a document for enterprise policy/context classification (legacy-compatible).
 
-    Splits the document on blank lines into paragraph chunks (max 100), then
-    classifies each chunk as 'policy' or 'context' using the Groq LLM.
-    Useful for ingesting enterprise policy documents as custom guardrail rules.
+  Extracts text from supported formats, generates ``document_summary``, chunks
+  content, classifies each chunk as policy/context, and returns per-chunk safety
+  metadata expected by the enterprise frontend.
     """
-    data = await file.read()
-    if not data:
+    del team_id  # document upload does not run prompt moderation toggles yet
+    start = time.perf_counter()
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    if chunk_size <= 50:
+        raise HTTPException(status_code=400, detail="chunk_size must be greater than 50")
+    if overlap < 0:
+        raise HTTPException(status_code=400, detail="overlap must be >= 0")
+    if overlap >= chunk_size:
+        raise HTTPException(status_code=400, detail="overlap must be less than chunk_size")
+    if max_chunks <= 0:
+        raise HTTPException(status_code=400, detail="max_chunks must be > 0")
+
+    file_bytes = await file.read()
+    if not file_bytes:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
     try:
-        content = data.decode("utf-8")
-    except UnicodeDecodeError:
-        content = data.decode("utf-8", errors="ignore")
+        validate_file_upload(
+            file_bytes,
+            file.filename,
+            allowed_extensions=DOCUMENT_FLOW_ALLOWED_EXTENSIONS,
+        )
+        extracted = await extract_text_for_document_flow(file_bytes, file.filename)
+        document_summary = generate_document_summary(extracted["text"])
+        chunks = chunk_text(extracted["text"], chunk_size=chunk_size, overlap=overlap)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    raw_chunks = [c.strip() for c in re.split(r"\n\s*\n", content) if c.strip()]
-    chunks = raw_chunks[:100]
     if not chunks:
-        raise HTTPException(status_code=400, detail="Document contains no extractable text")
+        raise HTTPException(status_code=400, detail="Could not split extracted content into chunks")
+    if len(chunks) > max_chunks:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Extracted chunk count {len(chunks)} exceeds max_chunks={max_chunks}",
+        )
 
-    classify_result = await moderation_document_classify(DocumentClassifyRequest(chunks=chunks))
+    classified = await _classify_document_chunks_no_regex(
+        chunks,
+        strict_mode=strict_mode,
+        enterprise_id=enterprise_id,
+        user_id=user_id,
+    )
+    elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
+
+    # Unified fields (kept for clients already on the new schema).
+    classifications = [
+        {
+            "index": item["index"],
+            "type": item["classification"],
+            "confidence": item["classification_confidence"],
+        }
+        for item in classified["chunk_results"]
+    ]
+
     return {
+        "input_type": "document",
+        "regex_applied": False,
         "filename": file.filename,
+        "file_type": extracted["file_extension"],
+        "content_type": extracted["content_type"],
+        "extracted_text_length": len(extracted["text"]),
+        "document_summary": document_summary,
+        "total_chunks": len(chunks),
+        "policy": classified["policy"] if include_raw_chunks else [],
+        "context": classified["context"] if include_raw_chunks else [],
+        "chunk_results": classified["chunk_results"],
+        "strict_mode": strict_mode,
+        "processing_time_ms": elapsed_ms,
+        # Unified aliases (non-breaking for newer clients).
         "user_id": user_id,
         "enterprise_id": enterprise_id,
         "chunks": len(chunks),
-        **classify_result,
+        "count": len(chunks),
+        "classifications": classifications,
+    }
+
+
+@router.post("/moderation/refine-summary")
+async def moderation_refine_summary(
+    request: RefineSummaryRequest,
+    http_request: Request,
+) -> dict[str, Any]:
+    """Refine a document or policy summary using user instructions.
+
+    Used by Uploads and Company Policies pages after document upload.
+    Returns ``refined_summary`` for frontend preview; persistence is handled by NestJS.
+    """
+    start = time.perf_counter()
+    await _rate_guard("refine-summary", http_request)
+
+    base_summary = request.current_summary
+    refine_instructions = request.instructions
+    refined = base_summary
+    method = "noop"
+
+    user_message = (
+        "CURRENT SUMMARY:\n"
+        f"{base_summary or '(empty)'}\n\n"
+        "INSTRUCTIONS:\n"
+        f"{refine_instructions}\n\n"
+        "Return the refined summary only."
+    )
+
+    try:
+        llm_response = await groq_text(
+            _REFINE_SUMMARY_SYSTEM,
+            user_message,
+            temperature=0.2,
+            model=default_model(),
+        )
+        cleaned = (llm_response or "").strip().strip('"').strip()
+        if cleaned:
+            refined = cleaned
+            method = "llm"
+        else:
+            method = "fallback"
+    except HTTPException:
+        method = "fallback"
+    except Exception:
+        method = "fallback"
+
+    elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
+    return {
+        "refined_summary": refined,
+        "original_summary": base_summary,
+        "method": method,
+        "processing_time_ms": elapsed_ms,
     }
 
 

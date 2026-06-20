@@ -317,49 +317,85 @@ FLOW:
 
 INTENT CLASSIFICATION RULES:
 1. PrimaryIntent MUST be one of these Macro-Intents (and only these):
-   - inquiry       (Learning, asking, explaining, exploring, researching)
-   - construction  (Coding, building, writing, planning, creating)
-   - debugging     (Fixing, troubleshooting, analyzing errors)
-   - decision      (Comparing, choosing, brainstorming)
-   - operation     (Running, executing, deploying)
-   - chat          (Greeting, casual conversation)
+   - inquiry       (Seeking to UNDERSTAND — no artifact being produced; purely learning, asking, explaining, exploring)
+   - construction  (Actively BUILDING a new artifact — code, document, model, system, plan — that does not yet exist)
+   - debugging     (Fixing a BROKEN thing — error messages, failures, wrong output, unexpected behavior)
+   - decision      (CHOOSING between known options — comparing, evaluating trade-offs, making a selection)
+   - operation     (EXECUTING or CONFIGURING a known process — the WHAT is already known, focus is on doing it: deploying, automating, running pipelines, setting up CI/CD, scripting workflows)
+   - chat          (Casual greeting or off-topic conversation with no technical goal)
 
-2. SecondaryIntent:
+2. INTENT DECISION TREE — apply in order, use the FIRST match:
+   a. Pure greeting or casual chat with no technical goal? → chat
+   b. Does the conversation contain explicit errors, failures, wrong output, or unexpected behavior being diagnosed? → debugging
+      This applies even if the user is a learner — if there are errors being fixed, the intent is debugging, not inquiry.
+   c. Is the user executing, configuring, or automating a process using KNOWN tools/systems? → operation
+      (signals: containerizing, Dockerizing, deploying, provisioning, setting up CI/CD, GitHub Actions, Jenkins, Terraform, running a pipeline, scripting a workflow, automating repetitive tasks, integrating existing tools)
+      KEY: the tools and approach are already known — the user is configuring/running them, not inventing a new approach.
+      Even "building a CI/CD pipeline" or "setting up automation" = operation if the tools are known and the task is configuration.
+      NOT operation if the user is designing a novel system from scratch with no existing tooling.
+   d. Is the user building, designing, writing, or planning toward a CONCRETE OUTPUT that does not yet exist? → construction
+      (outputs: code, auth system, financial model, content, training plan, meal plan, screenplay, business plan, itinerary, ML pipeline)
+      KEY: even if decisions are made along the way, if the end goal is a produced artifact → construction.
+      Even creative and personal goals (meal plan, marathon training plan, YouTube channel) count as construction.
+   e. Is the user PURELY evaluating options with no artifact being built — comparison only, output is a choice? → decision
+      ONLY use decision if the conversation would end with a selection, not a built thing.
+      NOT decision if the user is "designing" or "figuring out how to build" — that is construction.
+   f. Is the user seeking to UNDERSTAND something with no artifact being produced? → inquiry
+      inquiry is the fallback ONLY if none of a–e matched.
+
+   CRITICAL: Do NOT default to inquiry when unsure. The default fallback is inquiry ONLY, not for "building" scenarios.
+   - Building an auth system with JWT = construction (artifact being built), NOT decision.
+   - Containerizing a Python backend = operation (executing a known process), NOT inquiry.
+   - Creating a YouTube channel = construction (content and channel are artifacts), NOT inquiry.
+   - Building a CI/CD pipeline = operation (configuring known tooling), NOT decision.
+   - Asking questions WHILE actively building something = construction, not inquiry.
+
+3. SecondaryIntent:
    - Free-form specific action (e.g., "understanding_dependency_injection", "refactoring_api", "choosing_database").
    - Capture the semantic nuance of the CURRENT focus.
+   - MUST be at least two words joined by underscores (e.g., "containerizing_python_backend" not "containerizing").
 
-3. STRICT REQUIREMENT:
+4. STRICT REQUIREMENT:
    - You MUST select EXACTLY one intent from the provided Macro-Intents.
    - No other labels are permitted.
 
 DOMAIN CLASSIFICATION RULES:
 1. PrimaryDomain MUST be one of these Macro-Domains (and only these):
-   - software_data_engineering
-   - business_marketing
-   - operations_hr_support
-   - finance_legal
-   - education_research
-   - creative_arts_media
-   - healthcare_medical
-   - gov_nonprofit
-   - manufacturing_agri
-   - travel_hospitality
-   - environment_sustainability
-   - productivity_planning
-   - lifestyle_relationships
-   - food_nutrition
-   - sports_recreation
-   - logic_mathematics
-   - news_current_events
-   - philosophy_religion
-   - social_casual
-   - system_ai_meta
+   - software_data_engineering   (Writing code, databases, APIs, data pipelines, software architecture)
+   - business_marketing          (Marketing campaigns, sales, brand, growth, go-to-market strategy)
+   - operations_hr_support       (HR processes, team management, customer support, internal ops — NOT software ops)
+   - finance_legal               (Financial modeling, accounting, legal contracts, compliance, tax, investment)
+   - education_research          (Studying, academic research, learning a subject, teaching, tutoring — NOT coding to learn)
+   - creative_arts_media         (Writing fiction, music, visual art, video, content creation, storytelling)
+   - healthcare_medical          (Health advice, medical topics, clinical workflows)
+   - gov_nonprofit               (Government policy, civic tech, nonprofit programs)
+   - manufacturing_agri          (Physical production, supply chain, agriculture)
+   - travel_hospitality          (Trip planning, booking, hospitality, tourism)
+   - environment_sustainability  (Climate, sustainability, environmental impact)
+   - productivity_planning       (Personal task management, scheduling, goal setting, personal productivity tools)
+   - lifestyle_relationships     (Personal life, relationships, hobbies, self-improvement)
+   - food_nutrition              (Recipes, diet, cooking, nutrition)
+   - sports_recreation           (Sports, fitness training, athletic performance, recreation)
+   - logic_mathematics           (Pure math, algorithms as math problems, proofs, statistics without code)
+   - news_current_events         (News topics, current affairs, geopolitics — NOT general business)
+   - philosophy_religion         (Ethics, philosophy, spirituality, belief systems)
+   - social_casual               (Social media, internet culture, memes, casual community topics)
+   - system_ai_meta              (AI systems, LLMs, prompt engineering, ML infrastructure, AI products)
 
-2. SecondaryDomains:
+2. DOMAIN DISCRIMINATORS — use these when domains overlap:
+   - Code that learns math → software_data_engineering (tool is code). Pure math problem without code → logic_mathematics.
+   - Student learning to code → software_data_engineering (domain is software). Student studying history → education_research.
+   - HR software or HRIS systems → software_data_engineering. HR policies and people management → operations_hr_support.
+   - Writing a song → creative_arts_media. Writing marketing copy → business_marketing.
+   - AI model building (MLOps, LLM API, inference) → system_ai_meta. Generic software with AI features → software_data_engineering.
+   - Social media analytics for business → business_marketing. Talking about social media culture → social_casual.
+   - Financial modeling spreadsheets → finance_legal. Business strategy and growth → business_marketing.
+
+3. SecondaryDomains:
    - Free-form list of specific topics (e.g., "baking_recipes", "tax_law").
    - Capture the specific subject matter context here MANDATORY
 
-3. STRICT REQUIREMENT:
+4. STRICT REQUIREMENT:
    - You MUST select EXACTLY one primary domain from the provided Macro-Domains list.
    - Selection is mandatory. You are strictly forbidden from returning "general", "unknown", or any string not in the list.
    - If the user's request spans multiple domains, select the most dominant one.
@@ -548,6 +584,23 @@ async def _extract_context(
     else:
         # Incremental: enforce FLOW ≤ 2 bullets
         raw_essence = _compress_flow_to_limit(raw_essence, max_bullets=2)
+        current_master = _extract_master_text(raw_essence)
+        previous_master = _extract_master_text(previous_essence)
+        if (
+            current_master
+            and previous_master
+            and len(current_master) > 20
+            and len(previous_master) > 20
+        ):
+            similarity = _master_similarity(current_master, previous_master)
+            if similarity < 0.3:
+                logger.warning(
+                    "MASTER drift detected for incremental update - similarity=%.2f - possible "
+                    "LLM rewrite of stable goal. prev=%r new=%r",
+                    similarity,
+                    previous_master[:100],
+                    current_master[:100],
+                )
 
     return {
         "essence": raw_essence,
@@ -572,6 +625,28 @@ def _strip_flow(essence_str: str) -> str:
     return essence_str.strip()
 
 
+def _extract_master_text(essence_str: str) -> str:
+    """Return MASTER content from an essence string, excluding FLOW."""
+    if not essence_str:
+        return ""
+    match = re.search(
+        r"MASTER:\s*(.*?)(?=FLOW:|$)", essence_str, re.DOTALL | re.IGNORECASE
+    )
+    if not match:
+        return ""
+    return match.group(1).strip()
+
+
+def _master_similarity(text_a: str, text_b: str) -> float:
+    """Simple word-overlap ratio for detecting large MASTER rewrites."""
+    words_a = set(re.findall(r"\b[a-zA-Z]{4,}\b", (text_a or "").lower()))
+    words_b = set(re.findall(r"\b[a-zA-Z]{4,}\b", (text_b or "").lower()))
+    if not words_a or not words_b:
+        return 0.0
+    shared = len(words_a & words_b)
+    return shared / max(len(words_a), len(words_b))
+
+
 def _compress_flow_to_limit(essence_str: str, max_bullets: int = 2) -> str:
     """
     Enforce FLOW hard limit (≤ max_bullets) without LLM calls.
@@ -594,31 +669,8 @@ def _compress_flow_to_limit(essence_str: str, max_bullets: int = 2) -> str:
     if len(bullets) <= max_bullets:
         return essence_str
 
-    # Compress: create abstract summary from early bullets + keep last one
-    previous_bullets = bullets[:-1]
-    all_text = " ".join(previous_bullets).lower()
-    stop_words = {
-        "the", "and", "for", "with", "about", "asking", "how", "to",
-        "in", "is", "on", "of", "identifying", "refining", "understanding",
-    }
-    potential_keywords = [
-        w for w in re.findall(r"\b\w{4,}\b", all_text) if w not in stop_words
-    ]
-    unique_keywords: List[str] = []
-    for k in potential_keywords:
-        if k not in unique_keywords:
-            unique_keywords.append(k)
-
-    if unique_keywords:
-        kw = (
-            " and ".join(unique_keywords[:2])
-            if len(unique_keywords) >= 2
-            else unique_keywords[0]
-        )
-        summary_bullet = f"- refining context for {kw}"
-    else:
-        summary_bullet = "- iteratively refining the approach"
-
+    oldest_bullet = bullets[0].strip()
+    summary_bullet = f"- previously: {oldest_bullet}"
     last_bullet = f"- {bullets[-1]}"
     compressed_flow = f"{summary_bullet}\n{last_bullet}"
     return f"MASTER:\n{master_text}\n\nFLOW:\n{compressed_flow}"
@@ -915,6 +967,39 @@ async def _save_to_node(
         logger.warning("_save_to_node: Node persist failed (continuing): %s", exc)
 
 
+async def _shadow_write_supermemory_context(
+    user_id: str,
+    content: str,
+    metadata: Dict[str, Any],
+) -> None:
+    """Best-effort Supermemory write with near-duplicate suppression."""
+    try:
+        from shared.supermemory_client import add_memory as _sm_add
+        from shared.supermemory_client import search_memories as _sm_search
+
+        try:
+            existing_memories = await _sm_search(user_id=user_id, query=content, limit=3)
+            for existing in existing_memories:
+                similarity = _master_similarity(content, existing)
+                if similarity >= 0.85:
+                    logger.info(
+                        "supermemory: skipping near-duplicate write for user=%s (similarity=%.2f)",
+                        user_id,
+                        similarity,
+                    )
+                    return
+        except Exception as exc:
+            logger.warning(
+                "supermemory: duplicate search failed user=%s - proceeding with write (%s)",
+                user_id,
+                exc,
+            )
+
+        await _sm_add(user_id=user_id, content=content, metadata=metadata)
+    except Exception as exc:
+        logger.warning("supermemory: shadow write failed user=%s - %s", user_id, exc)
+
+
 # ---------------------------------------------------------------------------
 # Core processing pipeline (ported from ContextProcessorService.process)
 # ---------------------------------------------------------------------------
@@ -1104,22 +1189,25 @@ async def _run_processing_pipeline(
 
     # --- Step 11b: Shadow-write to Supermemory (fire-and-forget) ---
     try:
-        from shared.supermemory_client import add_memory as _sm_add
         _settings = get_settings()
         if _settings.SUPERMEMORY_API_KEY:
+            supermemory_metadata = {
+                "session_id": topic_id,
+                "intent": primary_intent,
+                "domains": final_domains,
+                "platform": request.platform or "unknown",
+                "source": "thinkvelocity_context_engine",
+            }
+            if secondary_intent:
+                supermemory_metadata["secondary_intent"] = secondary_intent
             asyncio.create_task(
-                _sm_add(
+                _shadow_write_supermemory_context(
                     user_id=request.user_id,
                     content=embed_essence,
-                    metadata={
-                        "session_id": topic_id,
-                        "intent": primary_intent,
-                        "domains": final_domains,
-                        "platform": request.platform or "unknown",
-                        "source": "thinkvelocity_context_engine",
-                    },
+                    metadata=supermemory_metadata,
                 )
             )
+            await asyncio.sleep(0)
     except Exception:
         pass  # supermemory write must never affect the main pipeline
 

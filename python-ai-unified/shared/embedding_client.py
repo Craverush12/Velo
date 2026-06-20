@@ -43,7 +43,7 @@ def _pad_or_truncate(vector: list[float], dim: int) -> list[float]:
     return vector + [0.0] * (dim - len(vector))
 
 
-async def _nvidia_embed(texts: list[str]) -> list[list[float]]:
+async def _nvidia_embed(texts: list[str], *, input_type: str = "query") -> list[list[float]]:
     """Call the NVIDIA embeddings API for a batch of texts."""
     api_key = settings.nvidia_embedding_key
     if not api_key:
@@ -52,7 +52,7 @@ async def _nvidia_embed(texts: list[str]) -> list[list[float]]:
     payload = {
         "input": texts,
         "model": settings.EMBEDDING_MODEL,
-        "input_type": "query",
+        "input_type": input_type,
         "encoding_format": "float",
     }
     headers = {
@@ -95,7 +95,11 @@ async def _local_embed(texts: list[str]) -> list[list[float]]:
     return [list(v) for v in vectors]
 
 
-async def generate_embeddings_batch(texts: list[str]) -> list[list[float]]:
+async def generate_embeddings_batch(
+    texts: list[str],
+    *,
+    input_type: str = "query",
+) -> list[list[float]]:
     """
     Generate embeddings for a batch of texts.
 
@@ -109,14 +113,22 @@ async def generate_embeddings_batch(texts: list[str]) -> list[list[float]]:
 
     dim = settings.EMBEDDING_DIMENSION
     try:
-        vectors = await _nvidia_embed(texts)
+        vectors = await _nvidia_embed(texts, input_type=input_type)
         return [_pad_or_truncate(v, dim) for v in vectors]
     except Exception as exc:  # noqa: BLE001
         logger.warning(
-            "embedding_client: NVIDIA embedding failed (%s); returning zero vectors",
+            "embedding_client: NVIDIA embedding failed (%s); using local fallback",
             exc,
         )
-        return [[0.0] * dim for _ in texts]
+        try:
+            vectors = await _local_embed(texts)
+            return [_pad_or_truncate(v, dim) for v in vectors]
+        except Exception as local_exc:  # noqa: BLE001
+            logger.warning(
+                "embedding_client: local embedding failed (%s); returning zero vectors",
+                local_exc,
+            )
+            return [[0.0] * dim for _ in texts]
 
 
 async def generate_embedding(text: str) -> list[float]:

@@ -1,8 +1,8 @@
 """/ai/enhance/* — prompt enhancement (consumer extension + enterprise).
 
 Source routes (canonical prompt-enhance / Server 3):
-  - POST /enhance/stream  -> /ai/enhance/stream  (SSE; primary enhance endpoint)
-  - POST /enhance/chat    -> /ai/enhance/chat    (chat-mode, non-streaming)
+  - POST /enhance/stream  -> /ai/enhance/stream  (SSE; dedicated stream endpoint)
+  - POST /enhance/chat    -> /ai/enhance/chat    (JSON default; SSE via ?format=sse or Accept: text/event-stream)
 
 PER D-019: this router does NOT re-implement prompt/Groq logic. It REUSES this
 monorepo's canonical pipeline — ``api.enhance._generate`` (which loads the real
@@ -19,9 +19,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 import re
-import uuid
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -63,7 +61,7 @@ _INJECTION_PATTERNS = [
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
@@ -73,6 +71,12 @@ from shared.redis_cache import rate_limit_check
 
 # Canonical logic from the monorepo (see local_app.py / D-019).
 from local_app import EnhanceRequest as LocalEnhanceRequest, _generate, map_mode, AttachmentItem as LocalAttachmentItem
+from core.contracts import normalize_target_ai
+from shared.legacy_compat import build_enhance_complete_payload
+from shared.enterprise_citations import (
+    enrich_complete_payload_with_citations,
+    resolve_enterprise_context,
+)
 
 # In-process moderation pipeline (D-029 / D-030).
 from routers.ai.moderation import _run_pipeline as _moderation_pipeline
@@ -90,21 +94,87 @@ class EnhanceRequest(BaseModel):
     Exported for reuse by media.py. ``context.mode`` carries the extension mode
     label ("flash"/"best"/"build"/"media"/...) which maps to an internal prompt
     mode via local_app.map_mode.
+
+    Also accepts legacy PromptEnhancement body aliases: ``user_prompt``,
+    ``history``, ``citation_files``, and top-level ``mode``.
     """
 
-    prompt: str
+    prompt: str = ""
     user_id: str = "anonymous"
     auth_token: str = ""
-    context: dict[str, Any] = {}
-    chat_history: list = []
+    context: dict[str, Any] = Field(default_factory=dict)
+    chat_history: list = Field(default_factory=list)
     target_ai: str | None = None
     domain: str = ""
     intent: str = ""
     intent_description: str = ""
-    user_context: dict[str, Any] = {}
+    user_context: dict[str, Any] = Field(default_factory=dict)
     enterprise_id: Optional[str] = None
-    # Attachments forwarded from the extension (file contents, clipboard text, etc.)
-    attachments: list[dict[str, Any]] = []
+    attachments: list[dict[str, Any]] = Field(default_factory=list)
+    # Legacy PromptEnhancement aliases
+    user_prompt: str | None = None
+    history: list | None = None
+    citation_files: list[dict[str, Any]] | None = None
+    mode: str | None = None
+    context_id: str | None = None
+    enhancement_type: str | None = None
+    team_id: str | None = None
+
+    @model_validator(mode="after")
+    def normalize_legacy_aliases(self) -> "EnhanceRequest":
+        if not self.prompt.strip() and self.user_prompt:
+            self.prompt = self.user_prompt
+        if self.history and not self.chat_history:
+            self.chat_history = self.history
+        if self.citation_files and not self.attachments:
+            self.attachments = list(self.citation_files)
+        if self.mode:
+            ctx = dict(self.context or {})
+            ctx.setdefault("mode", self.mode)
+            self.context = ctx
+        if not self.prompt or not str(self.prompt).strip():
+            raise ValueError("prompt (or legacy user_prompt) must not be empty")
+        return self
+
+
+def _finalize_enhance_payload(
+    payload: dict[str, Any],
+    extra_meta: dict[str, Any] | None,
+) -> dict[str, Any]:
+    enterprise_ctx = (extra_meta or {}).get("_enterprise_context")
+    if isinstance(enterprise_ctx, dict) and enterprise_ctx:
+        return enrich_complete_payload_with_citations(payload, enterprise_ctx)
+    return payload
+
+
+async def _attach_enterprise_context(
+    request: EnhanceRequest,
+    context_hint: str,
+    extra_meta: dict[str, Any] | None,
+) -> tuple[str, dict[str, Any]]:
+    meta = dict(extra_meta or {})
+    enterprise_ctx = await resolve_enterprise_context(
+        request.prompt,
+        enterprise_id=request.enterprise_id,
+        team_id=request.team_id,
+        auth_token=request.auth_token,
+    )
+    meta["_enterprise_context"] = enterprise_ctx
+
+    combined = str(enterprise_ctx.get("combined_context") or "").strip()
+    if combined:
+        context_hint = (
+            f"{context_hint}\n\n[ENTERPRISE_CONTEXT]\n{combined}"
+            if context_hint
+            else f"[ENTERPRISE_CONTEXT]\n{combined}"
+        )
+        logger.info(
+            "enterprise context attached: mode=%s docs=%s len=%s",
+            enterprise_ctx.get("context_mode"),
+            len(enterprise_ctx.get("matched_contexts") or []),
+            len(combined),
+        )
+    return context_hint, meta
 
 
 async def _fetch_tenant_prompt_suffix(enterprise_id: str) -> str:
@@ -117,28 +187,35 @@ async def _fetch_tenant_prompt_suffix(enterprise_id: str) -> str:
     Requires migration: IMPORTANT/migrations/add_tenant_prompt_suffix.sql
     """
     try:
-        from shared.db import engine as _db_engine
-        if _db_engine is None:
-            return ""
-        async with AsyncSession(_db_engine) as session:
-            result = await session.execute(
-                text(
-                    "SELECT prompt_suffix FROM tenants "
-                    "WHERE id = :eid AND prompt_suffix IS NOT NULL LIMIT 1"
-                ),
-                {"eid": enterprise_id},
-            )
-            row = result.first()
-            suffix: str = row[0] if row and row[0] else ""
-            if suffix:
-                logger.info(
-                    "tenant_prompt_suffix: loaded %d chars for enterprise_id=%s",
-                    len(suffix),
-                    enterprise_id,
-                )
-            return suffix
+        return await asyncio.wait_for(
+            _fetch_tenant_prompt_suffix_inner(enterprise_id),
+            timeout=5.0,
+        )
     except Exception:  # noqa: BLE001 — suffix fetch never blocks the enhance path
         return ""
+
+
+async def _fetch_tenant_prompt_suffix_inner(enterprise_id: str) -> str:
+    from shared.db import engine as _db_engine
+    if _db_engine is None:
+        return ""
+    async with AsyncSession(_db_engine) as session:
+        result = await session.execute(
+            text(
+                "SELECT prompt_suffix FROM tenants "
+                "WHERE id = :eid AND prompt_suffix IS NOT NULL LIMIT 1"
+            ),
+            {"eid": enterprise_id},
+        )
+        row = result.first()
+        suffix: str = row[0] if row and row[0] else ""
+        if suffix:
+            logger.info(
+                "tenant_prompt_suffix: loaded %d chars for enterprise_id=%s",
+                len(suffix),
+                enterprise_id,
+            )
+        return suffix
 
 
 async def _fetch_local_essences(user_id: str, query: str) -> list[str]:
@@ -237,7 +314,7 @@ async def _fetch_context_hint(user_id: str, query: str) -> str:
 #                         "hobbies": str|null, "primary_model": str|null} | null}
 # 404 (user has neither row) is expected and treated as "no persona yet" — not an error.
 async def _fetch_user_persona(user_id: str) -> str:
-    """Fetch stable user persona (onboarding + personalization profile) from Postgres.
+    """Fetch stable user persona (onboarding + personalization profile) from Node backend.
 
     Returns a compact JSON string for prompt injection, or "" on any failure /
     missing data / incognito. Degrades open — a missing persona never blocks
@@ -248,44 +325,28 @@ async def _fetch_user_persona(user_id: str) -> str:
     if not user_id or user_id == "anonymous":
         return ""
     try:
-        from shared.db import async_session_maker
-        if async_session_maker is None:
+        from shared.node_client import node_get
+        data = await node_get(f"/api/v1/personalization/public/{user_id}")
+        if not isinstance(data, dict):
             return ""
 
         persona: dict = {}
+        onboarding = data.get("onboarding") or {}
+        if isinstance(onboarding, dict):
+            for key in ("occupation", "ai_familiarity", "llm_platform"):
+                val = onboarding.get(key)
+                if val:
+                    persona[key] = val
 
-        async with async_session_maker() as session:
-            ob_result = await session.execute(
-                text(
-                    "SELECT occupation, ai_familiarity, llm_platform"
-                    " FROM onboarding_data WHERE user_id = :uid LIMIT 1"
-                ),
-                {"uid": user_id},
-            )
-            ob_row = ob_result.mappings().first()
-            if ob_row:
-                for key in ("occupation", "ai_familiarity", "llm_platform"):
-                    val = ob_row.get(key)
-                    if val:
-                        persona[key] = val
-
-            p_result = await session.execute(
-                text(
-                    "SELECT preferred_name, professional_world, velocity_traits,"
-                    " personal_life, hobbies, primary_model"
-                    " FROM personalization WHERE user_id = :uid LIMIT 1"
-                ),
-                {"uid": user_id},
-            )
-            p_row = p_result.mappings().first()
-            if p_row:
-                for key in (
-                    "preferred_name", "professional_world", "velocity_traits",
-                    "personal_life", "hobbies", "primary_model",
-                ):
-                    val = p_row.get(key)
-                    if val:
-                        persona[key] = val
+        personalization = data.get("personalization") or {}
+        if isinstance(personalization, dict):
+            for key in (
+                "preferred_name", "professional_world", "velocity_traits",
+                "personal_life", "hobbies", "primary_model",
+            ):
+                val = personalization.get(key)
+                if val:
+                    persona[key] = val
 
         if not persona:
             return ""
@@ -486,7 +547,7 @@ def _to_local(
     return LocalEnhanceRequest(
         prompt=req.prompt,
         user_id=req.user_id,
-        target_ai=req.target_ai or None,
+        target_ai=normalize_target_ai(req.target_ai),
         prompt_mode=mode,
         attachments=attachments,
         context_hint=context_hint,
@@ -494,13 +555,19 @@ def _to_local(
     )
 
 
-async def _adapt_stream(inner_resp: StreamingResponse, *, extra_meta: dict[str, Any] | None = None):
+async def _adapt_stream(
+    inner_resp: StreamingResponse,
+    *,
+    extra_meta: dict[str, Any] | None = None,
+    req: EnhanceRequest | None = None,
+):
     """Adapt the canonical chunk/done SSE → extension content/complete/[DONE].
 
     ``extra_meta`` is merged into the ``metadata`` field of the ``complete``
     event. Used to propagate moderation annotations (``redacted``, ``warning``)
     to the client without altering consumer paths (extra_meta is None / {} there).
     """
+    mode = map_mode(req.context.get("mode")) if req and isinstance(req.context, dict) else "standard"
     async for raw_chunk in inner_resp.body_iterator:
         if isinstance(raw_chunk, bytes):
             raw_chunk = raw_chunk.decode("utf-8")
@@ -523,23 +590,17 @@ async def _adapt_stream(inner_resp: StreamingResponse, *, extra_meta: dict[str, 
                 ) + "\n\n"
             elif ev_type == "done":
                 result = event.get("result", {})
-                metadata: dict[str, Any] = {
-                    "domain": result.get("domain", ""),
-                    "intent": result.get("intent", ""),
-                    "intent_description": result.get("summary", ""),
-                    "complexity": result.get("complexity", "medium"),
-                }
-                if extra_meta:
-                    metadata.update(extra_meta)
-                yield "data: " + json.dumps(
-                    {
-                        "type": "complete",
-                        "enhanced_prompt": result.get("enhanced_prompt", ""),
-                        "annotated_segments": result.get("annotated_segments", []),
-                        "performance": {"processing_time_ms": 0},
-                        "metadata": metadata,
-                    }
-                ) + "\n\n"
+                payload = _finalize_enhance_payload(
+                    build_enhance_complete_payload(
+                        result,
+                        original_prompt=req.prompt if req else "",
+                        mode=mode,
+                        target_ai=req.target_ai if req else None,
+                        extra_meta=extra_meta,
+                    ),
+                    extra_meta,
+                )
+                yield "data: " + json.dumps(payload) + "\n\n"
                 yield "data: [DONE]\n\n"
             elif ev_type == "error":
                 yield "data: " + json.dumps(
@@ -583,6 +644,7 @@ async def _apply_enterprise_moderation(
             user_id=request.user_id,
             policy_rules=None,
             strict_mode=False,
+            team_id=request.team_id,
         )
     except Exception:
         # D-030: fail-closed on any moderation exception.
@@ -644,43 +706,56 @@ def _error_sse_stream(error_json: str):
     return _gen()
 
 
-@router.post("/enhance/stream")
-async def enhance_stream(
-    request: EnhanceRequest,
-    http_request: Request,
-    background_tasks: BackgroundTasks,
-):
-    """Streaming prompt enhancement (SSE) — primary consumer enhance path.
+def _wants_json_response(http_request: Request) -> bool:
+    """True when ``/enhance/chat`` should return a single JSON body.
 
-    Delegates to the canonical ``_generate`` pipeline and re-frames its SSE
-    events into the extension protocol (content/complete/[DONE]).
-
-    For enterprise requests (enterprise_id present) the moderation pipeline
-    runs in-process (D-029) before enhancement. Fail-closed per D-030.
+    Default is JSON (consumer extension + Postman "Enhance Chat (non-stream)").
+    SSE is opt-in via ``?format=sse``, ``?format=stream``, or
+    ``Accept: text/event-stream``.
     """
-    await _rate_guard(request, http_request)
+    fmt = (http_request.query_params.get("format") or "").strip().lower()
+    if fmt in ("sse", "stream"):
+        return False
+    if fmt == "json":
+        return True
+    sync = (http_request.query_params.get("sync") or "").strip().lower()
+    if sync in ("true", "1", "yes"):
+        return True
+    accept = (http_request.headers.get("accept") or "").lower()
+    if "text/event-stream" in accept:
+        return False
+    if "application/json" in accept:
+        return True
+    return True
 
-    try:
-        effective_prompt, extra_meta = await _apply_enterprise_moderation(request)
-    except _ModerationBlock as exc:
-        return StreamingResponse(
-            _error_sse_stream(exc.args[0]),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        )
 
-    # Substitute the (possibly redacted) prompt for _generate.
+_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+
+async def _prepare_enhance_run(
+    request: EnhanceRequest,
+) -> tuple[EnhanceRequest, dict[str, Any], str, str]:
+    """Moderation + context/persona hints shared by stream and chat handlers."""
+    effective_prompt, extra_meta = await _apply_enterprise_moderation(request)
     if effective_prompt != request.prompt:
         request = request.model_copy(update={"prompt": effective_prompt})
 
-    # Fetch session essence + stable persona in parallel (both best-effort, degrade open).
-    context_hint, persona_hint = await asyncio.gather(
-        _fetch_context_hint(request.user_id, effective_prompt),
-        _fetch_user_persona(request.user_id),
-    )
+    try:
+        context_hint, persona_hint = await asyncio.wait_for(
+            asyncio.gather(
+                _fetch_context_hint(request.user_id, effective_prompt),
+                _fetch_user_persona(request.user_id),
+            ),
+            timeout=8.0,
+        )
+    except Exception:
+        context_hint, persona_hint = "", ""
 
-    # Fetch per-tenant system prompt suffix (enterprise only; degrades open).
-    tenant_suffix = await _fetch_tenant_prompt_suffix(request.enterprise_id) if request.enterprise_id else ""
+    tenant_suffix = (
+        await _fetch_tenant_prompt_suffix(request.enterprise_id)
+        if request.enterprise_id
+        else ""
+    )
     if tenant_suffix:
         context_hint = (
             f"{context_hint}\n\n[TENANT_CONSTRAINTS]\n{tenant_suffix}"
@@ -688,79 +763,23 @@ async def enhance_stream(
             else f"[TENANT_CONSTRAINTS]\n{tenant_suffix}"
         )
 
-    inner: StreamingResponse = await _generate(
-        _to_local(request, context_hint=context_hint, persona_hint=persona_hint), background_tasks
-    )
-    if request.user_id and request.user_id != "anonymous":
-        from shared.supermemory_client import add_memory as _sm_add
-        background_tasks.add_task(
-            _sm_add,
-            user_id=request.user_id,
-            content=request.prompt,
-            metadata={"domain": request.domain or "", "intent": request.intent or "", "source": "enhance"},
-        )
-    return StreamingResponse(
-        _adapt_stream(inner, extra_meta=extra_meta),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    context_hint, extra_meta = await _attach_enterprise_context(
+        request,
+        context_hint,
+        extra_meta or {},
     )
 
+    return request, extra_meta or {}, context_hint, persona_hint
 
-@router.post("/enhance/chat")
-async def enhance_chat(
+
+async def _drain_enhance_json(
+    inner: StreamingResponse,
     request: EnhanceRequest,
-    http_request: Request,
-    background_tasks: BackgroundTasks,
-    force_media: bool = False,
-):
-    """Chat-mode (non-streaming) enhancement.
-
-    No separate canonical handler exists for the non-streaming variant, so we
-    drain the canonical streaming pipeline and return the final ``complete``
-    payload. See RECONCILE.md (verify the exact non-stream response envelope
-    the consumer/enterprise clients expect).
-
-    For enterprise requests (enterprise_id present) the moderation pipeline
-    runs in-process (D-029) before enhancement. Fail-closed per D-030.
-    """
-    await _rate_guard(request, http_request)
-
-    try:
-        effective_prompt, extra_meta = await _apply_enterprise_moderation(request)
-    except _ModerationBlock as exc:
-        raise HTTPException(status_code=403, detail=json.loads(exc.args[0]))
-
-    if effective_prompt != request.prompt:
-        request = request.model_copy(update={"prompt": effective_prompt})
-    context_hint, persona_hint = await asyncio.gather(
-        _fetch_context_hint(request.user_id, effective_prompt),
-        _fetch_user_persona(request.user_id),
-    )
-
-    # Fetch per-tenant system prompt suffix (enterprise only; degrades open).
-    tenant_suffix = await _fetch_tenant_prompt_suffix(request.enterprise_id) if request.enterprise_id else ""
-    if tenant_suffix:
-        context_hint = (
-            f"{context_hint}\n\n[TENANT_CONSTRAINTS]\n{tenant_suffix}"
-            if context_hint
-            else f"[TENANT_CONSTRAINTS]\n{tenant_suffix}"
-        )
-
-    trace_id = str(uuid.uuid4())
-    inner: StreamingResponse = await _generate(
-        _to_local(request, force_media=force_media, context_hint=context_hint, persona_hint=persona_hint), background_tasks
-    )
-    if request.user_id and request.user_id != "anonymous":
-        from shared.supermemory_client import add_memory as _sm_add
-        background_tasks.add_task(
-            _sm_add,
-            user_id=request.user_id,
-            content=request.prompt,
-            metadata={"domain": request.domain or "", "intent": request.intent or "", "source": "enhance"},
-        )
+    extra_meta: dict[str, Any],
+) -> dict[str, Any]:
+    """Consume canonical SSE and return the merged JSON complete payload."""
     enhanced_prompt = ""
-    metadata: dict[str, Any] = {}
-    annotated: list = []
+    complete_payload: dict[str, Any] = {}
     error: str | None = None
     async for raw_chunk in inner.body_iterator:
         if isinstance(raw_chunk, bytes):
@@ -779,65 +798,118 @@ async def enhance_chat(
             if event.get("type") == "done":
                 result = event.get("result", {})
                 enhanced_prompt = result.get("enhanced_prompt", "")
-                annotated = result.get("annotated_segments", [])
-                metadata = {
-                    "domain": result.get("domain", ""),
-                    "intent": result.get("intent", ""),
-                    "intent_description": result.get("summary", ""),
-                    "complexity": result.get("complexity", "medium"),
-                }
-                if extra_meta:
-                    metadata.update(extra_meta)
+                complete_payload = _finalize_enhance_payload(
+                    build_enhance_complete_payload(
+                        result,
+                        original_prompt=request.prompt,
+                        mode=map_mode(
+                            request.context.get("mode") if isinstance(request.context, dict) else None
+                        ),
+                        target_ai=request.target_ai,
+                        extra_meta=extra_meta,
+                    ),
+                    extra_meta,
+                )
             elif event.get("type") == "error":
                 error = event.get("message", "enhancement failed")
     if error:
         raise HTTPException(status_code=502, detail=error)
-
-    if os.getenv("PROMPT_TRACE_ENABLED", "").lower() in ("1", "true", "yes"):
-        try:
-            from shared.prompt_trace_store import get_default_store as _get_trace_store
-            _store = _get_trace_store()
-
-            _raw = request.prompt or ""
-            _enh = enhanced_prompt or ""
-            _expansion_ratio = round(len(_enh) / len(_raw), 3) if _raw else 0.0
-            _constraint_words = {"must", "only", "never", "always", "do not", "avoid", "require", "ensure"}
-            _enh_lower = _enh.lower()
-            _constraint_count = sum(_enh_lower.count(w) for w in _constraint_words)
-            _placeholder_count = len(re.findall(r'\[[A-Z_]{3,}\]', _enh))
-            _technique_count = len(annotated)
-
-            background_tasks.add_task(
-                _store.record,
-                {
-                    "trace_id": trace_id,
-                    "flow": "enhance_chat",
-                    "user_id": request.user_id or "anonymous",
-                    "prompt_mode": request.context.get("mode", "") if isinstance(request.context, dict) else "",
-                    "target_ai": request.target_ai,
-                    "model": "llama-3.3-70b-versatile",
-                    "input": {"raw_prompt": _raw if os.getenv("PROMPT_TRACE_CAPTURE_FULL_TEXT", "").lower() in ("1", "true", "yes") else ""},
-                    "output": {"final_text": _enh, "quality_score": None},
-                    "before_after": {"before": _raw, "after": _enh},
-                    "metrics": {
-                        "expansion_ratio": _expansion_ratio,
-                        "constraint_count": _constraint_count,
-                        "placeholder_count": _placeholder_count,
-                        "technique_count": _technique_count,
-                    },
-                    "status": "completed",
-                },
-            )
-        except Exception:
-            pass
-
+    if complete_payload:
+        return complete_payload
     return {
         "enhanced_prompt": enhanced_prompt,
-        "annotated_segments": annotated,
-        "metadata": metadata,
+        "annotated_segments": [],
+        "metadata": extra_meta,
         "tokens": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
-        "_trace_id": trace_id,
     }
+
+
+@router.post("/enhance/stream")
+async def enhance_stream(
+    request: EnhanceRequest,
+    http_request: Request,
+    background_tasks: BackgroundTasks,
+):
+    """Streaming prompt enhancement (SSE) — primary consumer enhance path.
+
+    Delegates to the canonical ``_generate`` pipeline and re-frames its SSE
+    events into the extension protocol (content/complete/[DONE]).
+
+    For enterprise requests (enterprise_id present) the moderation pipeline
+    runs in-process (D-029) before enhancement. Fail-closed per D-030.
+    """
+    await _rate_guard(request, http_request)
+
+    try:
+        request, extra_meta, context_hint, persona_hint = await _prepare_enhance_run(request)
+    except _ModerationBlock as exc:
+        return StreamingResponse(
+            _error_sse_stream(exc.args[0]),
+            media_type="text/event-stream",
+            headers=_SSE_HEADERS,
+        )
+
+    inner: StreamingResponse = await _generate(
+        _to_local(request, context_hint=context_hint, persona_hint=persona_hint),
+        background_tasks,
+    )
+    return StreamingResponse(
+        _adapt_stream(inner, extra_meta=extra_meta, req=request),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )
+
+
+@router.post("/enhance/chat")
+async def enhance_chat(
+    request: EnhanceRequest,
+    http_request: Request,
+    background_tasks: BackgroundTasks,
+    force_media: bool = False,
+):
+    """Enhance via ``/enhance/chat`` — dual mode, backward compatible.
+
+    **Default: JSON** (consumer extension, Postman non-stream, enterprise ``?format=json``).
+    Returns one ``application/json`` body with ``enhanced_prompt``.
+
+    **SSE (opt-in)** for legacy stream readers on this path:
+    - ``?format=sse`` or ``?format=stream``
+    - ``Accept: text/event-stream``
+
+    ``POST /ai/enhance/stream`` remains the dedicated SSE endpoint (unchanged).
+    """
+    await _rate_guard(request, http_request)
+    wants_json = _wants_json_response(http_request)
+
+    try:
+        request, extra_meta, context_hint, persona_hint = await _prepare_enhance_run(request)
+    except _ModerationBlock as exc:
+        if wants_json:
+            raise HTTPException(status_code=403, detail=json.loads(exc.args[0]))
+        return StreamingResponse(
+            _error_sse_stream(exc.args[0]),
+            media_type="text/event-stream",
+            headers=_SSE_HEADERS,
+        )
+
+    inner: StreamingResponse = await _generate(
+        _to_local(
+            request,
+            force_media=force_media,
+            context_hint=context_hint,
+            persona_hint=persona_hint,
+        ),
+        background_tasks,
+    )
+
+    if wants_json:
+        return await _drain_enhance_json(inner, request, extra_meta)
+
+    return StreamingResponse(
+        _adapt_stream(inner, extra_meta=extra_meta, req=request),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )
 
 
 async def _deduct_tokens(session: AsyncSession, user_id: str, cost: int) -> None:

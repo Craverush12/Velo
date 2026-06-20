@@ -1,16 +1,54 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-groq==0.9.0
-litellm>=1.40.0
-httpx<0.28
-python-dotenv==1.0.1
-pydantic==2.7.4
-python-multipart==0.0.9
-aiofiles==23.2.1
-mcp>=1.0.0
-edge-tts>=6.1.9
-requests>=2.31.0
-SQLAlchemy>=2.0.30,<3
-psycopg[binary]>=3.1.18,<4
-markitdown==0.1.5
-playwright>=1.45.0,<2
+# =============================================================================
+# ThinkVelocity AI Unified — Python dependencies
+# Union of the three merged services (see docs/python-ai-merge-plan.md §3 §8):
+#   - prompt-enhance / python-backend  (/ai/*)
+#   - context-engine                   (/context/*)
+# Version conflicts resolved per merge plan:
+#   - groq standardized to >=1.0.0 (context-engine's newer SDK)
+#   - sentence-transformers kept for local embedding fallback
+# =============================================================================
+
+# ── Web framework / ASGI server ──────────────────────────────────────────────
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9          # multipart file upload (/ai/context/upload, /ai/transcribe)
+
+# ── Settings / validation ────────────────────────────────────────────────────
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# ── LLM providers ────────────────────────────────────────────────────────────
+groq>=1.0.0                      # standardized; key-pool rotation in shared/groq_client.py
+openai>=1.12.0
+google-generativeai>=0.4.0       # Gemini
+litellm>=1.40.0                  # multi-provider fallback routing (Groq → OpenAI)
+
+# ── Database (PostgreSQL + pgvector RAG for /ai/* routes) ─────────────────────
+sqlalchemy[asyncio]>=2.0.25
+psycopg[binary]>=3.1.0
+
+# ── Cache / rate limiting (Redis; /ai/* routes only) ─────────────────────────
+redis>=5.2.1
+
+# ── HTTP client (Node.js proxy for /context/*, enterprise backend) ────────────
+httpx>=0.27.0
+
+# ── Embeddings (NVIDIA API primary + local HuggingFace fallback) ─────────────
+sentence-transformers>=2.5.0
+numpy>=1.26.0
+
+# ── Cloud / object storage ───────────────────────────────────────────────────
+boto3>=1.34.0                    # AWS Secrets Manager, S3
+
+# ── Document upload extraction (legacy PromptEnhancement parity) ───────────────
+pypdf>=5.4.0
+PyMuPDF>=1.24.0
+pdfplumber>=0.11.4
+python-docx>=1.1.2
+python-pptx>=0.6.23
+openpyxl>=3.1.5
+pandas>=2.2.0
+
+# ── Web search (Tavily primary; Google CSE fallback) ─────────────────────────
+tavily-python>=0.3.0
+google-api-python-client>=2.120.0

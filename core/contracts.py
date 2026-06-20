@@ -90,8 +90,17 @@ def normalize_target_ai(value: str | None) -> str | None:
         "groq/compound-mini": "compound_mini",
         "groq/compound": "compound_mini",
         "compound": "compound_mini",
+        # Enterprise / legacy PromptEnhancement passthrough labels → auto-route.
+        "velocity": None,
+        "auto": None,
+        "default": None,
+        "any": None,
+        "perplexity": None,
     }
-    normalized = aliases.get(normalized, normalized)
+    mapped = aliases.get(normalized, normalized)
+    if mapped is None:
+        return None
+    normalized = mapped
     if normalized not in TARGET_AI_VALUES:
         raise ValueError(f"target_ai must be one of: {', '.join(TARGET_AI_VALUES)}")
     return normalized
