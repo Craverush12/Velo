@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import logging
+import math
 import os
 import re
+import time
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 SERPER_NEWS_URL = "https://google.serper.dev/news"
@@ -65,6 +70,135 @@ _REJECT_DOMAINS = {
     "tiktok.com",
 }
 
+# ---------------------------------------------------------------------------
+# Reddit intelligence scraper
+# ---------------------------------------------------------------------------
+
+_REDDIT_SUBREDDITS: list[str] = [
+    "MachineLearning",
+    "programming",
+    "SideProject",
+    "AIAssistants",
+    "artificial",
+    "productivity",
+    "learnprogramming",
+]
+
+_REDDIT_UA = "ThinkVelocity-Intel/1.0"
+_REDDIT_ENDPOINT = "https://www.reddit.com/r/{subreddit}/hot.json?limit=25"
+_REDDIT_SOURCE_SCORE = 45
+_REDDIT_TIMEOUT = 15
+
+# Normalisation caps used by _score_reddit_post to keep output in [0, 1].
+# log1p(10_000) ≈ 9.21  — practically all real posts fall under this ceiling.
+_SCORE_CAP = math.log1p(10_000)
+_COMMENTS_CAP = math.log1p(1_000)
+
+
+def _score_reddit_post(post: dict[str, Any]) -> float:
+    """Return a relevance score in [0.0, 1.0] for a Reddit post data dict.
+
+    Returns 0.0 for posts that fail quality thresholds:
+      - reddit score < 5
+      - num_comments < 2
+      - empty selftext AND title shorter than 20 characters
+    """
+    score = post.get("score", 0)
+    num_comments = post.get("num_comments", 0)
+    title = str(post.get("title") or "")
+    selftext = str(post.get("selftext") or "").strip()
+
+    if score < 5:
+        return 0.0
+    if num_comments < 2:
+        return 0.0
+    if not selftext and len(title) < 20:
+        return 0.0
+
+    # Logarithmic normalisation so viral posts don't dominate.
+    score_norm = min(math.log1p(score) / _SCORE_CAP, 1.0)
+    comments_norm = min(math.log1p(num_comments) / _COMMENTS_CAP, 1.0)
+    return round((score_norm * 0.6 + comments_norm * 0.4), 4)
+
+
+def collect_reddit_sources(
+    subreddits: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Fetch hot posts from each subreddit and normalise them into the same
+    dict shape as :func:`collect_trend_sources`.
+
+    Degrade-open: any subreddit that fails (network error, bad JSON, non-200
+    status) returns [] for that source; the rest continue.  Never raises.
+
+    Rate-limited: 1-second sleep between consecutive subreddit requests.
+    """
+    targets = subreddits if subreddits is not None else _REDDIT_SUBREDDITS
+    if not targets:
+        return []
+
+    all_items: list[dict[str, Any]] = []
+    checked_at = datetime.now(timezone.utc).isoformat()
+
+    for idx, subreddit in enumerate(targets):
+        if idx > 0:
+            time.sleep(1)
+
+        url = _REDDIT_ENDPOINT.format(subreddit=subreddit)
+        try:
+            response = requests.get(
+                url,
+                headers={"User-Agent": _REDDIT_UA},
+                timeout=_REDDIT_TIMEOUT,
+            )
+            response.raise_for_status()
+            data = response.json()
+        except Exception as exc:
+            logger.warning("Reddit fetch failed for r/%s: %s", subreddit, exc)
+            continue
+
+        try:
+            children = data.get("data", {}).get("children", [])
+        except Exception as exc:
+            logger.warning("Reddit data extraction failed for r/%s: %s", subreddit, exc)
+            continue
+
+        for rank, child in enumerate(children, start=1):
+            post = child.get("data", {})
+            relevance = _score_reddit_post(post)
+            if relevance == 0.0:
+                continue
+
+            title = str(post.get("title") or "").strip()
+            selftext = str(post.get("selftext") or "").strip()[:400]
+            link = str(post.get("url") or "").strip()
+
+            if not title or not link:
+                continue
+
+            domain = _domain(link)
+            all_items.append(
+                {
+                    "title": title,
+                    "url": link,
+                    "domain": domain,
+                    "snippet": selftext,
+                    "published_label": "",
+                    "source": f"reddit.com/r/{subreddit}",
+                    "query": f"r/{subreddit}",
+                    "rank": rank,
+                    "checked_at": checked_at,
+                    "source_score": _REDDIT_SOURCE_SCORE,
+                    # Extra Reddit metadata preserved for downstream use.
+                    "reddit_score": post.get("score", 0),
+                    "reddit_comments": post.get("num_comments", 0),
+                    "reddit_created_utc": post.get("created_utc"),
+                    "reddit_subreddit": str(post.get("subreddit") or subreddit),
+                    "relevance_score": relevance,
+                }
+            )
+
+    return all_items
+
 
 class SerperClient:
     def __init__(
@@ -111,11 +245,14 @@ def collect_trend_sources(
     *,
     queries: list[str] | None = None,
     results_per_query: int = 10,
+    include_reddit: bool = True,
 ) -> list[dict[str, Any]]:
     sources: list[dict[str, Any]] = []
     for query in queries or queries_from_env():
         payload = client.news(query, num=results_per_query)
         sources.extend(normalize_serper_news(payload, query=query))
+    if include_reddit:
+        sources.extend(collect_reddit_sources())
     return dedupe_sources(sources)
 
 

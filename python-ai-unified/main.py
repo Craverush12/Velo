@@ -204,7 +204,7 @@ except Exception as exc:  # noqa: BLE001
 # Router wiring — guarded so a missing router (parallel development / partial
 # deploy) logs a clear warning and the app still boots.
 # ---------------------------------------------------------------------------
-_routers_mounted: dict[str, bool] = {"ai": False, "context": False, "quality_compat": False, "admin": False}
+_routers_mounted: dict[str, bool] = {"ai": False, "context": False, "quality_compat": False, "admin": False, "intel": False}
 
 try:
     from routers.ai import ai_router  # type: ignore
@@ -242,6 +242,14 @@ try:
 except ImportError as exc:
     logger.warning("Skipped /admin/api analytics router: %s", exc)
 
+try:
+    from routers.intel.router import router as intel_router  # type: ignore
+
+    app.include_router(intel_router, prefix="/intel")
+    _routers_mounted["intel"] = True
+    logger.info("Mounted /intel router.")
+except ImportError as exc:
+    logger.warning("Skipped /intel router: %s", exc)
 
 # ---------------------------------------------------------------------------
 # Root health — reports app status plus sub-router and resource health.
@@ -258,6 +266,7 @@ async def root_health() -> dict[str, Any]:
             "ai": "up" if _routers_mounted["ai"] else "down",
             "context": "up" if _routers_mounted["context"] else "down",
             "quality_compat": "up" if _routers_mounted["quality_compat"] else "down",
+            "intel": "up" if _routers_mounted["intel"] else "down",
         },
         "resources": {
             "groq": "up" if _resources["groq"] else "down",
