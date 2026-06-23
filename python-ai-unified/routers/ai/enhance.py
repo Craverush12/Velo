@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+import time
 import uuid
 from typing import Any, Optional
 
@@ -915,6 +916,7 @@ async def enhance_chat(
             else f"[TENANT_CONSTRAINTS]\n{tenant_suffix}"
         )
 
+    _t0 = time.time()
     trace_id = str(uuid.uuid4())
     inner: StreamingResponse = await _generate(
         _to_local(request, force_media=force_media, context_hint=context_hint, persona_hint=persona_hint), background_tasks
@@ -1012,6 +1014,38 @@ async def enhance_chat(
             }
             background_tasks.add_task(_store.record, trace_record)
             asyncio.create_task(write_trace(trace_record))
+        except Exception:
+            pass
+
+    _posthog_key = os.getenv("POSTHOG_CONSUMER_KEY", "")
+    if _posthog_key:
+        try:
+            import httpx as _httpx
+            _latency_ms = int((time.time() - _t0) * 1000)
+            _mode = request.context.get("mode", "") if isinstance(request.context, dict) else ""
+            _ph_payload = {
+                "api_key": _posthog_key,
+                "batch": [{
+                    "event": "$ai_generation",
+                    "distinct_id": request.user_id or "anonymous",
+                    "properties": {
+                        "$ai_trace_id": trace_id,
+                        "$ai_model": "llama-3.3-70b-versatile",
+                        "$ai_provider": "groq",
+                        "$ai_input_tokens": 0,
+                        "$ai_output_tokens": 0,
+                        "$ai_latency": _latency_ms / 1000.0,
+                        "$ai_base_url": "https://api.groq.com",
+                        "mode": _mode,
+                        "quality_intent": metadata.get("intent", ""),
+                        "quality_domain": metadata.get("domain", ""),
+                        "suggested_ai": suggested_ai,
+                        "trace_id": trace_id,
+                    },
+                }],
+            }
+            async with _httpx.AsyncClient(timeout=3.0) as _ph_client:
+                await _ph_client.post("https://us.i.posthog.com/batch/", json=_ph_payload)
         except Exception:
             pass
 
