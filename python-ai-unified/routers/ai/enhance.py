@@ -1023,6 +1023,10 @@ async def enhance_chat(
             import httpx as _httpx
             _latency_ms = int((time.time() - _t0) * 1000)
             _mode = request.context.get("mode", "") if isinstance(request.context, dict) else ""
+            # Estimate tokens (Groq doesn't surface usage through the streaming
+            # bridge; ~4 chars/token is a reasonable approximation for display).
+            _input_tokens = max(1, len(request.prompt or "") // 4)
+            _output_tokens = max(1, len(enhanced_prompt or "") // 4)
             _ph_payload = {
                 "api_key": _posthog_key,
                 "batch": [{
@@ -1032,10 +1036,15 @@ async def enhance_chat(
                         "$ai_trace_id": trace_id,
                         "$ai_model": "llama-3.3-70b-versatile",
                         "$ai_provider": "groq",
-                        "$ai_input_tokens": 0,
-                        "$ai_output_tokens": 0,
+                        "$ai_input_tokens": _input_tokens,
+                        "$ai_output_tokens": _output_tokens,
                         "$ai_latency": _latency_ms / 1000.0,
                         "$ai_base_url": "https://api.groq.com",
+                        "$ai_input": [{"role": "user", "content": request.prompt or ""}],
+                        "$ai_output_choices": [{
+                            "finish_reason": "stop",
+                            "message": {"role": "assistant", "content": enhanced_prompt or ""},
+                        }],
                         "mode": _mode,
                         "quality_intent": metadata.get("intent", ""),
                         "quality_domain": metadata.get("domain", ""),
