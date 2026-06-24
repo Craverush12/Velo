@@ -34,6 +34,9 @@ redis>=5.2.1
 # ── HTTP client (Node.js proxy for /context/*, enterprise backend) ────────────
 httpx>=0.27.0
 
+# ── Analytics / observability ─────────────────────────────────────────────────
+posthog>=3.5.0                   # AI Observability ($ai_generation events with input/output choices)
+
 # ── Embeddings (NVIDIA API primary + local HuggingFace fallback) ─────────────
 sentence-transformers>=2.5.0
 numpy>=1.26.0

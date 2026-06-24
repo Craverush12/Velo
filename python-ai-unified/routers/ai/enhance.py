@@ -1020,41 +1020,38 @@ async def enhance_chat(
     _posthog_key = os.getenv("POSTHOG_CONSUMER_KEY", "")
     if _posthog_key:
         try:
-            import httpx as _httpx
+            import posthog as _ph_sdk
             _latency_ms = int((time.time() - _t0) * 1000)
             _mode = request.context.get("mode", "") if isinstance(request.context, dict) else ""
-            # Estimate tokens (Groq doesn't surface usage through the streaming
-            # bridge; ~4 chars/token is a reasonable approximation for display).
+            # Estimate tokens (~4 chars/token; Groq doesn't surface usage via streaming bridge).
             _input_tokens = max(1, len(request.prompt or "") // 4)
             _output_tokens = max(1, len(enhanced_prompt or "") // 4)
-            _ph_payload = {
-                "api_key": _posthog_key,
-                "batch": [{
-                    "event": "$ai_generation",
-                    "distinct_id": request.user_id or "anonymous",
-                    "properties": {
-                        "$ai_trace_id": trace_id,
-                        "$ai_model": "llama-3.3-70b-versatile",
-                        "$ai_provider": "groq",
-                        "$ai_input_tokens": _input_tokens,
-                        "$ai_output_tokens": _output_tokens,
-                        "$ai_latency": _latency_ms / 1000.0,
-                        "$ai_base_url": "https://api.groq.com",
-                        "$ai_input": [{"role": "user", "content": request.prompt or ""}],
-                        "$ai_output_choices": [{
-                            "finish_reason": "stop",
-                            "message": {"role": "assistant", "content": enhanced_prompt or ""},
-                        }],
-                        "mode": _mode,
-                        "quality_intent": metadata.get("intent", ""),
-                        "quality_domain": metadata.get("domain", ""),
-                        "suggested_ai": suggested_ai,
-                        "trace_id": trace_id,
-                    },
-                }],
-            }
-            async with _httpx.AsyncClient(timeout=3.0) as _ph_client:
-                await _ph_client.post("https://us.i.posthog.com/batch/", json=_ph_payload)
+            _ph_sdk.api_key = _posthog_key
+            _ph_sdk.host = "https://us.i.posthog.com"
+            _ph_sdk.capture(
+                distinct_id=request.user_id or "anonymous",
+                event="$ai_generation",
+                properties={
+                    "$ai_trace_id": trace_id,
+                    "$ai_model": "llama-3.3-70b-versatile",
+                    "$ai_provider": "groq",
+                    "$ai_input_tokens": _input_tokens,
+                    "$ai_output_tokens": _output_tokens,
+                    "$ai_latency": _latency_ms / 1000.0,
+                    "$ai_base_url": "https://api.groq.com",
+                    "$ai_input": [{"role": "user", "content": request.prompt or ""}],
+                    "$ai_output_choices": [{
+                        "finish_reason": "stop",
+                        "message": {"role": "assistant", "content": enhanced_prompt or ""},
+                    }],
+                    "mode": _mode,
+                    "quality_intent": metadata.get("intent", ""),
+                    "quality_domain": metadata.get("domain", ""),
+                    "suggested_ai": suggested_ai,
+                    "trace_id": trace_id,
+                },
+            )
+            _ph_sdk.flush()
         except Exception:
             pass
 
