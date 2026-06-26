@@ -31,7 +31,75 @@ logger = logging.getLogger(__name__)
 # Module-level constants
 # ---------------------------------------------------------------------------
 
-CONTEXT_SIMILARITY_THRESHOLD = 0.6  # gate for session-essence relevance
+CONTEXT_SIMILARITY_THRESHOLD = 0.85  # gate for session-essence relevance
+
+# ---------------------------------------------------------------------------
+# Model routing — intent-driven
+# ---------------------------------------------------------------------------
+
+# Pre-classifier runs in parallel with context/persona fetch (zero added latency).
+# Uses the full-size model for accuracy; the prompt is short so cost is negligible.
+_PRE_CLASSIFY_MODEL = os.getenv("PRE_CLASSIFY_MODEL", "llama-3.3-70b-versatile")
+
+# Per-intent model overrides — all env-var-configurable so swapping models
+# requires only a server env change, not a code deploy.
+_MODEL_CODE      = os.getenv("MODEL_CODE",      "meta-llama/llama-4-maverick-17b-128e-instruct")
+_MODEL_REASONING = os.getenv("MODEL_REASONING",  "meta-llama/llama-4-maverick-17b-128e-instruct")
+_MODEL_CREATIVE  = os.getenv("MODEL_CREATIVE",   "llama-3.3-70b-versatile")
+_MODEL_DEFAULT   = os.getenv("LLM_MODEL",        "llama-3.3-70b-versatile")
+
+_INTENT_MODEL_MAP: dict[str, str] = {
+    # Technical / code — Llama 4 Maverick has stronger instruction hierarchy following
+    "code_generation":     _MODEL_CODE,
+    "debugging":           _MODEL_CODE,
+    "code_review":         _MODEL_CODE,
+    "code_conversion":     _MODEL_CODE,
+    "testing_qa":          _MODEL_CODE,
+    # Reasoning / strategy — same Llama 4 tier, better than 3.3 at multi-step reasoning
+    "architecture_design": _MODEL_REASONING,
+    "system_design":       _MODEL_REASONING,
+    "data_analysis":       _MODEL_REASONING,
+    "research":            _MODEL_REASONING,
+    "business_strategy":   _MODEL_REASONING,
+    "financial_analysis":  _MODEL_REASONING,
+    "legal_analysis":      _MODEL_REASONING,
+    "product_strategy":    _MODEL_REASONING,
+    # Creative / copy — 3.3 70B remains strong here
+    "creative_writing":    _MODEL_CREATIVE,
+    "copywriting":         _MODEL_CREATIVE,
+    "marketing":           _MODEL_CREATIVE,
+    # All others fall through to _MODEL_DEFAULT
+}
+
+_PRE_CLASSIFY_SYSTEM = """You are a precision intent and domain classifier for prompt engineering tasks.
+
+Classify the raw prompt into exactly one intent and one domain from the lists below.
+Return ONLY valid JSON — no explanation, no markdown.
+
+INTENT values (pick the closest match):
+code_generation | debugging | code_review | architecture_design | data_analysis | research |
+creative_writing | copywriting | marketing | business_strategy | legal_analysis |
+financial_analysis | design_brief | learning_explanation | system_design | product_strategy |
+testing_qa | data_extraction | code_conversion | task_automation | general_qa
+
+DOMAIN values (pick the closest match):
+software_engineering | data_science | devops_infrastructure | mobile_development |
+marketing_growth | design_ux | legal | finance | education | health_science |
+business_operations | creative_arts | product_management | cybersecurity | ecommerce | general
+
+COMPLEXITY values:
+low   — single clear task, no ambiguity, short answer expected
+medium — moderate scope, some context needed, structured answer expected
+high  — multi-step, requires deep reasoning, long structured output expected
+
+Disambiguation rules (apply when ambiguous):
+- research vs learning_explanation: research = seeking external facts; learning_explanation = user wants a concept explained
+- general_qa vs learning_explanation: learning_explanation when the user says "explain", "teach", "what is", "how does"
+- code_generation vs task_automation: task_automation when the task involves orchestrating multiple systems or scheduling
+- business_strategy vs product_strategy: product_strategy when focused on a specific product roadmap or feature decision
+
+Return exactly:
+{"intent": "...", "domain": "...", "complexity": "...", "confidence": 0.0}"""
 
 _PII_PATTERNS = [
     (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[PII:email]'),
@@ -188,6 +256,30 @@ def _split_master_flow(essence: str) -> tuple[str, str | None]:
     ]
     current_focus = "; ".join([line for line in bullets if line]) or None
     return user_goal, current_focus
+
+
+async def _pre_classify(prompt: str) -> dict:
+    """Classify intent, domain, and complexity before enhancement for model routing.
+
+    Runs in parallel with context/persona fetch (no added latency).
+    Degrades open — returns empty dict on any error so routing falls through to default model.
+    """
+    try:
+        from core.llm import complete as _llm_complete
+        raw = await _llm_complete(
+            _PRE_CLASSIFY_SYSTEM,
+            prompt[:800],
+            temperature=0,
+            model=_PRE_CLASSIFY_MODEL,
+        )
+        parsed = json.loads(raw.strip())
+        intent = parsed.get("intent", "")
+        domain = parsed.get("domain", "")
+        complexity = parsed.get("complexity", "medium")
+        confidence = float(parsed.get("confidence", 0.0))
+        return {"intent": intent, "domain": domain, "complexity": complexity, "confidence": confidence}
+    except Exception:
+        return {}
 
 
 async def _fetch_context_hint(user_id: str, query: str) -> str:
@@ -902,10 +994,18 @@ async def enhance_chat(
 
     if effective_prompt != request.prompt:
         request = request.model_copy(update={"prompt": effective_prompt})
-    context_hint, persona_hint = await asyncio.gather(
+
+    # Pre-classify runs in parallel with context/persona fetch — zero added latency.
+    context_hint, persona_hint, _classification = await asyncio.gather(
         _fetch_context_hint(request.user_id, effective_prompt),
         _fetch_user_persona(request.user_id),
+        _pre_classify(effective_prompt),
     )
+
+    # Route to the intent-appropriate model unless the caller already specified one.
+    _routed_model = _INTENT_MODEL_MAP.get(_classification.get("intent", ""), _MODEL_DEFAULT)
+    if not request.model_override:
+        request = request.model_copy(update={"model_override": _routed_model})
 
     # Fetch per-tenant system prompt suffix (enterprise only; degrades open).
     tenant_suffix = await _fetch_tenant_prompt_suffix(request.enterprise_id) if request.enterprise_id else ""
@@ -933,6 +1033,10 @@ async def enhance_chat(
     metadata: dict[str, Any] = {}
     annotated: list = []
     error: str | None = None
+    # Quality signals extracted from LLM output (before Reflexion rewrites enhanced_prompt)
+    _quality_score: float | None = None
+    _framework_used: str = ""
+    _techniques_applied: list = []
     async for raw_chunk in inner.body_iterator:
         if isinstance(raw_chunk, bytes):
             raw_chunk = raw_chunk.decode("utf-8")
@@ -951,11 +1055,16 @@ async def enhance_chat(
                 result = event.get("result", {})
                 enhanced_prompt = result.get("enhanced_prompt", "")
                 annotated = result.get("annotated_segments", [])
+                _quality_score = result.get("prompt_quality_score")
+                _framework_used = result.get("framework_used", "")
+                _techniques_applied = result.get("pe_techniques_applied", [])
                 metadata = {
                     "domain": result.get("domain", ""),
                     "intent": result.get("intent", ""),
                     "intent_description": result.get("summary", ""),
                     "complexity": result.get("complexity", "medium"),
+                    "framework_used": _framework_used,
+                    "prompt_quality_score": _quality_score,
                 }
                 if extra_meta:
                     metadata.update(extra_meta)
@@ -999,15 +1108,26 @@ async def enhance_chat(
                 "target_ai": request.target_ai,
                 "domain": metadata.get("domain", ""),
                 "intent": metadata.get("intent", ""),
-                "model": "llama-3.3-70b-versatile",
+                "model": request.model_override or _MODEL_DEFAULT,
                 "input": {"raw_prompt": _raw if os.getenv("PROMPT_TRACE_CAPTURE_FULL_TEXT", "").lower() in ("1", "true", "yes") else ""},
-                "output": {"final_text": _enh, "quality_score": None},
+                "output": {
+                    "final_text": _enh,
+                    "quality_score": _quality_score,
+                    "framework_used": _framework_used,
+                    "techniques_applied": _techniques_applied,
+                },
                 "before_after": {"before": _raw, "after": _enh},
                 "metrics": {
                     "expansion_ratio": _expansion_ratio,
                     "constraint_count": _constraint_count,
                     "placeholder_count": _placeholder_count,
                     "technique_count": _technique_count,
+                },
+                "classification": {
+                    "intent": _classification.get("intent"),
+                    "domain": _classification.get("domain"),
+                    "complexity": _classification.get("complexity"),
+                    "confidence": _classification.get("confidence"),
                 },
                 "status": "completed",
                 "suggested_ai": suggested_ai,
@@ -1023,9 +1143,12 @@ async def enhance_chat(
             import httpx as _httpx
             _latency_ms = int((time.time() - _t0) * 1000)
             _mode = request.context.get("mode", "") if isinstance(request.context, dict) else ""
+            _raw_len = len(request.prompt or "")
+            _enh_len = len(enhanced_prompt or "")
             # Estimate tokens (~4 chars/token; Groq doesn't surface usage via streaming bridge).
-            _input_tokens = max(1, len(request.prompt or "") // 4)
-            _output_tokens = max(1, len(enhanced_prompt or "") // 4)
+            _input_tokens = max(1, _raw_len // 4)
+            _output_tokens = max(1, _enh_len // 4)
+            _model_used = request.model_override or _MODEL_DEFAULT
             _ph_payload = {
                 "api_key": _posthog_key,
                 "batch": [{
@@ -1033,7 +1156,7 @@ async def enhance_chat(
                     "distinct_id": request.user_id or "anonymous",
                     "properties": {
                         "$ai_trace_id": trace_id,
-                        "$ai_model": "llama-3.3-70b-versatile",
+                        "$ai_model": _model_used,
                         "$ai_provider": "groq",
                         "$ai_input_tokens": _input_tokens,
                         "$ai_output_tokens": _output_tokens,
@@ -1045,6 +1168,19 @@ async def enhance_chat(
                             "message": {"role": "assistant", "content": enhanced_prompt or ""},
                         }],
                         "mode": _mode,
+                        "model_used": _model_used,
+                        # LLM output quality signals
+                        "prompt_quality_score": _quality_score,
+                        "framework_used": _framework_used,
+                        "pe_techniques_applied": _techniques_applied[:15],
+                        "pe_technique_count": len(_techniques_applied),
+                        "expansion_ratio": round(_enh_len / max(1, _raw_len), 3),
+                        # Pre-classification signals
+                        "classified_intent": _classification.get("intent"),
+                        "classified_domain": _classification.get("domain"),
+                        "classified_complexity": _classification.get("complexity"),
+                        "classify_confidence": _classification.get("confidence"),
+                        # Existing signals
                         "quality_intent": metadata.get("intent", ""),
                         "quality_domain": metadata.get("domain", ""),
                         "suggested_ai": suggested_ai,

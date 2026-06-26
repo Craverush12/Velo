@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 def _primary_model(override: str | None = None) -> str:
     m = override or os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+    if m.startswith("groq/"):
+        return m
     return m if "/" in m else f"groq/{m}"
 
 
