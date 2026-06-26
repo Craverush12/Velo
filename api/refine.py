@@ -1,8 +1,12 @@
+import asyncio
 import logging
 import os
 import time
+import uuid
 from pathlib import Path
 from typing import Any
+
+import httpx
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
@@ -42,6 +46,95 @@ from storage.prompt_trace_store import get_default_store as get_prompt_trace_sto
 import json
 
 router = APIRouter()
+
+# ---------------------------------------------------------------------------
+# PostHog helpers
+# ---------------------------------------------------------------------------
+
+_POSTHOG_API_KEY = os.getenv("POSTHOG_API_KEY", os.getenv("POSTHOG_CONSUMER_KEY", ""))
+_POSTHOG_BATCH_URL = "https://us.i.posthog.com/batch/"
+
+
+async def _fire_posthog_refine(
+    *,
+    user_id: str,
+    target_ai: str | None,
+    result: dict,
+    latency_ms: int,
+    clarification_count: int,
+    model: str,
+    request_id: str,
+) -> None:
+    """Fire a $ai_generation event for POST /refine."""
+    if not _POSTHOG_API_KEY:
+        return
+    payload = {
+        "api_key": _POSTHOG_API_KEY,
+        "batch": [{
+            "event": "$ai_generation",
+            "distinct_id": user_id or "anonymous",
+            "properties": {
+                "$ai_trace_id": request_id,
+                "$ai_model": f"groq/{model}" if not model.startswith("groq/") else model,
+                "$ai_provider": "groq",
+                "$ai_latency": latency_ms / 1000.0,
+                "$ai_base_url": "https://api.groq.com",
+                "$ai_output_choices": [{"finish_reason": "stop", "message": {
+                    "role": "assistant",
+                    "content": result.get("refined_prompt", ""),
+                }}],
+                "flow": "refine",
+                "target_ai": target_ai,
+                "framework_used": result.get("framework_used"),
+                "quality_score": result.get("prompt_quality_score"),
+                "quality_delta": result.get("quality_delta"),
+                "clarification_count": clarification_count,
+                "entry_point": "port_8000",
+            },
+        }],
+    }
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            await client.post(_POSTHOG_BATCH_URL, json=payload)
+    except Exception as exc:
+        logger.debug("posthog: refine event failed (non-fatal): %s", exc)
+
+
+async def _fire_posthog_refine_prepare(
+    *,
+    user_id: str,
+    target_ai: str | None,
+    selected_mode: str,
+    questions: list,
+    decision: dict | None,
+    latency_ms: int,
+) -> None:
+    """Fire a refine_prepare_completed event for POST /refine/prepare."""
+    if not _POSTHOG_API_KEY:
+        return
+    payload = {
+        "api_key": _POSTHOG_API_KEY,
+        "batch": [{
+            "event": "refine_prepare_completed",
+            "distinct_id": user_id or "anonymous",
+            "properties": {
+                "question_count": len(questions),
+                "question_texts": [q.get("question", "") for q in questions[:3]],
+                "intent_gaps": [q.get("intent_gap") for q in questions if q.get("intent_gap")],
+                "selected_mode": selected_mode,
+                "target_ai": target_ai,
+                "decision_action": decision.get("action") if decision else None,
+                "latency_ms": latency_ms,
+                "entry_point": "port_8000",
+            },
+        }],
+    }
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            await client.post(_POSTHOG_BATCH_URL, json=payload)
+    except Exception as exc:
+        logger.debug("posthog: refine_prepare event failed (non-fatal): %s", exc)
+
 
 _REFINE_PREPARE_SYSTEM_PROMPT = (
     Path(__file__).parent.parent / "core" / "prompts" / "refine_prepare_system.md"
@@ -516,16 +609,26 @@ async def refine(request: RefineRequest):
             prompt_mode=bundle.mode,
             repair_callback=_repair_output,
         )
+        total_ms = round((time.perf_counter() - started) * 1000)
         trace_id = _record_refine_trace(
             request=request,
             bundle=bundle,
             user_message=user_message,
             raw_output=raw,
             result=result,
-            timings={"total_ms": round((time.perf_counter() - started) * 1000)},
+            timings={"total_ms": total_ms},
         )
         if trace_id:
             result["_trace_id"] = trace_id
+        asyncio.create_task(_fire_posthog_refine(
+            user_id=request.user_id,
+            target_ai=request.target_ai,
+            result=result,
+            latency_ms=total_ms,
+            clarification_count=len(request.clarification_qa or []),
+            model=os.getenv("LLM_MODEL", "llama-3.3-70b-versatile"),
+            request_id=str(uuid.uuid4()),
+        ))
         return result
     except OutputValidationError as e:
         logger.warning(
@@ -552,6 +655,7 @@ async def refine(request: RefineRequest):
 
 @router.post("/refine/prepare")
 async def refine_prepare(request: RefinePrepareRequest):
+    prepare_started = time.perf_counter()
     selected_mode = _selected_mode_for_prepare(request)
     # Build a minimal state_request used only if the LLM call fails and we need fallbacks.
     state_request = NeuroStateRequest(
@@ -616,7 +720,16 @@ async def refine_prepare(request: RefinePrepareRequest):
             memory_candidates=fallback_state.memory_candidates,
             profile_update_candidates=fallback_state.profile_update_candidates,
         )
-    return result.model_dump(mode="json")
+    dumped = result.model_dump(mode="json")
+    asyncio.create_task(_fire_posthog_refine_prepare(
+        user_id=request.user_id,
+        target_ai=request.target_ai,
+        selected_mode=selected_mode,
+        questions=dumped.get("questions", []),
+        decision=dumped.get("decision"),
+        latency_ms=round((time.perf_counter() - prepare_started) * 1000),
+    ))
+    return dumped
 
 
 @router.post("/refine/finalize")

@@ -1,8 +1,11 @@
+import asyncio
 import re
 import time
 import logging
 import os
+import uuid
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
@@ -45,6 +48,85 @@ Return ONLY valid JSON with two fields. No explanation. No markdown.
 confidence is a float 0.0–1.0 representing your certainty. Use lower values when the prompt is ambiguous."""
 
 _VALID_MEDIA_INTENTS = frozenset(["product_photography", "visual_generation", "marketing_copy"])
+
+# ---------------------------------------------------------------------------
+# BUG-A fix: structural marker verification
+# ---------------------------------------------------------------------------
+
+_STRUCTURAL_MARKERS: dict[str, list[str]] = {
+    "claude":     ["<role>", "<context>", "<task>", "<constraints>", "<format>"],
+    "chatgpt":    ["## "],
+    "gpt-5":      ["## "],
+    "cursor":     ["File:", "Context:", "Task:"],
+    "midjourney": [],
+}
+_ABSENT_MARKERS: dict[str, list[str]] = {
+    "midjourney": ["## ", "<role>", "**"],
+}
+
+
+def _verify_structural_markers(target_ai: str, enhanced_prompt: str) -> bool:
+    ta = target_ai.lower()
+    required = _STRUCTURAL_MARKERS.get(ta)
+    if required is None:
+        return bool(enhanced_prompt.strip())
+    for marker in _ABSENT_MARKERS.get(ta, []):
+        if marker in enhanced_prompt:
+            return False
+    return all(marker in enhanced_prompt for marker in required)
+
+
+# ---------------------------------------------------------------------------
+# BUG-C fix: PostHog for port 8000
+# ---------------------------------------------------------------------------
+
+_POSTHOG_API_KEY = os.getenv("POSTHOG_API_KEY", os.getenv("POSTHOG_CONSUMER_KEY", ""))
+_POSTHOG_BATCH_URL = "https://us.i.posthog.com/batch/"
+
+
+async def _fire_posthog_enhance(
+    *,
+    user_id: str,
+    target_ai: str | None,
+    result: dict,
+    usage: dict,
+    total_ms: int,
+    model: str,
+    request_id: str,
+) -> None:
+    if not _POSTHOG_API_KEY:
+        return
+    payload = {
+        "api_key": _POSTHOG_API_KEY,
+        "batch": [{
+            "event": "$ai_generation",
+            "distinct_id": user_id or "anonymous",
+            "properties": {
+                "$ai_trace_id": request_id,
+                "$ai_model": f"groq/{model}" if not model.startswith("groq/") else model,
+                "$ai_provider": "groq",
+                "$ai_input_tokens": usage.get("prompt_tokens", 0),
+                "$ai_output_tokens": usage.get("completion_tokens", 0),
+                "$ai_latency": total_ms / 1000.0,
+                "$ai_base_url": "https://api.groq.com",
+                "$ai_output_choices": [{"finish_reason": "stop", "message": {
+                    "role": "assistant", "content": result.get("enhanced_prompt", ""),
+                }}],
+                "target_ai": target_ai,
+                "target_ai_optimized": result.get("target_ai_optimized", False),
+                "user_certainty": result.get("user_certainty", "mixed"),
+                "intent": result.get("intent"),
+                "domain": result.get("domain"),
+                "framework_used": result.get("framework_used"),
+                "entry_point": "port_8000",
+            },
+        }],
+    }
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            await client.post(_POSTHOG_BATCH_URL, json=payload)
+    except Exception as exc:
+        _log.debug("posthog: enhance event failed (non-fatal): %s", exc)
 
 
 async def _classify_media_intent(raw_prompt: str) -> tuple[str, float]:
@@ -590,6 +672,25 @@ async def _generate(request: EnhanceRequest, background_tasks: BackgroundTasks):
                 )
                 if trace_id:
                     result["_trace_id"] = trace_id
+
+                # BUG-A fix: override target_ai_optimized with actual marker check
+                if request.target_ai and result.get("enhanced_prompt"):
+                    result["target_ai_optimized"] = _verify_structural_markers(
+                        request.target_ai, result["enhanced_prompt"]
+                    )
+                else:
+                    result["target_ai_optimized"] = False
+
+                # BUG-C fix: fire PostHog from port 8000
+                asyncio.create_task(_fire_posthog_enhance(
+                    user_id=request.user_id,
+                    target_ai=request.target_ai,
+                    result=result,
+                    usage=usage_sink,
+                    total_ms=round((time.perf_counter() - t0) * 1000),
+                    model=request.model_override or os.getenv("LLM_MODEL", "llama-3.3-70b-versatile"),
+                    request_id=str(uuid.uuid4()),
+                ))
 
                 _record_enhancement(request, result, clean_prompt, usage_sink, background_tasks)
                 payload = json.dumps({"type": "done", "result": result})

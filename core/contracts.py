@@ -632,6 +632,7 @@ class EnhanceResult(BaseModel):
     domain: Domain
     prompt_quality_score: float = Field(ge=0.0, le=1.0)
     target_ai_optimized: bool = False
+    user_certainty: str = "mixed"
     target_ai_recommendations: list[AIRecommendation] = Field(default_factory=list)
     clarification_questions: list[ClarificationQuestion] = Field(default_factory=list)
     recommended_connectors: list[ConnectorRecommendation] = Field(default_factory=list)
