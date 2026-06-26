@@ -174,7 +174,11 @@ services:
     restart: unless-stopped
     security_opt:
       - "no-new-privileges:true"
-    mem_limit: 256m
+    # Bumped from 256m: repeated OOM-kills observed once requirements.txt grew
+    # to include heavier deps (markitdown/playwright). 512m matches the
+    # allocation already given to node-backend/nestjs-enterprise. Host has
+    # ~5.6GB headroom (8GB total) so this is safe.
+    mem_limit: 512m
     cpus: "1.0"
     env_file:
       - /opt/deploy/extension-api.env
@@ -185,7 +189,11 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      # curl is not installed in this image's base (python:3.12-slim) — the
+      # Dockerfile's own HEALTHCHECK already uses Python's urllib for this
+      # reason. Match that here instead of a curl-based check that fails
+      # every time regardless of actual app health.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3).read()"]
       interval: 30s
       timeout: 10s
       retries: 3

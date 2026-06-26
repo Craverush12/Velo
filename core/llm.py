@@ -24,7 +24,7 @@ def _primary_model(override: str | None = None) -> str:
 
 
 def _fallback_model() -> str:
-    return os.getenv("LLM_FALLBACK_MODEL", "openai/gpt-4o-mini")
+    return os.getenv("LLM_FALLBACK_MODEL", "gemini/gemini-2.0-flash")
 
 
 def _client() -> AsyncGroq:

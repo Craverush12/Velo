@@ -63,7 +63,15 @@ async def write_trace(trace: dict[str, Any]) -> None:
         logger.warning("prompt trace DB write failed: %s", exc)
 
 
-_VALID_OUTCOMES = {"copied", "reenhanced", "thumbs_up", "thumbs_down", "ignored"}
+# Outcomes where the user took a meaningful action with the enhanced prompt.
+# These count toward outcome_rate (the engagement signal).
+_SIGNAL_OUTCOMES = {"copied", "reenhanced", "thumbs_up", "thumbs_down"}
+
+# Outcomes that are valid to record but indicate no active engagement.
+# Stored for visibility in by_outcome but excluded from outcome_rate.
+_NEUTRAL_OUTCOMES = {"ignored"}
+
+_VALID_OUTCOMES = _SIGNAL_OUTCOMES | _NEUTRAL_OUTCOMES
 
 
 async def record_outcome(trace_id: str, outcome: str) -> bool:
@@ -158,7 +166,7 @@ async def query_metrics() -> dict[str, Any]:
         "FROM prompt_traces GROUP BY COALESCE(NULLIF(outcome, ''), 'none')"
     ))
     total = int((totals or {}).get("total") or 0)
-    answered = sum(v for k, v in by_outcome.items() if k != "none")
+    answered = sum(v for k, v in by_outcome.items() if k in _SIGNAL_OUTCOMES)
     return {
         "total": total,
         "avg_latency_ms": float((totals or {}).get("avg_latency_ms") or 0.0),

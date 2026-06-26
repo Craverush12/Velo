@@ -10,31 +10,74 @@ SCHEMA_VERSION = "2026-05-14.prompt-contracts.v3"
 PROMPT_MODE_VALUES = ("normal", "caveman", "research", "fast_build", "media")
 
 TARGET_AI_VALUES = (
+    # Chat & LLM Assistants
     "claude",
     "chatgpt",
     "gpt-5",
+    "o3",
     "gemini",
+    "grok",
+    "mistral",
+    "deepseek",
+    "copilot",
+    "kimi",
+    "meta-ai",
+    "qwen",
+    "poe",
+    "pi",
+    "zai",
+    "genspark",
+    "felo",
+    # Inference / Speed
     "groq",
     "compound_mini",
+    # Research
+    "perplexity",
+    # Coding & Dev Tools
     "cursor",
+    "windsurf",
+    "codeium",
+    "github-copilot",
+    "devin",
+    "emergent",
     "bolt",
+    "v0",
     "replit",
-    "gamma",
+    "lovable",
+    # Image & Design
     "midjourney",
+    "leonardo",
+    "ideogram",
+    "krea",
+    "recraft",
+    "canva",
+    # Video
+    "runway",
+    "pika",
+    "heygen",
+    "hera",
+    "google-flow",
+    # Audio / Music
+    "suno",
+    "udio",
+    # Productivity & Presentations
+    "gamma",
+    "copyai",
+    "manus",
+    "tome",
 )
 
 TargetAI = Literal[
-    "claude",
-    "chatgpt",
-    "gpt-5",
-    "gemini",
-    "groq",
-    "compound_mini",
-    "cursor",
-    "bolt",
-    "replit",
-    "gamma",
-    "midjourney",
+    "claude", "chatgpt", "gpt-5", "o3", "gemini", "grok",
+    "mistral", "deepseek", "copilot", "kimi", "meta-ai", "qwen",
+    "poe", "pi", "zai", "genspark", "felo",
+    "groq", "compound_mini", "perplexity",
+    "cursor", "windsurf", "codeium", "github-copilot", "devin", "emergent",
+    "bolt", "v0", "replit", "lovable",
+    "midjourney", "leonardo", "ideogram", "krea", "recraft", "canva",
+    "runway", "pika", "heygen", "hera", "google-flow",
+    "suno", "udio",
+    "gamma", "copyai", "manus", "tome",
 ]
 
 PromptMode = Literal["normal", "caveman", "research", "fast_build", "media"]
@@ -73,23 +116,123 @@ def normalize_target_ai(value: str | None) -> str | None:
     if not normalized:
         return None
     aliases = {
+        # OpenAI
         "gpt4o": "chatgpt",
         "gpt-4o": "chatgpt",
         "gpt-4": "chatgpt",
         "openai": "chatgpt",
+        "chatgpt-4o": "chatgpt",
+        "o1": "o3",
+        "o1-pro": "o3",
+        "o3-mini": "o3",
+        # Groq (inference provider)
         "llama": "groq",
+        "mixtral": "groq",
         "groq/llama": "groq",
-        "claude-code": "cursor",
-        "claude code": "cursor",
-        "v0": "bolt",
-        "lovable": "bolt",
-        "image-gen": "midjourney",
-        "image_gen": "midjourney",
-        "presentations": "gamma",
+        # Grok (xAI)
+        "xai": "grok",
+        "grok-3": "grok",
+        "x.ai": "grok",
+        "grok.com": "grok",
+        # Compound
         "compound-mini": "compound_mini",
         "groq/compound-mini": "compound_mini",
         "groq/compound": "compound_mini",
         "compound": "compound_mini",
+        # Perplexity
+        "perplexity.ai": "perplexity",
+        "pplx": "perplexity",
+        # Claude Code → Cursor (IDE context)
+        "claude-code": "cursor",
+        "claude code": "cursor",
+        "cursor.com": "cursor",
+        # Windsurf / Codeium — now distinct
+        "windsurf.ai": "windsurf",
+        "codeium.com": "codeium",
+        # GitHub Copilot
+        "github copilot": "github-copilot",
+        "gh copilot": "github-copilot",
+        "copilot chat": "github-copilot",
+        # Devin
+        "devin.ai": "devin",
+        "cognition": "devin",
+        # Emergent
+        "emergent.sh": "emergent",
+        # Builders
+        "bolt.new": "bolt",
+        "lovable.dev": "lovable",
+        "v0.dev": "v0",
+        "vercel v0": "v0",
+        # Microsoft Copilot (distinct from GitHub Copilot)
+        "microsoft copilot": "copilot",
+        "ms copilot": "copilot",
+        "bing chat": "copilot",
+        "copilot.microsoft.com": "copilot",
+        # Mistral
+        "mistral.ai": "mistral",
+        "chat.mistral.ai": "mistral",
+        "le chat": "mistral",
+        # DeepSeek
+        "deepseek.com": "deepseek",
+        "chat.deepseek.com": "deepseek",
+        # Kimi (Moonshot AI)
+        "kimi.com": "kimi",
+        "moonshot": "kimi",
+        "moonshot ai": "kimi",
+        # Meta AI
+        "meta.ai": "meta-ai",
+        "metaai": "meta-ai",
+        "meta ai": "meta-ai",
+        "llama chat": "meta-ai",
+        # Qwen (Alibaba)
+        "chat.qwen.ai": "qwen",
+        "alibaba": "qwen",
+        "qwen2": "qwen",
+        # Poe
+        "poe.com": "poe",
+        # Pi (Inflection AI)
+        "pi.ai": "pi",
+        "inflection": "pi",
+        # Z.ai
+        "z.ai": "zai",
+        "chat.z.ai": "zai",
+        # Genspark
+        "genspark.ai": "genspark",
+        # Felo
+        "felo.ai": "felo",
+        # Image platforms
+        "image-gen": "midjourney",
+        "image_gen": "midjourney",
+        "midjourney.com": "midjourney",
+        "leonardo.ai": "leonardo",
+        "app.leonardo.ai": "leonardo",
+        "ideogram.ai": "ideogram",
+        "krea.ai": "krea",
+        "recraft.ai": "recraft",
+        "canva.com": "canva",
+        # Video platforms
+        "app.runwayml.com": "runway",
+        "runwayml": "runway",
+        "pika.art": "pika",
+        "pika labs": "pika",
+        "app.heygen.com": "heygen",
+        "hera.video": "hera",
+        "google flow": "google-flow",
+        "labs.google": "google-flow",
+        # Audio / Music
+        "suno.com": "suno",
+        "suno.ai": "suno",
+        "udio.com": "udio",
+        # Productivity
+        "presentations": "gamma",
+        "slides": "gamma",
+        "gamma.app": "gamma",
+        "app.copy.ai": "copyai",
+        "copy.ai": "copyai",
+        "copy ai": "copyai",
+        "manus.im": "manus",
+        "tomeapp.ai": "tome",
+        "tome.app": "tome",
     }
     normalized = aliases.get(normalized, normalized)
     if normalized not in TARGET_AI_VALUES:
@@ -471,6 +614,12 @@ class IntentConfirmationResult(BaseModel):
         return normalize_target_ai(value)
 
 
+class PersonalizationTrace(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    rule: str
+    reason: str
+
+
 class EnhanceResult(BaseModel):
     model_config = ConfigDict(extra="ignore")
     enhanced_prompt: str
@@ -486,6 +635,8 @@ class EnhanceResult(BaseModel):
     target_ai_recommendations: list[AIRecommendation] = Field(default_factory=list)
     clarification_questions: list[ClarificationQuestion] = Field(default_factory=list)
     recommended_connectors: list[ConnectorRecommendation] = Field(default_factory=list)
+    personalization_trace: list[PersonalizationTrace] = Field(default_factory=list)
+    injection_detected: bool = False
     summary: str
     schema_version: str = SCHEMA_VERSION
     prompt_version: str | None = None

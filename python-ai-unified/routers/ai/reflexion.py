@@ -18,7 +18,7 @@ _DEEP_MODES = {"best", "build", "research"}
 _FLOOR = 0.80
 
 _ROLE_RE = re.compile(r"\byou are\b|\bact as\b|\bas an? (senior|expert|professional)\b", re.I)
-_FORMAT_RE = re.compile(r"\boutput\b|\bformat\b|\breturn\b|\bsections?\b|\btable\b|\bjson\b|\bbullet|\bmarkdown\b", re.I)
+_FORMAT_RE = re.compile(r"\boutput\b|\bformat\b|\bsections?\b|\btable\b|\bjson\b|\bbullet|\bmarkdown\b", re.I)
 _NEGATIVE_RE = re.compile(r"\bdo not\b|\bavoid\b|\bnever\b|\bdon't\b|\bwithout\b", re.I)
 
 

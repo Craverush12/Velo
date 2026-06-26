@@ -73,7 +73,7 @@ _INTENT_MODEL_MAP: dict[str, str] = {
 
 _PRE_CLASSIFY_SYSTEM = """You are a precision intent and domain classifier for prompt engineering tasks.
 
-Classify the raw prompt into exactly one intent and one domain from the lists below.
+Classify the raw prompt into exactly one intent, one domain, and one user certainty from the lists below.
 Return ONLY valid JSON — no explanation, no markdown.
 
 INTENT values (pick the closest match):
@@ -88,9 +88,14 @@ marketing_growth | design_ux | legal | finance | education | health_science |
 business_operations | creative_arts | product_management | cybersecurity | ecommerce | general
 
 COMPLEXITY values:
-low   — single clear task, no ambiguity, short answer expected
+low    — single clear task, no ambiguity, short answer expected
 medium — moderate scope, some context needed, structured answer expected
-high  — multi-step, requires deep reasoning, long structured output expected
+high   — multi-step, requires deep reasoning, long structured output expected
+
+USER CERTAINTY values:
+exploring — vague, open-ended, "help me with X", fewer than ~10 words, no specifics
+executing — clear goal, specific constraints, defined output format expected
+mixed     — partly defined but with important gaps
 
 Disambiguation rules (apply when ambiguous):
 - research vs learning_explanation: research = seeking external facts; learning_explanation = user wants a concept explained
@@ -99,7 +104,7 @@ Disambiguation rules (apply when ambiguous):
 - business_strategy vs product_strategy: product_strategy when focused on a specific product roadmap or feature decision
 
 Return exactly:
-{"intent": "...", "domain": "...", "complexity": "...", "confidence": 0.0}"""
+{"intent": "...", "domain": "...", "complexity": "...", "user_certainty": "...", "confidence": 0.0}"""
 
 _PII_PATTERNS = [
     (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[PII:email]'),
@@ -276,8 +281,9 @@ async def _pre_classify(prompt: str) -> dict:
         intent = parsed.get("intent", "")
         domain = parsed.get("domain", "")
         complexity = parsed.get("complexity", "medium")
+        user_certainty = parsed.get("user_certainty", "mixed")
         confidence = float(parsed.get("confidence", 0.0))
-        return {"intent": intent, "domain": domain, "complexity": complexity, "confidence": confidence}
+        return {"intent": intent, "domain": domain, "complexity": complexity, "user_certainty": user_certainty, "confidence": confidence}
     except Exception:
         return {}
 
@@ -1127,6 +1133,7 @@ async def enhance_chat(
                     "intent": _classification.get("intent"),
                     "domain": _classification.get("domain"),
                     "complexity": _classification.get("complexity"),
+                    "user_certainty": _classification.get("user_certainty", "mixed"),
                     "confidence": _classification.get("confidence"),
                 },
                 "status": "completed",
@@ -1179,6 +1186,7 @@ async def enhance_chat(
                         "classified_intent": _classification.get("intent"),
                         "classified_domain": _classification.get("domain"),
                         "classified_complexity": _classification.get("complexity"),
+                        "user_certainty": _classification.get("user_certainty", "mixed"),
                         "classify_confidence": _classification.get("confidence"),
                         # Existing signals
                         "quality_intent": metadata.get("intent", ""),
@@ -1192,6 +1200,12 @@ async def enhance_chat(
                 await _ph_client.post("https://us.i.posthog.com/batch/", json=_ph_payload)
         except Exception:
             pass
+
+    if request.target_ai and not metadata.get("target_ai_optimized"):
+        logger.warning(
+            "target_ai_optimized=false despite target_ai=%s user=%s trace=%s",
+            request.target_ai, request.user_id, trace_id,
+        )
 
     return {
         "enhanced_prompt": enhanced_prompt,
